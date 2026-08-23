@@ -1,0 +1,805 @@
+#!/usr/bin/env python3
+"""
+generate_indices.py
+====================
+
+Pre-build generation script for the साहित्यशास्त्रम् MkDocs site.
+
+What it does, in order:
+
+1.  Reads `meta.yaml`/`meta.yml` for every text under `shastra/` and `kavya/`.
+2.  Reads every reference page under `shastra/topics/`, `shastra/chandas/`
+    and `shastra/alankara/` (their Devanagari `title:` frontmatter is the
+    canonical key other files point back to via `topics:` / `meter:` /
+    `alankara:`).
+3.  Walks every chapter directory under each text, concatenates its section
+    files into a single generated chapter page, and along the way:
+      - collects every `topics:` reference (for shastra sections) so the
+        chapter page can show back-links, and so each topic page can list
+        every section that cites it;
+      - extracts every `<div class="shloka">` (attributes `data-meter=`
+        and `data-alankara=`) and every verse-level `meter:`/`alankara:`
+        frontmatter pair, builds a per-chapter Shloka Table, and records
+        each occurrence for the corresponding chandas/alankara page.
+4.  Writes the generated chapter pages, per-text landing pages, and
+    updated topics/chandas/alankara pages into `docs/` (source files under
+    `shastra/` and `kavya/` at the repo root are never modified).
+5.  Writes `docs/index.md` (home page).
+6.  Writes `mkdocs.yml`, including an auto-generated `nav:` block that
+    reflects whatever texts/topics/chandas/alankara currently exist, so nav
+    never needs to be hand-maintained.
+
+This script is idempotent: it always starts by deleting only the generated
+output directories (`docs/shastra`, `docs/kavya`, `docs/index.md` and
+`mkdocs.yml`), never the hand-maintained `docs/stylesheets/`,
+`docs/javascripts/`, or the `shastra/`/`kavya/` sources.
+
+Requires: PyYAML, beautifulsoup4
+"""
+
+from __future__ import annotations
+
+import re
+import shutil
+import sys
+from pathlib import Path
+
+import yaml
+from bs4 import BeautifulSoup
+
+# ---------------------------------------------------------------------------
+# Paths / constants
+# ---------------------------------------------------------------------------
+
+ROOT = Path(__file__).resolve().parent.parent
+SHASTRA_SRC = ROOT / "shastra"
+KAVYA_SRC = ROOT / "kavya"
+DOCS = ROOT / "docs"
+SHASTRA_OUT = DOCS / "shastra"
+KAVYA_OUT = DOCS / "kavya"
+
+RESERVED_SHASTRA_DIRS = {"topics", "chandas", "alankara"}
+META_FILENAMES = ("meta.yaml", "meta.yml")
+
+KAVYA_PROSE_TYPES = {"kavya-play", "kavya-prose"}
+KAVYA_VERSE_TYPES = {"kavya-verse"}
+SHASTRA_TEXT_TYPES = {"shastra-karika", "shastra-vada"}
+
+WARNINGS: list[str] = []
+
+
+def warn(msg: str) -> None:
+    WARNINGS.append(msg)
+    print(f"WARNING: {msg}", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# Frontmatter helpers
+# ---------------------------------------------------------------------------
+
+FRONTMATTER_RE = re.compile(r"^---[ \t]*\n(.*?\n)---[ \t]*\n?", re.DOTALL)
+
+
+def split_frontmatter(text: str) -> tuple[dict, str]:
+    """Return (frontmatter_dict, body_text). Tolerant of missing frontmatter."""
+    m = FRONTMATTER_RE.match(text)
+    if not m:
+        return {}, text
+    try:
+        data = yaml.safe_load(m.group(1)) or {}
+        if not isinstance(data, dict):
+            warn(f"frontmatter did not parse to a mapping: {m.group(1)[:60]!r}")
+            data = {}
+    except yaml.YAMLError as e:
+        warn(f"could not parse YAML frontmatter ({e})")
+        data = {}
+    return data, text[m.end():]
+
+
+def as_list(value) -> list[str]:
+    """Normalize a frontmatter value that may be a scalar, list, or None."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    v = str(value).strip()
+    return [v] if v else []
+
+
+def read_meta(text_dir: Path) -> dict:
+    for name in META_FILENAMES:
+        p = text_dir / name
+        if p.exists():
+            try:
+                return yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+            except yaml.YAMLError as e:
+                warn(f"could not parse {p} ({e})")
+                return {}
+    return {}
+
+
+def find_meta_file(text_dir: Path) -> Path | None:
+    for name in META_FILENAMES:
+        p = text_dir / name
+        if p.exists():
+            return p
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Numeric-aware sorting for chapter/section filenames (01, 02, ... 10, ...)
+# ---------------------------------------------------------------------------
+
+def numeric_key(stem: str):
+    try:
+        return (0, int(stem))
+    except ValueError:
+        return (1, stem)
+
+
+# ---------------------------------------------------------------------------
+# Discovery: texts (shastra/<text>, kavya/<text>)
+# ---------------------------------------------------------------------------
+
+class Text:
+    def __init__(self, slug: str, directory: Path, meta: dict, domain: str):
+        self.slug = slug
+        self.dir = directory
+        self.meta = meta
+        self.domain = domain  # "shastra" | "kavya"
+        self.title = str(meta.get("title", slug)).strip()
+        self.author = str(meta.get("author", "")).strip()
+        self.type = str(meta.get("type", "")).strip()
+        self.chapters: list["Chapter"] = []
+
+    @property
+    def out_dir(self) -> Path:
+        return (SHASTRA_OUT if self.domain == "shastra" else KAVYA_OUT) / self.slug
+
+    @property
+    def rel_out_dir(self) -> str:
+        return f"{self.domain}/{self.slug}"
+
+
+class Chapter:
+    def __init__(self, text: Text, slug: str, sections: list[Path]):
+        self.text = text
+        self.slug = slug
+        self.sections = sections  # list of source .md Paths, in order
+
+    @property
+    def out_file(self) -> Path:
+        return self.text.out_dir / f"{self.slug}.md"
+
+    @property
+    def rel_out_file(self) -> str:
+        return f"{self.text.rel_out_dir}/{self.slug}.md"
+
+    @property
+    def nav_label(self) -> str:
+        try:
+            n = int(self.slug)
+            word = "अध्यायः" if self.text.domain == "shastra" else "भागः"
+            return f"{word} {n}"
+        except ValueError:
+            return self.slug
+
+
+def discover_texts(src_root: Path, domain: str) -> list[Text]:
+    texts = []
+    if not src_root.exists():
+        return texts
+    for d in sorted(p for p in src_root.iterdir() if p.is_dir() and not p.name.startswith(".")):
+        if domain == "shastra" and d.name in RESERVED_SHASTRA_DIRS:
+            continue
+        meta_path = find_meta_file(d)
+        if not meta_path:
+            warn(f"{d} has no meta.yaml/meta.yml — skipping this text")
+            continue
+        meta = read_meta(d)
+        if "title" not in meta:
+            warn(f"{meta_path} has no 'title' — skipping this text")
+            continue
+        texts.append(Text(d.name, d, meta, domain))
+    return texts
+
+
+def discover_chapters(text: Text) -> list[Chapter]:
+    """A chapter is either a subdirectory of section files, or (if no
+    directory of the same name exists) a single top-level .md file. A
+    top-level .md file that duplicates a chapter directory's name is a
+    leftover/error and is skipped in favour of the directory."""
+    chapters: list[Chapter] = []
+    dir_children = {d.name: d for d in text.dir.iterdir() if d.is_dir() and not d.name.startswith(".")}
+
+    for name, d in dir_children.items():
+        sections = sorted((f for f in d.glob("*.md")), key=lambda f: numeric_key(f.stem))
+        if not sections:
+            warn(f"chapter directory {d} contains no .md sections — skipping")
+            continue
+        chapters.append(Chapter(text, name, sections))
+
+    for f in text.dir.glob("*.md"):
+        if f.stem in dir_children:
+            warn(
+                f"{f} duplicates chapter directory '{f.stem}/' in the same text "
+                f"and will be IGNORED — the directory's sections are used instead. "
+                f"This file should be removed from the source."
+            )
+            continue
+        chapters.append(Chapter(text, f.stem, [f]))
+
+    chapters.sort(key=lambda c: numeric_key(c.slug))
+    return chapters
+
+
+# ---------------------------------------------------------------------------
+# Discovery: reference pages (topics / chandas / alankara)
+# ---------------------------------------------------------------------------
+
+class RefPage:
+    def __init__(self, kind: str, slug: str, path: Path, frontmatter: dict, body: str):
+        self.kind = kind  # "topic" | "chandas" | "alankara"
+        self.slug = slug
+        self.path = path
+        self.frontmatter = frontmatter
+        self.body = body
+        self.title = str(frontmatter.get("title", slug)).strip()
+        self.references: list["Reference"] = []  # filled in during the scan
+
+    @property
+    def rel_out_file(self) -> str:
+        folder = {"topic": "topics", "chandas": "chandas", "alankara": "alankara"}[self.kind]
+        return f"shastra/{folder}/{self.slug}.md"
+
+    @property
+    def out_file(self) -> Path:
+        return DOCS / self.rel_out_file
+
+    @property
+    def is_meter_entry(self) -> bool:
+        """chandas pages are only 'real' meters (and thus valid meter: /
+        data-meter targets, and listed on the home page) if they declare a
+        `varnas` field. Pages without it (e.g. a general theory page like
+        chandas/intro.md) are treated as common content shown on every real
+        meter page instead."""
+        return self.kind == "chandas" and "varnas" in self.frontmatter
+
+
+class Reference:
+    """One occurrence of a topic/meter/alankara tag inside a chapter page."""
+
+    def __init__(self, title_text: str, chapter: Chapter, anchor: str, preview: str):
+        self.title_text = title_text
+        self.chapter = chapter
+        self.anchor = anchor
+        self.preview = preview
+
+    @property
+    def link(self) -> str:
+        depth = self.chapter.rel_out_file.count("/")
+        prefix = "../" * depth
+        return f"{prefix}{self.chapter.rel_out_file}#{self.anchor}"
+
+
+def discover_ref_pages(kind: str, folder: Path) -> dict[str, RefPage]:
+    pages: dict[str, RefPage] = {}
+    if not folder.exists():
+        return pages
+    for f in sorted(folder.glob("*.md")):
+        text = f.read_text(encoding="utf-8")
+        fm, body = split_frontmatter(text)
+        title = str(fm.get("title", "")).strip()
+        if not title:
+            warn(f"{f} has no 'title' in frontmatter — skipping")
+            continue
+        if title in pages:
+            warn(f"duplicate title '{title}' between {pages[title].path} and {f}")
+            continue
+        pages[title] = RefPage(kind, f.stem, f, fm, body)
+    return pages
+
+
+# ---------------------------------------------------------------------------
+# HTML scanning helpers (tolerant of minor malformed markup in sources)
+# ---------------------------------------------------------------------------
+
+ATTR_RE = re.compile(r'([a-zA-Z\-]+)\s*=\s*"([^"]*)"')
+SHLOKA_RE = re.compile(r'<div\s+class="shloka"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
+
+
+def parse_attrs(attr_str: str) -> dict:
+    return {m.group(1): m.group(2) for m in ATTR_RE.finditer(attr_str)}
+
+
+def preview_text(raw: str, max_len: int = 60) -> str:
+    text = raw.lstrip(">").strip()
+    text = re.sub(r"\*\*|\*|_", "", text)
+    text = re.sub(r"\s+", " ", text)
+    first_line = text.split("।")[0].split("॥")[0].strip()
+    if not first_line:
+        first_line = text.strip()
+    if len(first_line) > max_len:
+        first_line = first_line[:max_len].rstrip() + "…"
+    return first_line
+
+
+class Shloka:
+    def __init__(self, meter: str, alankaras: list[str], preview: str):
+        self.meter = meter
+        self.alankaras = alankaras
+        self.preview = preview
+
+
+def extract_shlokas(
+    body: str, fm_meter: str, fm_alankaras: list[str], start_index: int = 0
+) -> tuple[str, list[Shloka], int]:
+    """Find every <div class="shloka"> in `body`, insert an anchor <a id=...>
+    right before each one, and return (modified_body, [Shloka, ...], next_index).
+
+    `start_index` lets callers number shlokas contiguously across every
+    section in a chapter (anchors must be chapter-unique, since all
+    sections end up concatenated onto a single generated chapter page and
+    the Shloka Table numbers verses chapter-wide, not per-section).
+
+    For a shloka div that has no data-meter/data-alankara of its own (the
+    verse-only text style), the file-level frontmatter meter/alankara is
+    used instead — this covers kavya-verse texts where one file == one
+    shloka tagged only in frontmatter.
+    """
+    shlokas: list[Shloka] = []
+    counter = start_index
+
+    def repl(m: re.Match) -> str:
+        nonlocal counter
+        counter += 1
+        attrs = parse_attrs(m.group(1))
+        inner = m.group(2)
+        meter = attrs.get("data-meter", "").strip() or fm_meter
+        alankaras = (
+            [a.strip() for a in attrs["data-alankara"].split(",") if a.strip()]
+            if attrs.get("data-alankara")
+            else list(fm_alankaras)
+        )
+        anchor = f"s{counter}"
+        shlokas.append(Shloka(meter, alankaras, preview_text(inner)))
+        return f'<a id="{anchor}"></a>\n{m.group(0)}'
+
+    new_body = SHLOKA_RE.sub(repl, body)
+    return new_body, shlokas, counter
+
+
+TOPIC_LINK_TMPL = "- [{title}]({link})"
+
+DIV_OPEN_ANY_RE = re.compile(r"<div\b([^>]*)>")
+
+
+def enable_markdown_in_divs(text: str) -> str:
+    """MkDocs' md_in_html extension only processes Markdown syntax (bold,
+    links, etc.) *inside* a raw <div> if that div carries markdown="1" (or
+    has a blank line right after its opening tag, which none of our
+    sources do). Without this, things like **bold karika text** would
+    render as literal asterisks. This is purely an output-side annotation
+    (added only to the generated docs/ copies, never to the source .md
+    files) so content authors don't need to remember to add it."""
+
+    def repl(m: re.Match) -> str:
+        attrs = m.group(1)
+        if "markdown=" in attrs:
+            return m.group(0)
+        return f"<div{attrs} markdown=\"1\">"
+
+    return DIV_OPEN_ANY_RE.sub(repl, text)
+
+
+BRACKET_ATTR_SPAN_RE = re.compile(
+    r'(?:\[(?P<bracketed>[^\]\n]+)\]|(?P<bare>\([^)\n]+\)))'
+    r'\s*\.?\s*\{:\s*\.(?P<cls>[a-zA-Z0-9_-]+)\s*\}'
+)
+
+
+def convert_bracket_attr_spans(text: str) -> str:
+    """The kavya prose/play sources mark stage directions with a bracket +
+    inline-attribute-list convention, e.g. `[(प्रविश्य)].{: .action}` (and,
+    inconsistently, sometimes without the brackets: `(निष्क्रान्ता){: .action}`).
+    Standard Markdown's attr_list extension only attaches `{: .class}` to
+    already-recognized inline elements (links, emphasis, code) — not to
+    bare bracketed/parenthesized text — so as written this would render as
+    literal brackets. This converts both forms straight into
+    `<span class="...">` before Markdown ever sees them, so the existing
+    source convention works without content authors needing to change it."""
+
+    def repl(m: re.Match) -> str:
+        content = m.group("bracketed") if m.group("bracketed") is not None else m.group("bare")
+        return f'<span class="{m.group("cls")}">{content}</span>'
+
+    return BRACKET_ATTR_SPAN_RE.sub(repl, text)
+
+
+# ---------------------------------------------------------------------------
+# Main build
+# ---------------------------------------------------------------------------
+
+def clean_output():
+    if SHASTRA_OUT.exists():
+        shutil.rmtree(SHASTRA_OUT)
+    if KAVYA_OUT.exists():
+        shutil.rmtree(KAVYA_OUT)
+    index_md = DOCS / "index.md"
+    if index_md.exists():
+        index_md.unlink()
+    DOCS.mkdir(parents=True, exist_ok=True)
+
+
+def write(path: Path, content: str):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def write_md(path: Path, content: str):
+    """Like write(), but also enables md_in_html on every <div> so inline
+    Markdown (bold, links, etc.) inside content blocks renders correctly.
+    Only ever used for generated docs/**/*.md files, never for mkdocs.yml."""
+    content = convert_bracket_attr_spans(content)
+    content = enable_markdown_in_divs(content)
+    write(path, content)
+
+
+def build_text_index_page(text: Text) -> str:
+    lines = [f"# {text.title}", ""]
+    if text.author:
+        lines += [f"**कर्ता:** {text.author}", ""]
+    if text.type:
+        lines += [f"**प्रकारः:** {text.type}", ""]
+    lines.append("## अध्यायाः / भागाः")
+    lines.append("")
+    for ch in text.chapters:
+        lines.append(f"- [{ch.nav_label}]({ch.slug}.md)")
+    lines.append("")
+    return "\n".join(lines)
+
+
+SECTION_HEADING_RE = re.compile(r"^\s*#\s+(.+)$", re.MULTILINE)
+
+
+def section_label(fm: dict, body: str, fallback_stem: str) -> str:
+    """Best-effort human-readable label for a section, used in back-links:
+    prefer an explicit karika_num, then the section's own '# heading',
+    then fall back to its filename."""
+    if fm.get("karika_num"):
+        return str(fm["karika_num"])
+    m = SECTION_HEADING_RE.search(body)
+    if m:
+        return m.group(1).strip()
+    return fallback_stem
+
+
+def render_shastra_chapter(chapter: Chapter, topics: dict[str, RefPage]) -> str:
+    seen_topics: list[str] = []
+    body_parts = []
+    for i, section in enumerate(chapter.sections):
+        raw = section.read_text(encoding="utf-8")
+        fm, body = split_frontmatter(raw)
+        label = section_label(fm, body, section.stem)
+        for t in as_list(fm.get("topics")) or as_list(fm.get("topic")):
+            if fm.get("topic") and not fm.get("topics"):
+                warn(f"{section} uses 'topic:' instead of 'topics:' — please rename it (treating it as 'topics:' for now)")
+            if t not in topics:
+                warn(f"{section} references unknown topic '{t}' (no matching shastra/topics/*.md title)")
+                continue
+            if t not in seen_topics:
+                seen_topics.append(t)
+            anchor = f"sec{i+1}"
+            topics[t].references.append(Reference(t, chapter, anchor, label))
+        anchor = f"sec{i+1}"
+        body_parts.append(f'<a id="{anchor}"></a>\n\n{body.strip()}')
+
+    header = []
+    if seen_topics:
+        header.append("## सम्बद्धाः विषयाः")
+        header.append("")
+        depth = chapter.rel_out_file.count("/")
+        prefix = "../" * depth
+        for t in seen_topics:
+            header.append(TOPIC_LINK_TMPL.format(title=t, link=f"{prefix}{topics[t].rel_out_file}"))
+        header.append("")
+        header.append("---")
+        header.append("")
+
+    title_line = f"# {chapter.text.title} — {chapter.nav_label}"
+    return "\n".join([title_line, ""] + header + body_parts) + "\n"
+
+
+def render_kavya_chapter(
+    chapter: Chapter, chandas: dict[str, RefPage], alankaras: dict[str, RefPage]
+) -> tuple[str, list[Shloka]]:
+    """Returns (rendered_markdown, all_shlokas_in_anchor_order). The same
+    `all_shlokas` list (1-indexed => anchor "s{i}") is used both for the
+    Shloka Table on this page and for recording back-references on the
+    corresponding chandas/alankara pages, so anchors always line up."""
+    body_parts = []
+    all_shlokas: list[Shloka] = []
+    counter = 0
+    for section in chapter.sections:
+        raw = section.read_text(encoding="utf-8")
+        fm, body = split_frontmatter(raw)
+        fm_meter = str(fm.get("meter", "")).strip()
+        fm_alankaras = as_list(fm.get("alankara"))
+        new_body, shlokas, counter = extract_shlokas(body, fm_meter, fm_alankaras, counter)
+        for sh in shlokas:
+            if sh.meter and sh.meter not in chandas:
+                warn(f"{section} references unknown meter '{sh.meter}' (no matching shastra/chandas/*.md with a 'varnas' field)")
+            for a in sh.alankaras:
+                if a not in alankaras:
+                    warn(f"{section} references unknown alankara '{a}' (no matching shastra/alankara/*.md title)")
+        all_shlokas.extend(shlokas)
+        body_parts.append(new_body.strip())
+
+    def link_meter(m: str) -> str:
+        if not m:
+            return "—"
+        if m not in chandas:
+            return m
+        depth = chapter.rel_out_file.count("/")
+        return f"[{m}]({'../' * depth}{chandas[m].rel_out_file})"
+
+    def link_alankaras(items: list[str]) -> str:
+        if not items:
+            return "—"
+        depth = chapter.rel_out_file.count("/")
+        out = []
+        for a in items:
+            if a in alankaras:
+                out.append(f"[{a}]({'../' * depth}{alankaras[a].rel_out_file})")
+            else:
+                out.append(a)
+        return ", ".join(out)
+
+    table_lines = []
+    if all_shlokas:
+        table_lines.append("## श्लोकसूची")
+        table_lines.append("")
+        table_lines.append("| श्लोकः | छन्दः | अलङ्काराः |")
+        table_lines.append("| --- | --- | --- |")
+        for i, sh in enumerate(all_shlokas, start=1):
+            table_lines.append(
+                f"| [{sh.preview}](#s{i}) | {link_meter(sh.meter)} | {link_alankaras(sh.alankaras)} |"
+            )
+        table_lines.append("")
+        table_lines.append("---")
+        table_lines.append("")
+
+    title_line = f"# {chapter.text.title} — {chapter.nav_label}"
+    content = "\n".join([title_line, ""] + body_parts + [""] + table_lines) + "\n"
+    return content, all_shlokas
+
+
+def record_kavya_references(chapter: Chapter, chandas: dict, alankaras: dict, shlokas_with_index: list[tuple[int, Shloka]]):
+    for i, sh in shlokas_with_index:
+        anchor = f"s{i}"
+        if sh.meter and sh.meter in chandas:
+            chandas[sh.meter].references.append(Reference(sh.meter, chapter, anchor, sh.preview))
+        for a in sh.alankaras:
+            if a in alankaras:
+                alankaras[a].references.append(Reference(a, chapter, anchor, sh.preview))
+
+
+H1_RE = re.compile(r"^\s*#\s+\S")
+
+
+def render_ref_page(page: RefPage, common_pages: list[RefPage]) -> str:
+    parts = []
+    if page.kind == "chandas" and page.is_meter_entry:
+        for common in common_pages:
+            parts.append(common.body.strip())
+            parts.append("")
+            parts.append("---")
+            parts.append("")
+    body = page.body.strip()
+    if not H1_RE.match(body):
+        # only add a title heading if the source body doesn't already
+        # start with one (some reference pages, like the topics/*.md
+        # samples, already include their own '# ...' heading).
+        parts.append(f"# {page.title}")
+        parts.append("")
+    parts.append(body)
+    if page.references:
+        parts.append("")
+        parts.append("## सन्दर्भाः")
+        parts.append("")
+        for ref in page.references:
+            label = f"{ref.chapter.text.title} — {ref.chapter.nav_label}"
+            parts.append(f"- [{ref.preview}]({ref.link}) — {label}")
+    parts.append("")
+    return "\n".join(parts)
+
+
+def build_home_page(
+    shastra_texts: list[Text],
+    kavya_texts: list[Text],
+    topics: dict[str, RefPage],
+    chandas: dict[str, RefPage],
+    alankaras: dict[str, RefPage],
+) -> str:
+    lines = ["# साहित्यशास्त्रम्", ""]
+
+    lines.append("## ग्रन्थाः")
+    lines.append("")
+    for t in shastra_texts:
+        lines.append(f"- [{t.title}]({t.rel_out_dir}/index.md)")
+    lines.append("")
+
+    lines.append("## विषयाः")
+    lines.append("")
+    for title, page in sorted(topics.items()):
+        lines.append(f"- [{title}]({page.rel_out_file})")
+    lines.append("")
+
+    lines.append("## छन्दांसि")
+    lines.append("")
+    for title, page in sorted(chandas.items()):
+        if page.is_meter_entry:
+            lines.append(f"- [{title}]({page.rel_out_file})")
+    lines.append("")
+
+    lines.append("## अलङ्काराः")
+    lines.append("")
+    for title, page in sorted(alankaras.items()):
+        lines.append(f"- [{title}]({page.rel_out_file})")
+    lines.append("")
+
+    lines.append("# काव्यानि")
+    lines.append("")
+    for t in kavya_texts:
+        lines.append(f"- [{t.title}]({t.rel_out_dir}/index.md)")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+NAV_HEADER = """\
+# THIS FILE IS AUTO-GENERATED by scripts/generate_indices.py — do not edit
+# the `nav:` block by hand, it will be overwritten on the next run. Static
+# settings below `nav:` are safe to edit; the script only rewrites the
+# `nav:` list itself each time it runs.
+"""
+
+MKDOCS_STATIC = """\
+site_name: साहित्यशास्त्रम्
+docs_dir: docs
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - toc.follow
+    - search.suggest
+  palette:
+    - scheme: default
+      primary: deep orange
+      accent: amber
+
+extra_css:
+  - stylesheets/custom.css
+
+extra_javascript:
+  - javascripts/notes-toggle.js
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - tables
+  - def_list
+  - footnotes
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - toc:
+      permalink: true
+"""
+
+
+def yaml_dump_nav(nav) -> str:
+    return yaml.dump({"nav": nav}, allow_unicode=True, sort_keys=False, default_flow_style=False)
+
+
+def build_nav(
+    shastra_texts: list[Text],
+    kavya_texts: list[Text],
+    topics: dict[str, RefPage],
+    chandas: dict[str, RefPage],
+    alankaras: dict[str, RefPage],
+) -> list:
+    def text_nav(t: Text):
+        entry = [{"परिचयः": f"{t.rel_out_dir}/index.md"}]
+        for ch in t.chapters:
+            entry.append({ch.nav_label: ch.rel_out_file})
+        return {t.title: entry}
+
+    shastra_section = [
+        {"ग्रन्थाः": [text_nav(t) for t in shastra_texts]},
+        {"विषयाः": [{title: p.rel_out_file} for title, p in sorted(topics.items())]},
+        {"छन्दांसि": [{title: p.rel_out_file} for title, p in sorted(chandas.items()) if p.is_meter_entry]},
+        {"अलङ्काराः": [{title: p.rel_out_file} for title, p in sorted(alankaras.items())]},
+    ]
+
+    nav = [
+        {"मुखपृष्ठम्": "index.md"},
+        {"शास्त्रम्": shastra_section},
+        {"काव्यम्": [text_nav(t) for t in kavya_texts]},
+    ]
+    return nav
+
+
+def main():
+    clean_output()
+
+    topics = discover_ref_pages("topic", SHASTRA_SRC / "topics")
+    chandas = discover_ref_pages("chandas", SHASTRA_SRC / "chandas")
+    alankaras = discover_ref_pages("alankara", SHASTRA_SRC / "alankara")
+    common_chandas = [p for p in chandas.values() if not p.is_meter_entry]
+
+    shastra_texts = discover_texts(SHASTRA_SRC, "shastra")
+    kavya_texts = discover_texts(KAVYA_SRC, "kavya")
+
+    for t in shastra_texts:
+        if t.type not in SHASTRA_TEXT_TYPES:
+            warn(f"{t.dir}/meta.yaml has unrecognized type '{t.type}' (expected one of {sorted(SHASTRA_TEXT_TYPES)})")
+        t.chapters = discover_chapters(t)
+
+    for t in kavya_texts:
+        if t.type not in KAVYA_PROSE_TYPES | KAVYA_VERSE_TYPES:
+            warn(f"{t.dir}/meta.yaml has unrecognized type '{t.type}' (expected one of {sorted(KAVYA_PROSE_TYPES | KAVYA_VERSE_TYPES)})")
+        t.chapters = discover_chapters(t)
+
+    # --- shastra: render chapters, collect topic references -------------
+    for t in shastra_texts:
+        for ch in t.chapters:
+            content = render_shastra_chapter(ch, topics)
+            write_md(ch.out_file, content)
+        write_md(t.out_dir / "index.md", build_text_index_page(t))
+
+    # --- kavya: render chapters, collect meter/alankara references -------
+    for t in kavya_texts:
+        for ch in t.chapters:
+            content, all_shlokas = render_kavya_chapter(ch, chandas, alankaras)
+            write_md(ch.out_file, content)
+            indexed = list(enumerate(all_shlokas, start=1))
+            record_kavya_references(ch, chandas, alankaras, indexed)
+
+        write_md(t.out_dir / "index.md", build_text_index_page(t))
+
+    # --- reference pages: write with injected back-links -----------------
+    for title, page in topics.items():
+        write_md(page.out_file, render_ref_page(page, []))
+    for title, page in chandas.items():
+        if page.is_meter_entry:
+            write_md(page.out_file, render_ref_page(page, common_chandas))
+        else:
+            # common pages are not standalone site pages; they are folded
+            # into every meter page instead. Skip writing them separately.
+            pass
+    for title, page in alankaras.items():
+        write_md(page.out_file, render_ref_page(page, []))
+
+    # --- home page ---------------------------------------------------------
+    write_md(DOCS / "index.md", build_home_page(shastra_texts, kavya_texts, topics, chandas, alankaras))
+
+    # --- mkdocs.yml (nav auto-generated, static settings preserved) -------
+    nav = build_nav(shastra_texts, kavya_texts, topics, chandas, alankaras)
+    mkdocs_yml = NAV_HEADER + "\n" + yaml_dump_nav(nav) + "\n" + MKDOCS_STATIC
+    write(ROOT / "mkdocs.yml", mkdocs_yml)
+
+    print(f"\nDone. {len(shastra_texts)} shastra text(s), {len(kavya_texts)} kavya text(s), "
+          f"{len(topics)} topic(s), {sum(p.is_meter_entry for p in chandas.values())} meter(s), "
+          f"{len(alankaras)} alankara(s).")
+    if WARNINGS:
+        print(f"\n{len(WARNINGS)} warning(s) were printed above — please review.", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()
