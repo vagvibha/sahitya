@@ -81,7 +81,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      वंशस्थ <!-- chandas-name -->
+      वंशस्थम् <!-- chandas-name -->
     </td>
     <td>
       १२
