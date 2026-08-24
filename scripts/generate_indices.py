@@ -148,9 +148,41 @@ def rel_link(from_rel_file: str, to_rel_file: str) -> str:
     'shastra/topics/_chandas/anustubh.md'). Using real relative-path math
     here (rather than assuming both pages sit at the same depth) matters
     once pages can live at different nesting depths, as the glossary
-    detail pages now do."""
+    detail pages now do.
+
+    NOTE: this form (a plain relative path ending in .md) only works
+    inside genuine Markdown link syntax `[text](...)` — MkDocs' own build
+    rewrites those `.md` links into the correct clean-URL form for you.
+    It does NOT work inside literal HTML `<a href="...">` (e.g. hand-built
+    inside a raw <table>), because MkDocs never touches raw HTML — use
+    `raw_html_href()` for that instead."""
     from_dir = posixpath.dirname(from_rel_file)
     return posixpath.relpath(to_rel_file, start=from_dir or ".")
+
+
+def url_dir_for(rel_md_file: str) -> str:
+    """The clean-URL *directory* MkDocs serves a given docs/**/*.md file
+    at, under the default `use_directory_urls: true` (e.g.
+    'shastra/topics/alankara.md' is served at '.../shastra/topics/alankara/',
+    NOT '.../shastra/topics/alankara.md' — an 'index.md' is the one
+    exception, served at its own parent directory with no extra segment)."""
+    d = posixpath.dirname(rel_md_file)
+    stem = posixpath.basename(rel_md_file)
+    if stem.endswith(".md"):
+        stem = stem[:-3]
+    if stem == "index":
+        return d or "."
+    return posixpath.join(d, stem) if d else stem
+
+
+def raw_html_href(from_rel_md_file: str, to_rel_md_file: str) -> str:
+    """Relative href to use inside literal HTML (raw <a href="...">), which
+    MkDocs never rewrites — unlike Markdown-syntax links, this must already
+    point at the final clean-URL directory, not at a '.md' path."""
+    from_dir = url_dir_for(from_rel_md_file)
+    to_dir = url_dir_for(to_rel_md_file)
+    rel = posixpath.relpath(to_dir, start=from_dir)
+    return (rel if rel != "." else "") + "/"
 
 
 # ---------------------------------------------------------------------------
@@ -328,7 +360,7 @@ def discover_ref_pages(kind: str, folder: Path, exclude: set[str] = frozenset())
 # clicking the entry's name in the table; (2) turns that first cell's text
 # into a link to the detail page, in the copy written to docs/.
 
-GLOSSARY_MARKER = {"chandas": "chandas-name", "alankara": "alankara-name"}
+GLOSSARY_MARKER = {"chandas": "meter-name", "alankara": "alankara-name"}
 GLOSSARY_OUT_SUBDIR = {"chandas": "_chandas", "alankara": "_alankara"}
 
 TABLE_BLOCK_RE = re.compile(r"<table\b.*?</table>", re.IGNORECASE | re.DOTALL)
@@ -407,7 +439,7 @@ def build_glossary_page(kind: str, path: Path) -> tuple[dict[str, TableEntry], s
             rest_html = ["".join(str(c) for c in td.contents).strip() for td in tds[1:]]
             entries[name] = TableEntry(kind, name, slug, rest_labels, rest_html)
 
-            href = f"{GLOSSARY_OUT_SUBDIR[kind]}/{slug}.md"
+            href = raw_html_href(f"shastra/topics/{kind}.md", entries[name].rel_out_file)
             a_tag = soup.new_tag("a", href=href)
             for child in list(tds[0].children):
                 a_tag.append(child.extract())
@@ -766,15 +798,7 @@ def build_home_page(
     lines.append("")
     for title, page in sorted(topics.items()):
         lines.append(f"- [{title}]({page.rel_out_file})")
-    lines.append("")
-
-    lines.append("## छन्दांसि")
-    lines.append("")
     lines.append("- [छन्दांसि](shastra/topics/chandas.md)")
-    lines.append("")
-
-    lines.append("## अलङ्काराः")
-    lines.append("")
     lines.append("- [अलङ्काराः](shastra/topics/alankara.md)")
     lines.append("")
 
@@ -858,9 +882,15 @@ def build_nav(
 
     shastra_section = [
         {"ग्रन्थाः": [text_nav(t) for t in shastra_texts]},
-        {"विषयाः": [{title: p.rel_out_file} for title, p in sorted(topics.items())]},
-        {"छन्दांसि": "shastra/topics/chandas.md"},
-        {"अलङ्काराः": "shastra/topics/alankara.md"},
+        {
+            "विषयाः": [
+                {title: p.rel_out_file} for title, p in sorted(topics.items())
+            ]
+            + [
+                {"छन्दांसि": "shastra/topics/chandas.md"},
+                {"अलङ्काराः": "shastra/topics/alankara.md"},
+            ]
+        },
     ]
 
     nav = [

@@ -16,8 +16,8 @@ nav:
   - विषयाः:
     - काव्यप्रयोजनम्: shastra/topics/kavyaprayojana.md
     - रसः: shastra/topics/rasa.md
-  - छन्दांसि: shastra/topics/chandas.md
-  - अलङ्काराः: shastra/topics/alankara.md
+    - छन्दांसि: shastra/topics/chandas.md
+    - अलङ्काराः: shastra/topics/alankara.md
 - काव्यम्:
   - अभिज्ञानशाकुन्तलम्:
     - परिचयः: kavya/as/index.md
