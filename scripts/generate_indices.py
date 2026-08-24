@@ -360,7 +360,7 @@ def discover_ref_pages(kind: str, folder: Path, exclude: set[str] = frozenset())
 # clicking the entry's name in the table; (2) turns that first cell's text
 # into a link to the detail page, in the copy written to docs/.
 
-GLOSSARY_MARKER = {"chandas": "meter-name", "alankara": "alankara-name"}
+GLOSSARY_MARKER = {"chandas": "chandas-name", "alankara": "alankara-name"}
 GLOSSARY_OUT_SUBDIR = {"chandas": "_chandas", "alankara": "_alankara"}
 
 TABLE_BLOCK_RE = re.compile(r"<table\b.*?</table>", re.IGNORECASE | re.DOTALL)
@@ -622,11 +622,21 @@ def write_md(path: Path, content: str):
     write(path, content)
 
 
+def build_domain_index_page(title: str, domain_index_rel: str, texts: list[Text]) -> str:
+    lines = [f"# {title}", ""]
+    for t in texts:
+        target = f"{t.rel_out_dir}/index.md"
+        lines.append(f"- [{t.title}]({rel_link(domain_index_rel, target)})")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def build_text_index_page(text: Text) -> str:
     lines = [f"# {text.title}", ""]
     if text.author:
         lines += [f"**कर्ता:** {text.author}", ""]
-    lines.append("## अध्यायाः / भागाः")
+    chapters_label = str(text.meta.get("chapters", "")).strip() or "अध्यायाः / भागाः"
+    lines.append(f"## {chapters_label}")
     lines.append("")
     for ch in text.chapters:
         lines.append(f"- [{ch.nav_label}]({ch.slug}.md)")
@@ -702,10 +712,10 @@ def render_kavya_chapter(
         new_body, shlokas, counter = extract_shlokas(body, fm_meter, fm_alankaras, counter)
         for sh in shlokas:
             if sh.meter and sh.meter not in chandas:
-                warn(f"{section} references unknown meter '{sh.meter}' (no matching shastra/chandas/*.md with a 'varnas' field)")
+                warn(f"{section} references unknown meter '{sh.meter}' (no matching <!-- chandas-name --> row in shastra/topics/chandas.md)")
             for a in sh.alankaras:
                 if a not in alankaras:
-                    warn(f"{section} references unknown alankara '{a}' (no matching shastra/alankara/*.md title)")
+                    warn(f"{section} references unknown alankara '{a}' (no matching <!-- alankara-name --> row in shastra/topics/alankara.md)")
         all_shlokas.extend(shlokas)
         body_parts.append(new_body.strip())
 
@@ -829,6 +839,7 @@ theme:
     - navigation.instant
     - navigation.tabs
     - navigation.tabs.sticky
+    - navigation.indexes
     - navigation.top
     - toc.follow
     - search.suggest
@@ -880,7 +891,15 @@ def build_nav(
             entry.append({ch.nav_label: ch.rel_out_file})
         return {t.title: entry}
 
+    # A section like "शास्त्रम्"/"काव्यम्" has no page of its own — without
+    # one, MkDocs makes the top nav tab link to the first descendant page
+    # it finds (e.g. the first text's intro), which looks like "the tab
+    # only shows the first text". Giving the section an explicit landing
+    # page as its very first entry fixes that; naming it identically to
+    # the section title also lets Material's navigation.indexes feature
+    # treat it as that section's own overview.
     shastra_section = [
+        {"शास्त्रम्": "shastra/index.md"},
         {"ग्रन्थाः": [text_nav(t) for t in shastra_texts]},
         {
             "विषयाः": [
@@ -892,11 +911,12 @@ def build_nav(
             ]
         },
     ]
+    kavya_section = [{"काव्यम्": "kavya/index.md"}] + [text_nav(t) for t in kavya_texts]
 
     nav = [
         {"मुखपृष्ठम्": "index.md"},
         {"शास्त्रम्": shastra_section},
-        {"काव्यम्": [text_nav(t) for t in kavya_texts]},
+        {"काव्यम्": kavya_section},
     ]
     return nav
 
@@ -939,6 +959,10 @@ def main():
             record_kavya_references(ch, chandas, alankaras, indexed)
 
         write_md(t.out_dir / "index.md", build_text_index_page(t))
+
+    # --- शास्त्रम्/काव्यम् landing pages (fixes the top-tab-jumps-to-first-text bug) --
+    write_md(DOCS / "shastra/index.md", build_domain_index_page("शास्त्रम्", "shastra/index.md", shastra_texts))
+    write_md(DOCS / "kavya/index.md", build_domain_index_page("काव्यम्", "kavya/index.md", kavya_texts))
 
     # --- topic pages: write with injected back-links ----------------------
     for title, page in topics.items():

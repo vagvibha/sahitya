@@ -19,33 +19,26 @@
   font-family: var(--sv-devanagari-serif);
 }
 
-/* --- shloka / verse blocks ------------------------------------------- */
+/* --- shloka / verse blocks: kavya shlokas should read compactly — many
+   need to be visible on screen at once — so just bold, no box, minimal
+   vertical margin. -------------------------------------------------- */
 .md-typeset .shloka {
-  background: var(--md-code-bg-color);
-  border-left: 4px solid var(--md-primary-fg-color);
-  border-radius: 0.2rem;
-  padding: 0.9rem 1.2rem;
-  margin: 1rem 0;
-  font-size: 1.05rem;
-  line-height: 1.9;
+  font-weight: 600;
+  margin: 0.4rem 0;
+  line-height: 1.7;
   white-space: pre-line;
 }
 
 /* --- karika / vritti (dialectics) ------------------------------------ */
 .md-typeset .karika {
-  background: rgba(255, 152, 0, 0.08);
-  border-left: 4px solid #ff9800;
-  border-radius: 0.2rem;
-  padding: 0.9rem 1.2rem;
-  margin: 1rem 0;
-  line-height: 1.9;
+  font-weight: 600;
+  margin: 0.8rem 0;
+  line-height: 1.8;
 }
 
 .md-typeset .vritti {
-  padding: 0.2rem 0 0.2rem 1.2rem;
   margin: 0.6rem 0;
-  color: var(--md-default-fg-color--light);
-  border-left: 2px solid var(--md-default-fg-color--lightest);
+  line-height: 1.8;
 }
 
 /* --- claim / refute (vada dialectics) --------------------------------- */
@@ -98,6 +91,11 @@
   margin: 0.5rem 0;
 }
 
+.md-typeset .udaharana {
+  font-style: italic;
+  margin: 0.6rem 0 0.6rem 1.8rem;
+}
+
 /* --- kavya prose / play ------------------------------------------------ */
 .md-typeset .dialog-block {
   margin: 1.2rem 0;
@@ -118,24 +116,25 @@
   line-height: 1.8;
 }
 
-/* shloka-play: an inline, embedded verse quoted within kavya-play prose —
-   deliberately NOT boxed like .shloka; it should read as part of the
-   surrounding paragraph flow, just bold, with line breaks preserved
-   wherever the source markdown has a newline (no <br> needed). */
+/* shloka-play: an embedded verse quoted within kavya-play dialogue —
+   styled like .dialog-block (no box), just bold and nudged right a
+   little so it visually separates from the speaker's name/dash without
+   trying to align to it exactly (that varies with name length). */
 .md-typeset .shloka-play {
-  display: inline;
   font-weight: 600;
+  margin: 1.2rem 0 1.2rem 1.5rem;
+  line-height: 1.9;
   white-space: pre-line;
 }
 
-/* --- notes: toggled show/hide via body.sv-hide-notes (see notes-toggle.js) */
+/* --- notes: small, italic, gently indented, no box — should read as a
+   quiet aside rather than part of the main text. Experiment freely with
+   these three properties (font-size / margin-left / margin-top) if this
+   isn't subtle-but-clear enough in practice. */
 .md-typeset .notes {
-  background: rgba(0, 0, 0, 0.035);
-  border-left: 4px solid var(--md-default-fg-color--lightest);
-  border-radius: 0.2rem;
-  padding: 0.7rem 1.2rem;
-  margin: 0.5rem 0 1rem;
-  font-size: 0.92rem;
+  font-size: 0.85rem;
+  font-style: italic;
+  margin: 0.6rem 0 0.8rem 1.2rem;
   color: var(--md-default-fg-color--light);
 }
 

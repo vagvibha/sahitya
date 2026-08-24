@@ -6,22 +6,38 @@
 nav:
 - मुखपृष्ठम्: index.md
 - शास्त्रम्:
+  - शास्त्रम्: shastra/index.md
   - ग्रन्थाः:
+    - ध्वन्यालोकः:
+      - परिचयः: shastra/da/index.md
+      - परिचयः: shastra/da/00.md
+      - प्रथमः उद्योतः: shastra/da/01.md
     - काव्यप्रकाशः:
       - परिचयः: shastra/kp/index.md
-      - प्रथम उल्लासः: shastra/kp/01.md
+      - परिचयः: shastra/kp/00.md
+      - प्रथमः उल्लासः: shastra/kp/01.md
     - रसगङ्गाधरः:
       - परिचयः: shastra/rgd/index.md
-      - अध्यायः 1: shastra/rgd/01.md
+      - परिचयः: shastra/rgd/00.md
+      - प्रथममाननम्: shastra/rgd/01.md
+    - साहित्यदर्पणः:
+      - परिचयः: shastra/sd/index.md
+      - अध्यायः 5: shastra/sd/05.md
   - विषयाः:
     - काव्यप्रयोजनम्: shastra/topics/kavyaprayojana.md
     - रसः: shastra/topics/rasa.md
+    - शब्दशक्तिः: shastra/topics/01-shabdashakti.md
     - छन्दांसि: shastra/topics/chandas.md
     - अलङ्काराः: shastra/topics/alankara.md
 - काव्यम्:
+  - काव्यम्: kavya/index.md
   - अभिज्ञानशाकुन्तलम्:
     - परिचयः: kavya/as/index.md
-    - भागः 1: kavya/as/01.md
+    - प्रथमोऽङ्कः: kavya/as/01.md
+  - कादम्बरी:
+    - परिचयः: kavya/kd/index.md
+    - परिचयः: kavya/kd/00.md
+    - पूर्वभागः: kavya/kd/01.md
   - कुमारसम्भवम्:
     - परिचयः: kavya/ks/index.md
     - पञ्चमः सर्गः: kavya/ks/05.md
@@ -36,6 +52,7 @@ theme:
     - navigation.instant
     - navigation.tabs
     - navigation.tabs.sticky
+    - navigation.indexes
     - navigation.top
     - toc.follow
     - search.suggest
