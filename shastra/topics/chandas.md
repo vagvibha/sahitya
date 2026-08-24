@@ -28,7 +28,7 @@ title: छन्दः
     <th><b>उदाहरणम्</b></th>
   </tr>
   <tr>
-    <td>इन्द्रवज्रा</td> <!-- meter-name -->
+    <td>इन्द्रवज्रा</td> <!-- chandas-name -->
     <td>११</td>
     <td>
       स्यादिन्द्रवज्रा यदि तौ जगौ गः<br>
@@ -41,7 +41,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      उपेन्द्रवज्रा <!-- meter-name -->
+      उपेन्द्रवज्रा <!-- chandas-name -->
     </td>
     <td>
       ११
@@ -56,7 +56,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      उपजातिः <!-- meter-name -->
+      उपजातिः <!-- chandas-name -->
     </td>
     <td>
       ११
@@ -81,7 +81,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      वंशस्थ <!-- meter-name -->
+      वंशस्थ <!-- chandas-name -->
     </td>
     <td>
       १२
@@ -104,7 +104,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      वसन्ततिलका <!-- meter-name -->
+      वसन्ततिलका <!-- chandas-name -->
     </td>
     <td>
       १४
@@ -127,7 +127,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      मालिनी <!-- meter-name -->
+      मालिनी <!-- chandas-name -->
     </td>
     <td>
       १५
@@ -155,7 +155,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      मन्दाक्रान्ता <!-- meter-name -->
+      मन्दाक्रान्ता <!-- chandas-name -->
     </td>
     <td>
       १७
@@ -173,7 +173,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      पृथ्वी <!-- meter-name -->
+      पृथ्वी <!-- chandas-name -->
     </td>
     <td>
       १७
@@ -191,7 +191,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      शिखरिणी <!-- meter-name -->
+      शिखरिणी <!-- chandas-name -->
     </td>
     <td>
       १७
@@ -211,7 +211,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      आर्या <!-- meter-name -->
+      आर्या <!-- chandas-name -->
     </td>
     <td>
       १२+१८<br>
@@ -227,7 +227,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      शार्दूलविक्रीडितम् <!-- meter-name -->
+      शार्दूलविक्रीडितम् <!-- chandas-name -->
     </td>
     <td>
       १९
@@ -241,7 +241,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      स्रग्धरा <!-- meter-name -->
+      स्रग्धरा <!-- chandas-name -->
     </td>
     <td>
       २१
@@ -271,7 +271,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      भुजङ्गप्रयातम् <!-- meter-name -->
+      भुजङ्गप्रयातम् <!-- chandas-name -->
     </td>
     <td>
       १२
@@ -284,7 +284,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      तोटकम् <!-- meter-name -->
+      तोटकम् <!-- chandas-name -->
     </td>
     <td>
       १२
@@ -300,7 +300,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      पुष्पिताग्रा <!-- meter-name -->
+      पुष्पिताग्रा <!-- chandas-name -->
     </td>
     <td>
       १२+१३<br>
@@ -314,7 +314,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      मञ्जुभाषिणी <!-- meter-name -->
+      मञ्जुभाषिणी <!-- chandas-name -->
     </td>
     <td>
       १५
@@ -326,7 +326,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      हरिणी <!-- meter-name -->
+      हरिणी <!-- chandas-name -->
     </td>
     <td>
       १७
@@ -338,7 +338,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      प्रहर्षिणी <!-- meter-name -->
+      प्रहर्षिणी <!-- chandas-name -->
     </td>
     <td>
       १३
@@ -350,7 +350,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      शालिनी <!-- meter-name -->
+      शालिनी <!-- chandas-name -->
     </td>
     <td>
       ११
@@ -369,7 +369,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      रथोद्धता <!-- meter-name -->
+      रथोद्धता <!-- chandas-name -->
     </td>
     <td>
       ११
@@ -381,7 +381,7 @@ title: छन्दः
   </tr>
   <tr>
     <td>
-      वियोगिनी <!-- meter-name -->
+      वियोगिनी <!-- chandas-name -->
     </td>
     <td>
       १०+११
