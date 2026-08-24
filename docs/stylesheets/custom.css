@@ -118,6 +118,16 @@
   line-height: 1.8;
 }
 
+/* shloka-play: an inline, embedded verse quoted within kavya-play prose —
+   deliberately NOT boxed like .shloka; it should read as part of the
+   surrounding paragraph flow, just bold, with line breaks preserved
+   wherever the source markdown has a newline (no <br> needed). */
+.md-typeset .shloka-play {
+  display: inline;
+  font-weight: 600;
+  white-space: pre-line;
+}
+
 /* --- notes: toggled show/hide via body.sv-hide-notes (see notes-toggle.js) */
 .md-typeset .notes {
   background: rgba(0, 0, 0, 0.035);
@@ -157,4 +167,29 @@ body.sv-hide-notes .md-typeset .notes {
 /* --- shloka table on kavya chapter pages -------------------------------- */
 .md-typeset table {
   font-family: var(--sv-devanagari-sans);
+}
+
+/* alternating row colors on every table (glossary tables, shloka tables) */
+.md-typeset table:not([class]) tr:nth-child(even),
+.md-typeset table tbody tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) tr:nth-child(even),
+[data-md-color-scheme="slate"] .md-typeset table tbody tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* --- put navigation into a top dropdown instead of a permanent left
+   sidebar, to save horizontal space (navigation.tabs already puts a
+   hover-dropdown on each top tab; this just hides the secondary tree so
+   it isn't reserving a column on every page). Delete this block to get
+   the standard MkDocs Material sidebar back. --- */
+@media screen and (min-width: 76.25em) {
+  .md-sidebar--primary {
+    display: none;
+  }
+  .md-content {
+    margin-left: 0;
+  }
 }

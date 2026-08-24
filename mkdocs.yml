@@ -9,24 +9,22 @@ nav:
   - ग्रन्थाः:
     - काव्यप्रकाशः:
       - परिचयः: shastra/kp/index.md
-      - अध्यायः 1: shastra/kp/01.md
+      - प्रथम उल्लासः: shastra/kp/01.md
     - रसगङ्गाधरः:
       - परिचयः: shastra/rgd/index.md
       - अध्यायः 1: shastra/rgd/01.md
   - विषयाः:
     - काव्यप्रयोजनम्: shastra/topics/kavyaprayojana.md
     - रसः: shastra/topics/rasa.md
-  - छन्दांसि:
-    - इन्द्रव्रजा: shastra/chandas/indravraja.md
-  - अलङ्काराः:
-    - रूपक: shastra/alankara/rupaka.md
+  - छन्दांसि: shastra/topics/chandas.md
+  - अलङ्काराः: shastra/topics/alankara.md
 - काव्यम्:
   - अभिज्ञानशाकुन्तलम्:
     - परिचयः: kavya/as/index.md
     - भागः 1: kavya/as/01.md
   - कुमारसम्भवम्:
     - परिचयः: kavya/ks/index.md
-    - भागः 5: kavya/ks/05.md
+    - पञ्चमः सर्गः: kavya/ks/05.md
 
 site_name: साहित्यशास्त्रम्
 docs_dir: docs
@@ -37,7 +35,7 @@ theme:
   features:
     - navigation.instant
     - navigation.tabs
-    - navigation.sections
+    - navigation.tabs.sticky
     - navigation.top
     - toc.follow
     - search.suggest
@@ -63,3 +61,11 @@ markdown_extensions:
   - pymdownx.superfences
   - toc:
       permalink: true
+
+# The chandas/alankara detail pages under shastra/topics/_chandas/ and
+# _alankara/ are intentionally not linked from nav (only reachable by
+# clicking an entry's name in shastra/topics/chandas.md / alankara.md), so
+# tell MkDocs not to warn/fail on them under --strict.
+validation:
+  nav:
+    omitted_files: ignore

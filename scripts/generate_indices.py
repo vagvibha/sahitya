@@ -7,27 +7,31 @@ Pre-build generation script for the साहित्यशास्त्र�
 
 What it does, in order:
 
-1.  Reads `meta.yaml`/`meta.yml` for every text under `shastra/` and `kavya/`.
-2.  Reads every reference page under `shastra/topics/`, `shastra/chandas/`
-    and `shastra/alankara/` (their Devanagari `title:` frontmatter is the
-    canonical key other files point back to via `topics:` / `meter:` /
-    `alankara:`).
+1.  Reads `meta.yaml`/`meta.yml` for every text under `shastra/` and `kavya/`,
+    and (optionally) for every individual chapter directory (`chapter_name`).
+2.  Reads every topic page under `shastra/topics/` (their Devanagari
+    `title:` frontmatter is the canonical key other files point back to via
+    `topics:`), plus the two glossary pages `shastra/topics/chandas.md` and
+    `shastra/topics/alankara.md`, each an HTML `<table>` of meters/alankaras
+    (see `build_glossary_page` for the exact convention).
 3.  Walks every chapter directory under each text, concatenates its section
     files into a single generated chapter page, and along the way:
       - collects every `topics:` reference (for shastra sections) so the
         chapter page can show back-links, and so each topic page can list
         every section that cites it;
-      - extracts every `<div class="shloka">` (attributes `data-meter=`
-        and `data-alankara=`) and every verse-level `meter:`/`alankara:`
-        frontmatter pair, builds a per-chapter Shloka Table, and records
-        each occurrence for the corresponding chandas/alankara page.
-4.  Writes the generated chapter pages, per-text landing pages, and
-    updated topics/chandas/alankara pages into `docs/` (source files under
-    `shastra/` and `kavya/` at the repo root are never modified).
+      - extracts every `<div class="shloka">`/`<div class="shloka-play">`
+        (attributes `data-meter=` and `data-alankara=`) and every
+        verse-level `meter:`/`alankara:` frontmatter pair, builds a
+        per-chapter Shloka Table, and records each occurrence against the
+        matching row in the chandas/alankara glossary.
+4.  Writes the generated chapter pages, per-text landing pages, topic pages,
+    the two glossary pages, and one auto-generated (nav-less) detail page
+    per meter/alankara into `docs/` (source files under `shastra/` and
+    `kavya/` at the repo root are never modified).
 5.  Writes `docs/index.md` (home page).
 6.  Writes `mkdocs.yml`, including an auto-generated `nav:` block that
-    reflects whatever texts/topics/chandas/alankara currently exist, so nav
-    never needs to be hand-maintained.
+    reflects whatever texts/topics currently exist, so nav never needs to
+    be hand-maintained.
 
 This script is idempotent: it always starts by deleting only the generated
 output directories (`docs/shastra`, `docs/kavya`, `docs/index.md` and
@@ -39,13 +43,14 @@ Requires: PyYAML, beautifulsoup4
 
 from __future__ import annotations
 
+import posixpath
 import re
 import shutil
 import sys
 from pathlib import Path
 
 import yaml
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment
 
 # ---------------------------------------------------------------------------
 # Paths / constants
@@ -58,7 +63,7 @@ DOCS = ROOT / "docs"
 SHASTRA_OUT = DOCS / "shastra"
 KAVYA_OUT = DOCS / "kavya"
 
-RESERVED_SHASTRA_DIRS = {"topics", "chandas", "alankara"}
+RESERVED_SHASTRA_DIRS = {"topics"}
 META_FILENAMES = ("meta.yaml", "meta.yml")
 
 KAVYA_PROSE_TYPES = {"kavya-play", "kavya-prose"}
@@ -137,6 +142,17 @@ def numeric_key(stem: str):
         return (1, stem)
 
 
+def rel_link(from_rel_file: str, to_rel_file: str) -> str:
+    """Relative link from the page at `from_rel_file` to `to_rel_file`,
+    both given as paths relative to the docs root (e.g.
+    'shastra/topics/_chandas/anustubh.md'). Using real relative-path math
+    here (rather than assuming both pages sit at the same depth) matters
+    once pages can live at different nesting depths, as the glossary
+    detail pages now do."""
+    from_dir = posixpath.dirname(from_rel_file)
+    return posixpath.relpath(to_rel_file, start=from_dir or ".")
+
+
 # ---------------------------------------------------------------------------
 # Discovery: texts (shastra/<text>, kavya/<text>)
 # ---------------------------------------------------------------------------
@@ -162,10 +178,11 @@ class Text:
 
 
 class Chapter:
-    def __init__(self, text: Text, slug: str, sections: list[Path]):
+    def __init__(self, text: Text, slug: str, sections: list[Path], meta: dict | None = None):
         self.text = text
         self.slug = slug
         self.sections = sections  # list of source .md Paths, in order
+        self.meta = meta or {}
 
     @property
     def out_file(self) -> Path:
@@ -177,9 +194,13 @@ class Chapter:
 
     @property
     def nav_label(self) -> str:
+        if self.meta.get("chapter_name"):
+            return str(self.meta["chapter_name"]).strip()
         try:
             n = int(self.slug)
-            word = "अध्यायः" if self.text.domain == "shastra" else "भागः"
+            word = str(self.text.meta.get("chapter_type", "")).strip() or (
+                "अध्यायः" if self.text.domain == "shastra" else "भागः"
+            )
             return f"{word} {n}"
         except ValueError:
             return self.slug
@@ -217,7 +238,8 @@ def discover_chapters(text: Text) -> list[Chapter]:
         if not sections:
             warn(f"chapter directory {d} contains no .md sections — skipping")
             continue
-        chapters.append(Chapter(text, name, sections))
+        chapter_meta = read_meta(d)  # optional meta.yaml/meta.yml inside the chapter dir (chapter_name, ...)
+        chapters.append(Chapter(text, name, sections, chapter_meta))
 
     for f in text.dir.glob("*.md"):
         if f.stem in dir_children:
@@ -239,7 +261,7 @@ def discover_chapters(text: Text) -> list[Chapter]:
 
 class RefPage:
     def __init__(self, kind: str, slug: str, path: Path, frontmatter: dict, body: str):
-        self.kind = kind  # "topic" | "chandas" | "alankara"
+        self.kind = kind  # "topic"
         self.slug = slug
         self.path = path
         self.frontmatter = frontmatter
@@ -249,21 +271,11 @@ class RefPage:
 
     @property
     def rel_out_file(self) -> str:
-        folder = {"topic": "topics", "chandas": "chandas", "alankara": "alankara"}[self.kind]
-        return f"shastra/{folder}/{self.slug}.md"
+        return f"shastra/topics/{self.slug}.md"
 
     @property
     def out_file(self) -> Path:
         return DOCS / self.rel_out_file
-
-    @property
-    def is_meter_entry(self) -> bool:
-        """chandas pages are only 'real' meters (and thus valid meter: /
-        data-meter targets, and listed on the home page) if they declare a
-        `varnas` field. Pages without it (e.g. a general theory page like
-        chandas/intro.md) are treated as common content shown on every real
-        meter page instead."""
-        return self.kind == "chandas" and "varnas" in self.frontmatter
 
 
 class Reference:
@@ -275,18 +287,14 @@ class Reference:
         self.anchor = anchor
         self.preview = preview
 
-    @property
-    def link(self) -> str:
-        depth = self.chapter.rel_out_file.count("/")
-        prefix = "../" * depth
-        return f"{prefix}{self.chapter.rel_out_file}#{self.anchor}"
 
-
-def discover_ref_pages(kind: str, folder: Path) -> dict[str, RefPage]:
+def discover_ref_pages(kind: str, folder: Path, exclude: set[str] = frozenset()) -> dict[str, RefPage]:
     pages: dict[str, RefPage] = {}
     if not folder.exists():
         return pages
     for f in sorted(folder.glob("*.md")):
+        if f.name in exclude:
+            continue
         text = f.read_text(encoding="utf-8")
         fm, body = split_frontmatter(text)
         title = str(fm.get("title", "")).strip()
@@ -301,11 +309,148 @@ def discover_ref_pages(kind: str, folder: Path) -> dict[str, RefPage]:
 
 
 # ---------------------------------------------------------------------------
+# Chandas / alankara glossary tables
+# ---------------------------------------------------------------------------
+#
+# shastra/topics/chandas.md and shastra/topics/alankara.md are each a single
+# hand-maintained page containing one or more HTML <table>s (one row per
+# meter/alankara). A row counts as a matchable glossary entry if it carries
+# an HTML comment `<!-- chandas-name -->` / `<!-- alankara-name -->`
+# anywhere among that <tr>'s direct children — that comment is only a
+# marker (its exact wording isn't otherwise used); the entry's canonical
+# name is the exact text of that row's first <td>, and must match
+# `meter:`/`alankara:` frontmatter or `data-meter=`/`data-alankara=`
+# attributes exactly.
+#
+# For every marked row the script: (1) auto-generates a detail page (the
+# row's own remaining columns + every shloka across the codebase tagging
+# it) that is intentionally NOT added to nav — it's only reachable by
+# clicking the entry's name in the table; (2) turns that first cell's text
+# into a link to the detail page, in the copy written to docs/.
+
+GLOSSARY_MARKER = {"chandas": "chandas-name", "alankara": "alankara-name"}
+GLOSSARY_OUT_SUBDIR = {"chandas": "_chandas", "alankara": "_alankara"}
+
+TABLE_BLOCK_RE = re.compile(r"<table\b.*?</table>", re.IGNORECASE | re.DOTALL)
+SLUG_INVALID_RE = re.compile(r"[^0-9A-Za-z\u0900-\u097F]+")
+
+
+def slugify(name: str) -> str:
+    slug = SLUG_INVALID_RE.sub("-", name.strip()).strip("-")
+    return slug or "entry"
+
+
+class TableEntry:
+    """One glossary row (a meter or an alankara) parsed out of
+    shastra/topics/chandas.md or alankara.md."""
+
+    def __init__(self, kind: str, title: str, slug: str, col_labels: list[str], col_html: list[str]):
+        self.kind = kind
+        self.title = title
+        self.slug = slug
+        self.col_labels = col_labels  # header text for each remaining column
+        self.col_html = col_html  # that row's inner HTML for each remaining column
+        self.references: list[Reference] = []
+
+    @property
+    def rel_out_file(self) -> str:
+        return f"shastra/topics/{GLOSSARY_OUT_SUBDIR[self.kind]}/{self.slug}.md"
+
+    @property
+    def out_file(self) -> Path:
+        return DOCS / self.rel_out_file
+
+
+def build_glossary_page(kind: str, path: Path) -> tuple[dict[str, TableEntry], str]:
+    """Returns (entries, rendered_body) for shastra/topics/{chandas,alankara}.md.
+    `rendered_body` is the source body with every matched entry's name cell
+    turned into a link to its (nav-less) detail page."""
+    if not path.exists():
+        warn(f"{path} does not exist — no {kind} entries will be available")
+        return {}, ""
+
+    raw = path.read_text(encoding="utf-8")
+    fm, body = split_frontmatter(raw)
+    marker = GLOSSARY_MARKER[kind]
+    entries: dict[str, TableEntry] = {}
+
+    def repl_table(m: re.Match) -> str:
+        soup = BeautifulSoup(m.group(0), "html.parser")
+        table = soup.find("table")
+        if table is None:
+            return m.group(0)
+
+        header_labels: list[str] = []
+        first_row = table.find("tr")
+        if first_row is not None and first_row.find("th"):
+            header_labels = [th.get_text(strip=True) for th in first_row.find_all("th")]
+
+        for tr in table.find_all("tr"):
+            if tr.find("th"):
+                continue  # header row
+            has_marker = any(isinstance(c, Comment) and marker in c for c in tr.children)
+            if not has_marker:
+                continue
+            tds = tr.find_all("td", recursive=False)
+            if not tds:
+                continue
+            name = tds[0].get_text(strip=True)
+            if not name:
+                warn(f"{path}: a row marked <!-- {marker} --> has an empty name cell — skipping")
+                continue
+            if name in entries:
+                warn(f"{path}: duplicate {kind} entry '{name}' — keeping the first occurrence")
+                continue
+
+            slug = slugify(name)
+            rest_labels = header_labels[1:1 + len(tds) - 1] if header_labels else []
+            rest_html = ["".join(str(c) for c in td.contents).strip() for td in tds[1:]]
+            entries[name] = TableEntry(kind, name, slug, rest_labels, rest_html)
+
+            href = f"{GLOSSARY_OUT_SUBDIR[kind]}/{slug}.md"
+            a_tag = soup.new_tag("a", href=href)
+            for child in list(tds[0].children):
+                a_tag.append(child.extract())
+            tds[0].append(a_tag)
+
+        return str(soup)
+
+    new_body = TABLE_BLOCK_RE.sub(repl_table, body).strip()
+    if not entries:
+        warn(f"{path}: found no rows marked <!-- {marker} --> — no {kind} entries were registered")
+
+    title = str(fm.get("title", kind)).strip()
+    rendered = new_body if H1_RE.match(new_body) else f"# {title}\n\n{new_body}"
+    return entries, rendered
+
+
+def render_glossary_entry_page(entry: TableEntry) -> str:
+    parts = [f"# {entry.title}", ""]
+    for label, html in zip(entry.col_labels, entry.col_html):
+        if not html:
+            continue
+        if label:
+            parts.append(f"**{label}**")
+            parts.append("")
+        parts.append(html)
+        parts.append("")
+    if entry.references:
+        parts.append("## सन्दर्भाः")
+        parts.append("")
+        for ref in entry.references:
+            label = f"{ref.chapter.text.title} — {ref.chapter.nav_label}"
+            link = rel_link(entry.rel_out_file, ref.chapter.rel_out_file) + f"#{ref.anchor}"
+            parts.append(f"- [{ref.preview}]({link}) — {label}")
+    parts.append("")
+    return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
 # HTML scanning helpers (tolerant of minor malformed markup in sources)
 # ---------------------------------------------------------------------------
 
 ATTR_RE = re.compile(r'([a-zA-Z\-]+)\s*=\s*"([^"]*)"')
-SHLOKA_RE = re.compile(r'<div\s+class="shloka"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
+SHLOKA_RE = re.compile(r'<div\s+class="(?:shloka|shloka-play)"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
 
 
 def parse_attrs(attr_str: str) -> dict:
@@ -449,8 +594,6 @@ def build_text_index_page(text: Text) -> str:
     lines = [f"# {text.title}", ""]
     if text.author:
         lines += [f"**कर्ता:** {text.author}", ""]
-    if text.type:
-        lines += [f"**प्रकारः:** {text.type}", ""]
     lines.append("## अध्यायाः / भागाः")
     lines.append("")
     for ch in text.chapters:
@@ -498,10 +641,9 @@ def render_shastra_chapter(chapter: Chapter, topics: dict[str, RefPage]) -> str:
     if seen_topics:
         header.append("## सम्बद्धाः विषयाः")
         header.append("")
-        depth = chapter.rel_out_file.count("/")
-        prefix = "../" * depth
         for t in seen_topics:
-            header.append(TOPIC_LINK_TMPL.format(title=t, link=f"{prefix}{topics[t].rel_out_file}"))
+            link = rel_link(chapter.rel_out_file, topics[t].rel_out_file)
+            header.append(TOPIC_LINK_TMPL.format(title=t, link=link))
         header.append("")
         header.append("---")
         header.append("")
@@ -511,7 +653,7 @@ def render_shastra_chapter(chapter: Chapter, topics: dict[str, RefPage]) -> str:
 
 
 def render_kavya_chapter(
-    chapter: Chapter, chandas: dict[str, RefPage], alankaras: dict[str, RefPage]
+    chapter: Chapter, chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
 ) -> tuple[str, list[Shloka]]:
     """Returns (rendered_markdown, all_shlokas_in_anchor_order). The same
     `all_shlokas` list (1-indexed => anchor "s{i}") is used both for the
@@ -540,17 +682,15 @@ def render_kavya_chapter(
             return "—"
         if m not in chandas:
             return m
-        depth = chapter.rel_out_file.count("/")
-        return f"[{m}]({'../' * depth}{chandas[m].rel_out_file})"
+        return f"[{m}]({rel_link(chapter.rel_out_file, chandas[m].rel_out_file)})"
 
     def link_alankaras(items: list[str]) -> str:
         if not items:
             return "—"
-        depth = chapter.rel_out_file.count("/")
         out = []
         for a in items:
             if a in alankaras:
-                out.append(f"[{a}]({'../' * depth}{alankaras[a].rel_out_file})")
+                out.append(f"[{a}]({rel_link(chapter.rel_out_file, alankaras[a].rel_out_file)})")
             else:
                 out.append(a)
         return ", ".join(out)
@@ -587,14 +727,8 @@ def record_kavya_references(chapter: Chapter, chandas: dict, alankaras: dict, sh
 H1_RE = re.compile(r"^\s*#\s+\S")
 
 
-def render_ref_page(page: RefPage, common_pages: list[RefPage]) -> str:
+def render_ref_page(page: RefPage) -> str:
     parts = []
-    if page.kind == "chandas" and page.is_meter_entry:
-        for common in common_pages:
-            parts.append(common.body.strip())
-            parts.append("")
-            parts.append("---")
-            parts.append("")
     body = page.body.strip()
     if not H1_RE.match(body):
         # only add a title heading if the source body doesn't already
@@ -609,7 +743,8 @@ def render_ref_page(page: RefPage, common_pages: list[RefPage]) -> str:
         parts.append("")
         for ref in page.references:
             label = f"{ref.chapter.text.title} — {ref.chapter.nav_label}"
-            parts.append(f"- [{ref.preview}]({ref.link}) — {label}")
+            link = rel_link(page.rel_out_file, ref.chapter.rel_out_file) + f"#{ref.anchor}"
+            parts.append(f"- [{ref.preview}]({link}) — {label}")
     parts.append("")
     return "\n".join(parts)
 
@@ -618,8 +753,6 @@ def build_home_page(
     shastra_texts: list[Text],
     kavya_texts: list[Text],
     topics: dict[str, RefPage],
-    chandas: dict[str, RefPage],
-    alankaras: dict[str, RefPage],
 ) -> str:
     lines = ["# साहित्यशास्त्रम्", ""]
 
@@ -637,15 +770,12 @@ def build_home_page(
 
     lines.append("## छन्दांसि")
     lines.append("")
-    for title, page in sorted(chandas.items()):
-        if page.is_meter_entry:
-            lines.append(f"- [{title}]({page.rel_out_file})")
+    lines.append("- [छन्दांसि](shastra/topics/chandas.md)")
     lines.append("")
 
     lines.append("## अलङ्काराः")
     lines.append("")
-    for title, page in sorted(alankaras.items()):
-        lines.append(f"- [{title}]({page.rel_out_file})")
+    lines.append("- [अलङ्काराः](shastra/topics/alankara.md)")
     lines.append("")
 
     lines.append("# काव्यानि")
@@ -674,7 +804,7 @@ theme:
   features:
     - navigation.instant
     - navigation.tabs
-    - navigation.sections
+    - navigation.tabs.sticky
     - navigation.top
     - toc.follow
     - search.suggest
@@ -700,6 +830,14 @@ markdown_extensions:
   - pymdownx.superfences
   - toc:
       permalink: true
+
+# The chandas/alankara detail pages under shastra/topics/_chandas/ and
+# _alankara/ are intentionally not linked from nav (only reachable by
+# clicking an entry's name in shastra/topics/chandas.md / alankara.md), so
+# tell MkDocs not to warn/fail on them under --strict.
+validation:
+  nav:
+    omitted_files: ignore
 """
 
 
@@ -711,8 +849,6 @@ def build_nav(
     shastra_texts: list[Text],
     kavya_texts: list[Text],
     topics: dict[str, RefPage],
-    chandas: dict[str, RefPage],
-    alankaras: dict[str, RefPage],
 ) -> list:
     def text_nav(t: Text):
         entry = [{"परिचयः": f"{t.rel_out_dir}/index.md"}]
@@ -723,8 +859,8 @@ def build_nav(
     shastra_section = [
         {"ग्रन्थाः": [text_nav(t) for t in shastra_texts]},
         {"विषयाः": [{title: p.rel_out_file} for title, p in sorted(topics.items())]},
-        {"छन्दांसि": [{title: p.rel_out_file} for title, p in sorted(chandas.items()) if p.is_meter_entry]},
-        {"अलङ्काराः": [{title: p.rel_out_file} for title, p in sorted(alankaras.items())]},
+        {"छन्दांसि": "shastra/topics/chandas.md"},
+        {"अलङ्काराः": "shastra/topics/alankara.md"},
     ]
 
     nav = [
@@ -738,10 +874,11 @@ def build_nav(
 def main():
     clean_output()
 
-    topics = discover_ref_pages("topic", SHASTRA_SRC / "topics")
-    chandas = discover_ref_pages("chandas", SHASTRA_SRC / "chandas")
-    alankaras = discover_ref_pages("alankara", SHASTRA_SRC / "alankara")
-    common_chandas = [p for p in chandas.values() if not p.is_meter_entry]
+    topics = discover_ref_pages(
+        "topic", SHASTRA_SRC / "topics", exclude={"chandas.md", "alankara.md"}
+    )
+    chandas, chandas_body = build_glossary_page("chandas", SHASTRA_SRC / "topics" / "chandas.md")
+    alankaras, alankara_body = build_glossary_page("alankara", SHASTRA_SRC / "topics" / "alankara.md")
 
     shastra_texts = discover_texts(SHASTRA_SRC, "shastra")
     kavya_texts = discover_texts(KAVYA_SRC, "kavya")
@@ -773,30 +910,28 @@ def main():
 
         write_md(t.out_dir / "index.md", build_text_index_page(t))
 
-    # --- reference pages: write with injected back-links -----------------
+    # --- topic pages: write with injected back-links ----------------------
     for title, page in topics.items():
-        write_md(page.out_file, render_ref_page(page, []))
-    for title, page in chandas.items():
-        if page.is_meter_entry:
-            write_md(page.out_file, render_ref_page(page, common_chandas))
-        else:
-            # common pages are not standalone site pages; they are folded
-            # into every meter page instead. Skip writing them separately.
-            pass
-    for title, page in alankaras.items():
-        write_md(page.out_file, render_ref_page(page, []))
+        write_md(page.out_file, render_ref_page(page))
+
+    # --- chandas/alankara glossary pages + their (nav-less) detail pages --
+    write_md(DOCS / "shastra/topics/chandas.md", chandas_body)
+    write_md(DOCS / "shastra/topics/alankara.md", alankara_body)
+    for entry in chandas.values():
+        write_md(entry.out_file, render_glossary_entry_page(entry))
+    for entry in alankaras.values():
+        write_md(entry.out_file, render_glossary_entry_page(entry))
 
     # --- home page ---------------------------------------------------------
-    write_md(DOCS / "index.md", build_home_page(shastra_texts, kavya_texts, topics, chandas, alankaras))
+    write_md(DOCS / "index.md", build_home_page(shastra_texts, kavya_texts, topics))
 
     # --- mkdocs.yml (nav auto-generated, static settings preserved) -------
-    nav = build_nav(shastra_texts, kavya_texts, topics, chandas, alankaras)
+    nav = build_nav(shastra_texts, kavya_texts, topics)
     mkdocs_yml = NAV_HEADER + "\n" + yaml_dump_nav(nav) + "\n" + MKDOCS_STATIC
     write(ROOT / "mkdocs.yml", mkdocs_yml)
 
     print(f"\nDone. {len(shastra_texts)} shastra text(s), {len(kavya_texts)} kavya text(s), "
-          f"{len(topics)} topic(s), {sum(p.is_meter_entry for p in chandas.values())} meter(s), "
-          f"{len(alankaras)} alankara(s).")
+          f"{len(topics)} topic(s), {len(chandas)} meter(s), {len(alankaras)} alankara(s).")
     if WARNINGS:
         print(f"\n{len(WARNINGS)} warning(s) were printed above — please review.", file=sys.stderr)
 
