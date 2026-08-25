@@ -1,5 +1,5 @@
 ---
-topic: अलङ्कारः
+title: अलङ्कारः
 type: shastra-topic
 order: 2
 ---

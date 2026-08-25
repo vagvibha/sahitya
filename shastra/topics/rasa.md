@@ -1,7 +1,7 @@
 ---
 title: रसः
 type: shastra-topic
-order: 4
+order: 5
 ---
 
 # रसः
