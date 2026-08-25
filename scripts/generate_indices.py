@@ -66,6 +66,17 @@ KAVYA_OUT = DOCS / "kavya"
 RESERVED_SHASTRA_DIRS = {"topics"}
 META_FILENAMES = ("meta.yaml", "meta.yml")
 
+SITE_CONFIG_PATH = Path(__file__).resolve().parent / "site_config.yaml"
+
+
+def load_site_config() -> dict:
+    if not SITE_CONFIG_PATH.exists():
+        return {}
+    return yaml.safe_load(SITE_CONFIG_PATH.read_text(encoding="utf-8")) or {}
+
+
+SITE_CONFIG = load_site_config()
+
 KAVYA_PROSE_TYPES = {"kavya-play", "kavya-prose"}
 KAVYA_VERSE_TYPES = {"kavya-verse"}
 SHASTRA_TEXT_TYPES = {"shastra-karika", "shastra-vada"}
@@ -231,7 +242,8 @@ class Chapter:
         try:
             n = int(self.slug)
             word = str(self.text.meta.get("chapter_type", "")).strip() or (
-                "अध्यायः" if self.text.domain == "shastra" else "भागः"
+                SITE_CONFIG.get("chapter_word", {}).get(self.text.domain)
+                or ("अध्यायः" if self.text.domain == "shastra" else "भागः")
             )
             return f"{word} {n}"
         except ValueError:
@@ -303,6 +315,16 @@ class RefPage:
         self.body = body
         self.title = str(frontmatter.get("title", slug)).strip()
         self.references: list["Reference"] = []  # filled in during the scan
+
+    @property
+    def sort_key(self):
+        order = self.frontmatter.get("order")
+        try:
+            order = float(order) if order is not None else float("inf")
+        except (TypeError, ValueError):
+            warn(f"{self.path}: 'order: {order!r}' isn't a number — ignoring it, sorting by title instead")
+            order = float("inf")
+        return (order, self.title)
 
     @property
     def rel_out_file(self) -> str:
@@ -552,96 +574,104 @@ def extract_shlokas(
 
 
 # ---------------------------------------------------------------------------
-# "Labeled hideable sections" — commentary-type content blocks that get
-# formatted as "<u>Label</u> – content" and can be toggled off along with
-# .notes. Three conventions, handled together in process_labeled_sections():
-#
-# 1. A fixed set of kavya-verse sections — <div class="anvaya">,
-#    "padartha", "vyutpatti", "tika" (label = its own data-name attribute,
-#    since a tika is named after its commentator), "alankara", "bhavartha",
-#    "vyakarana", "kosha" — always get labeled with a hardcoded Sanskrit
-#    word (data-name for tika), are always hideable, and are always
-#    reordered into that exact sequence and reinserted right after the
-#    chapter's shloka, regardless of what order they were written in.
-# 2. <div class="commentary" data-name="..."> (usable in shastra/ or
-#    kavya/) is labeled from data-name if given, left exactly where it was
-#    written (never reordered), and is only made hideable if the source
-#    explicitly adds toggle-hide="true".
-# 3. Any other div at all, of any class, becomes hideable if it explicitly
-#    carries toggle-hide="true" — a generic opt-in that doesn't require a
-#    hardcoded class name, so new hideable section types don't need script
-#    changes.
-#
-# <div class="notes"> is always hideable too, but never labeled/reordered
-# — it's left exactly where it was written, same as before.
+# "Labeled hideable sections" — commentary-type content blocks, driven by
+# scripts/content_sections.yaml (see that file for the full convention).
+# Sections declared with reposition: true are extracted from wherever they
+# were written and reinserted, in the config file's order, right after the
+# section's shloka (or appended at the end if there's no shloka). Everything
+# else is labeled/marked hideable in place, never moved.
 
-LABELED_ORDER = ["anvaya", "padartha", "vyutpatti", "tika", "alankara", "bhavartha", "vyakarana", "kosha"]
-LABELED_FIXED_TEXT = {
-    "anvaya": "अन्वयः",
-    "padartha": "पदार्थः",
-    "vyutpatti": "व्युत्पत्तिः",
-    "alankara": "अलङ्कारः",
-    "bhavartha": "भावार्थः",
-    "vyakarana": "व्याकरणः",
-    "kosha": "कोशः",
-}
+CONTENT_SECTIONS_CONFIG_PATH = Path(__file__).resolve().parent / "content_sections.yaml"
 HIDEABLE_CLASS = "sv-hideable"
 
-_LABELED_ALT = "|".join(LABELED_ORDER)
-LABELED_DIV_RE = re.compile(rf'<div\s+class="({_LABELED_ALT})"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
-COMMENTARY_DIV_RE = re.compile(r'<div\s+class="commentary"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
-NOTES_DIV_RE = re.compile(r'<div\s+class="notes"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
-ANY_DIV_RE = re.compile(r'<div\s+class="([^"]+)"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
-TOGGLE_HIDE_TRUE_RE = re.compile(r'\btoggle-hide\s*=\s*"true"', re.IGNORECASE)
-_ALREADY_HANDLED_CLASSES = set(LABELED_ORDER) | {"commentary", "notes"}
+
+def load_content_sections_config() -> dict:
+    if not CONTENT_SECTIONS_CONFIG_PATH.exists():
+        warn(f"{CONTENT_SECTIONS_CONFIG_PATH} not found — no commentary sections will be labeled/hideable")
+        return {}
+    data = yaml.safe_load(CONTENT_SECTIONS_CONFIG_PATH.read_text(encoding="utf-8")) or {}
+    by_class = {}
+    for entry in data.get("sections", []):
+        cls = str(entry.get("class", "")).strip().lower()
+        if cls:
+            by_class[cls] = entry
+    return by_class
 
 
-def labeled_section_html(cls: str, attrs: str, content: str) -> str:
-    label = parse_attrs(attrs).get("data-name", "").strip() if cls == "tika" else LABELED_FIXED_TEXT.get(cls, "")
+SECTION_CONFIG_BY_CLASS = load_content_sections_config()
+REPOSITION_ORDER = [cls for cls, cfg in SECTION_CONFIG_BY_CLASS.items() if cfg.get("reposition")]
+
+ANY_CLASS_DIV_RE = re.compile(r'<div\s+class="([^"]+)"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
+TOGGLE_HIDE_RE = re.compile(r'\btoggle-hide\s*=\s*"(true|false)"', re.IGNORECASE)
+
+
+def commentary_label(cls: str, attrs: str) -> str:
+    cfg = SECTION_CONFIG_BY_CLASS.get(cls)
+    if not cfg:
+        return ""
+    if cfg.get("label_from_attr"):
+        return parse_attrs(attrs).get(cfg["label_from_attr"], "").strip()
+    return str(cfg.get("label", "") or "").strip()
+
+
+def commentary_hidden(cls: str, attrs: str) -> bool:
+    m = TOGGLE_HIDE_RE.search(attrs)
+    if m:
+        return m.group(1).lower() == "true"  # a specific instance always overrides the class default
+    cfg = SECTION_CONFIG_BY_CLASS.get(cls)
+    return bool(cfg and cfg.get("hidden_by_default"))
+
+
+def render_commentary_div(cls_raw: str, attrs: str, content: str) -> str | None:
+    """Returns the rewritten div, or None if this class/instance isn't part
+    of the labeled-section system at all (structural divs like shloka,
+    karika, dialog-block, etc. — left completely untouched by the caller)."""
+    base_cls = cls_raw.strip().split()[0].lower()
+    if base_cls not in SECTION_CONFIG_BY_CLASS and not TOGGLE_HIDE_RE.search(attrs):
+        return None
+    label = commentary_label(base_cls, attrs)
+    classes = cls_raw.strip()
+    if commentary_hidden(base_cls, attrs):
+        classes = f"{classes} {HIDEABLE_CLASS}"
     inner = content.strip()
     rendered = f"<u>{label}</u> – {inner}" if label else inner
-    return f'<div class="{cls} {HIDEABLE_CLASS}">\n\n{rendered}\n\n</div>'
+    return f'<div class="{classes}">\n\n{rendered}\n\n</div>'
 
 
-def process_labeled_sections(body: str) -> tuple[str, str]:
-    """Returns (body_with_those_8_sections_removed, reordered_html_block).
-    Caller is responsible for reinserting the returned block wherever it
-    belongs (right after the chapter's shloka, for kavya-verse)."""
+def process_content_sections(body: str) -> tuple[str, str]:
+    """Returns (body_with_repositioned_sections_removed, reordered_html)."""
     by_class: dict[str, list[tuple[str, str]]] = {}
 
-    def _collect(m: re.Match) -> str:
-        by_class.setdefault(m.group(1).lower(), []).append((m.group(2), m.group(3)))
-        return ""
+    def repl(m: re.Match) -> str:
+        cls_raw, attrs, content = m.group(1), m.group(2), m.group(3)
+        base_cls = cls_raw.strip().split()[0].lower()
+        if base_cls in REPOSITION_ORDER:
+            by_class.setdefault(base_cls, []).append((attrs, content))
+            return ""
+        rendered = render_commentary_div(cls_raw, attrs, content)
+        return rendered if rendered is not None else m.group(0)
 
-    body = LABELED_DIV_RE.sub(_collect, body)
+    body = ANY_CLASS_DIV_RE.sub(repl, body)
     reordered_html = "\n\n".join(
-        labeled_section_html(cls, attrs, content)
-        for cls in LABELED_ORDER
+        render_commentary_div(cls, attrs, content)
+        for cls in REPOSITION_ORDER
         for attrs, content in by_class.get(cls, [])
     )
-
-    def _commentary(m: re.Match) -> str:
-        attrs, content = m.group(1), m.group(2)
-        label = parse_attrs(attrs).get("data-name", "").strip()
-        cls = f"commentary {HIDEABLE_CLASS}" if TOGGLE_HIDE_TRUE_RE.search(attrs) else "commentary"
-        rendered = f"<u>{label}</u> – {content.strip()}" if label else content.strip()
-        return f'<div class="{cls}">\n\n{rendered}\n\n</div>'
-
-    body = COMMENTARY_DIV_RE.sub(_commentary, body)
-
-    def _notes(m: re.Match) -> str:
-        return f'<div class="notes {HIDEABLE_CLASS}">{m.group(2)}</div>'
-
-    body = NOTES_DIV_RE.sub(_notes, body)
-
-    def _generic(m: re.Match) -> str:
-        cls, attrs, content = m.group(1), m.group(2), m.group(3)
-        if cls.lower() in _ALREADY_HANDLED_CLASSES or not TOGGLE_HIDE_TRUE_RE.search(attrs):
-            return m.group(0)
-        return f'<div class="{cls} {HIDEABLE_CLASS}"{TOGGLE_HIDE_TRUE_RE.sub("", attrs)}>{content}</div>'
-
-    body = ANY_DIV_RE.sub(_generic, body)
     return body, reordered_html
+
+
+def insert_reordered_sections(body: str, reordered: str) -> str:
+    """Splices `reordered` right after the section's (last) shloka, or
+    appends it at the end of the section if there's no shloka at all
+    (e.g. shastra sections, or a kavya-play section with none of these
+    commentary blocks)."""
+    if not reordered:
+        return body.strip()
+    shloka_matches = list(SHLOKA_RE.finditer(body))
+    if shloka_matches:
+        cut = shloka_matches[-1].end()
+        return f"{body[:cut].strip()}\n\n{reordered}\n\n{body[cut:].strip()}".strip()
+    return f"{body.strip()}\n\n{reordered}".strip()
 
 
 TOPIC_LINK_TMPL = "- [{title}]({link})"
@@ -775,10 +805,8 @@ def render_shastra_chapter(chapter: Chapter, topics: dict[str, RefPage]) -> str:
             anchor = f"sec{i+1}"
             topics[t].references.append(Reference(t, chapter, anchor, label))
         anchor = f"sec{i+1}"
-        body, reordered = process_labeled_sections(body)
-        section_content = f'<a id="{anchor}"></a>\n\n{body.strip()}'
-        if reordered:
-            section_content += f"\n\n{reordered}"
+        body, reordered = process_content_sections(body)
+        section_content = f'<a id="{anchor}"></a>\n\n{insert_reordered_sections(body, reordered)}'
         body_parts.append(section_content)
 
     header = []
@@ -814,7 +842,7 @@ def render_kavya_chapter(
             warn(f"{section} uses 'meter:' instead of 'chandas:' — please rename it (treating it as 'chandas:' for now)")
             fm_meter = str(fm.get("meter", "")).strip()
         fm_alankaras = as_list(fm.get("alankara"))
-        body, reordered = process_labeled_sections(body)
+        body, reordered = process_content_sections(body)
         new_body, shlokas, counter = extract_shlokas(body, fm_meter, fm_alankaras, counter)
         for sh in shlokas:
             if sh.meter and sh.meter not in chandas:
@@ -823,15 +851,7 @@ def render_kavya_chapter(
                 if a not in alankaras:
                     warn(f"{section} references unknown alankara '{a}' (no matching <!-- alankara-name --> row in shastra/topics/alankara.md)")
         all_shlokas.extend(shlokas)
-        section_content = new_body.strip()
-        if reordered:
-            shloka_matches = list(SHLOKA_RE.finditer(new_body))
-            if shloka_matches:
-                cut = shloka_matches[-1].end()
-                section_content = f"{new_body[:cut].strip()}\n\n{reordered}\n\n{new_body[cut:].strip()}".strip()
-            else:
-                section_content = f"{section_content}\n\n{reordered}".strip()
-        body_parts.append(section_content)
+        body_parts.append(insert_reordered_sections(new_body, reordered))
 
     def link_meter(m: str) -> str:
         if not m:
@@ -920,7 +940,7 @@ def build_home_page(
 
     lines.append("## विषयाः")
     lines.append("")
-    for title, page in sorted(topics.items()):
+    for title, page in sorted(topics.items(), key=lambda kv: kv[1].sort_key):
         lines.append(f"- [{title}]({page.rel_out_file})")
     lines.append("- [छन्दांसि](shastra/topics/chandas.md)")
     lines.append("- [अलङ्काराः](shastra/topics/alankara.md)")
@@ -942,8 +962,8 @@ NAV_HEADER = """\
 # `nav:` list itself each time it runs.
 """
 
-MKDOCS_STATIC = """\
-site_name: साहित्यशास्त्रम्
+MKDOCS_STATIC_TMPL = """\
+site_name: {site_name}
 docs_dir: docs
 
 theme:
@@ -959,8 +979,8 @@ theme:
     - search.suggest
   palette:
     - scheme: default
-      primary: deep orange
-      accent: amber
+      primary: {primary}
+      accent: {accent}
 
 extra_css:
   - stylesheets/custom.css
@@ -990,6 +1010,17 @@ validation:
 """
 
 
+def build_mkdocs_static() -> str:
+    """site_name/palette come from scripts/site_config.yaml (falls back to
+    sensible defaults if that file is missing or a key is absent)."""
+    theme_cfg = SITE_CONFIG.get("theme", {}) or {}
+    return MKDOCS_STATIC_TMPL.format(
+        site_name=SITE_CONFIG.get("site_name") or "साहित्यशास्त्रम्",
+        primary=theme_cfg.get("primary") or "deep orange",
+        accent=theme_cfg.get("accent") or "amber",
+    )
+
+
 def yaml_dump_nav(nav) -> str:
     return yaml.dump({"nav": nav}, allow_unicode=True, sort_keys=False, default_flow_style=False)
 
@@ -1017,7 +1048,7 @@ def build_nav(
         {"ग्रन्थाः": [text_nav(t) for t in shastra_texts]},
         {
             "विषयाः": [
-                {title: p.rel_out_file} for title, p in sorted(topics.items())
+                {title: p.rel_out_file} for title, p in sorted(topics.items(), key=lambda kv: kv[1].sort_key)
             ]
             + [
                 {"छन्दांसि": "shastra/topics/chandas.md"},
@@ -1095,7 +1126,7 @@ def main():
 
     # --- mkdocs.yml (nav auto-generated, static settings preserved) -------
     nav = build_nav(shastra_texts, kavya_texts, topics)
-    mkdocs_yml = NAV_HEADER + "\n" + yaml_dump_nav(nav) + "\n" + MKDOCS_STATIC
+    mkdocs_yml = NAV_HEADER + "\n" + yaml_dump_nav(nav) + "\n" + build_mkdocs_static()
     write(ROOT / "mkdocs.yml", mkdocs_yml)
 
     print(f"\nDone. {len(shastra_texts)} shastra text(s), {len(kavya_texts)} kavya text(s), "

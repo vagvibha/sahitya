@@ -217,6 +217,17 @@ body.sv-show-notes .md-typeset .sv-hideable {
   border-bottom: 2px solid var(--md-primary-fg-color--dark);
 }
 
+/* vertical column separators */
+.md-typeset table td,
+.md-typeset table th {
+  border-left: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset table td:first-child,
+.md-typeset table th:first-child {
+  border-left: none;
+}
+
 /* --- put navigation into a top dropdown instead of a permanent left
    sidebar, to save horizontal space (navigation.tabs already puts a
    hover-dropdown on each top tab; this just hides the secondary tree so
