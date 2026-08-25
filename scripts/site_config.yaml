@@ -1,0 +1,18 @@
+# site_config.yaml
+# =================
+# Cosmetic/site-level settings previously hardcoded inside
+# generate_indices.py. Edit this file (not the script) to change these —
+# it's re-read every run.
+
+site_name: "साहित्यशास्त्रम्"
+
+theme:
+  primary: "deep orange"
+  accent: "amber"
+
+# Default word used for a chapter's nav label when neither the chapter's
+# own meta.yaml (chapter_name:) nor the text's meta.yaml (chapter_type:)
+# provides one. Separate defaults for shastra vs. kavya texts.
+chapter_word:
+  shastra: "अध्यायः"
+  kavya: "भागः"

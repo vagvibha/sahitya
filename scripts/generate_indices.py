@@ -143,14 +143,22 @@ def find_meta_file(text_dir: Path) -> Path | None:
 
 
 # ---------------------------------------------------------------------------
-# Numeric-aware sorting for chapter/section filenames (01, 02, ... 10, ...)
+# Numeric-aware sorting for chapter/section filenames — plain numeric
+# ("01", "02", ... "10") and prefixed ("da01-01", "da01-02", ... "da01-10")
+# both sort correctly, and correctly regardless of zero-padding, because
+# the sort key is (everything before the trailing digit run, that run's
+# actual numeric value) rather than a plain string compare.
 # ---------------------------------------------------------------------------
 
+TRAILING_DIGITS_RE = re.compile(r"^(.*?)(\d+)$")
+
+
 def numeric_key(stem: str):
-    try:
-        return (0, int(stem))
-    except ValueError:
-        return (1, stem)
+    m = TRAILING_DIGITS_RE.match(stem)
+    if m:
+        prefix, digits = m.groups()
+        return (0, prefix, int(digits))
+    return (1, stem, 0)
 
 
 def rel_link(from_rel_file: str, to_rel_file: str) -> str:
