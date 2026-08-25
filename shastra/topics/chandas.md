@@ -1,5 +1,7 @@
 ---
 title: छन्दः
+type: shastra-topic
+order: 1
 ---
 
 # गणव्यवस्था
@@ -40,9 +42,7 @@ title: छन्दः
     </td>
   </tr>
   <tr>
-    <td>
-      उपेन्द्रवज्रा <!-- chandas-name -->
-    </td>
+    <td> उपेन्द्रवज्रा </td> <!-- chandas-name -->
     <td>
       ११
     </td>
@@ -55,9 +55,7 @@ title: छन्दः
     </td>
   </tr>
   <tr>
-    <td>
-      उपजातिः <!-- chandas-name -->
-    </td>
+    <td>उपजातिः</td> <!-- chandas-name -->
     <td>
       ११
     </td>
@@ -80,9 +78,7 @@ title: छन्दः
     </td>
   </tr>
   <tr>
-    <td>
-      वंशस्थम् <!-- chandas-name -->
-    </td>
+    <td>वंशस्थम्</td> <!-- chandas-name -->
     <td>
       १२
     </td>
@@ -103,9 +99,7 @@ title: छन्दः
     </td>
   </tr>
   <tr>
-    <td>
-      वसन्ततिलका <!-- chandas-name -->
-    </td>
+    <td>वसन्ततिलका</td> <!-- chandas-name -->
     <td>
       १४
     </td>
@@ -126,9 +120,7 @@ title: छन्दः
     </td>
   </tr>
   <tr>
-    <td>
-      मालिनी <!-- chandas-name -->
-    </td>
+    <td>मालिनी</td> <!-- chandas-name -->
     <td>
       १५
     </td>
@@ -154,9 +146,7 @@ title: छन्दः
     </td>
   </tr>
   <tr>
-    <td>
-      मन्दाक्रान्ता <!-- chandas-name -->
-    </td>
+    <td>मन्दाक्रान्ता</td> <!-- chandas-name -->
     <td>
       १७
     </td>
@@ -172,9 +162,7 @@ title: छन्दः
     </td>
   </tr>
   <tr>
-    <td>
-      पृथ्वी <!-- chandas-name -->
-    </td>
+    <td>पृथ्वी</td> <!-- chandas-name -->
     <td>
       १७
     </td>
@@ -190,9 +178,7 @@ title: छन्दः
     </td>
   </tr>
   <tr>
-    <td>
-      शिखरिणी <!-- chandas-name -->
-    </td>
+    <td>शिखरिणी</td> <!-- chandas-name -->
     <td>
       १७
     </td>
@@ -210,9 +196,7 @@ title: छन्दः
     </td>
   </tr>
   <tr>
-    <td>
-      आर्या <!-- chandas-name -->
-    </td>
+    <td>आर्या</td> <!-- chandas-name -->
     <td>
       १२+१८<br>
       १२+१५
@@ -226,9 +210,7 @@ title: छन्दः
     </td>
   </tr>
   <tr>
-    <td>
-      शार्दूलविक्रीडितम् <!-- chandas-name -->
-    </td>
+    <td>शार्दूलविक्रीडितम्</td> <!-- chandas-name -->
     <td>
       १९
     </td>
@@ -240,9 +222,7 @@ title: छन्दः
     </td>
   </tr>
   <tr>
-    <td>
-      स्रग्धरा <!-- chandas-name -->
-    </td>
+    <td>स्रग्धरा</td> <!-- chandas-name -->
     <td>
       २१
     </td>
@@ -270,9 +250,7 @@ title: छन्दः
     <th><b>उदाहरणम्</b></th>
   </tr>
   <tr>
-    <td>
-      भुजङ्गप्रयातम् <!-- chandas-name -->
-    </td>
+    <td>भुजङ्गप्रयातम्</td> <!-- chandas-name -->
     <td>
       १२
     </td>
@@ -283,9 +261,7 @@ title: छन्दः
     </td>
   </tr>
   <tr>
-    <td>
-      तोटकम् <!-- chandas-name -->
-    </td>
+    <td>तोटकम्</td> <!-- chandas-name -->
     <td>
       १२
     </td>
@@ -299,9 +275,7 @@ title: छन्दः
     </td>
   </tr>
   <tr>
-    <td>
-      पुष्पिताग्रा <!-- chandas-name -->
-    </td>
+    <td>पुष्पिताग्रा</td> <!-- chandas-name -->
     <td>
       १२+१३<br>
       १२+१३
@@ -313,9 +287,7 @@ title: छन्दः
     <td></td>
   </tr>
   <tr>
-    <td>
-      मञ्जुभाषिणी <!-- chandas-name -->
-    </td>
+    <td>मञ्जुभाषिणी</td> <!-- chandas-name -->
     <td>
       १५
     </td>
@@ -325,9 +297,7 @@ title: छन्दः
     <td></td>
   </tr>
   <tr>
-    <td>
-      हरिणी <!-- chandas-name -->
-    </td>
+    <td>हरिणी</td> <!-- chandas-name -->
     <td>
       १७
     </td>
@@ -337,9 +307,7 @@ title: छन्दः
     <td></td>
   </tr>
   <tr>
-    <td>
-      प्रहर्षिणी <!-- chandas-name -->
-    </td>
+    <td>प्रहर्षिणी</td> <!-- chandas-name -->
     <td>
       १३
     </td>
@@ -349,9 +317,7 @@ title: छन्दः
     <td></td>
   </tr>
   <tr>
-    <td>
-      शालिनी <!-- chandas-name -->
-    </td>
+    <td>शालिनी</td> <!-- chandas-name -->
     <td>
       ११
     </td>
@@ -368,9 +334,7 @@ title: छन्दः
     <td></td>
   </tr>
   <tr>
-    <td>
-      रथोद्धता <!-- chandas-name -->
-    </td>
+    <td>रथोद्धता</td> <!-- chandas-name -->
     <td>
       ११
     </td>
@@ -380,9 +344,7 @@ title: छन्दः
     <td></td>
   </tr>
   <tr>
-    <td>
-      वियोगिनी <!-- chandas-name -->
-    </td>
+    <td>वियोगिनी</td> <!-- chandas-name -->
     <td>
       १०+११
     </td>
