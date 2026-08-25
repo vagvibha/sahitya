@@ -314,6 +314,37 @@ def discover_chapters(text: Text) -> list[Chapter]:
 # Discovery: reference pages (topics / chandas / alankara)
 # ---------------------------------------------------------------------------
 
+def title_order_sort_key(frontmatter: dict, title: str, source_for_warning: object = "") -> tuple:
+    """Shared sort key for anything listed under विषयाः on the home page/nav
+    — an optional numeric `order:` frontmatter field takes priority, with
+    unordered entries (or a non-numeric order:) falling back to
+    alphabetical-by-title, sorted after every explicitly ordered one."""
+    order = frontmatter.get("order")
+    try:
+        order = float(order) if order is not None else float("inf")
+    except (TypeError, ValueError):
+        warn(f"{source_for_warning}: 'order: {order!r}' isn't a number — ignoring it, sorting by title instead")
+        order = float("inf")
+    return (order, title)
+
+
+class NavListEntry:
+    """A lightweight (title, link, sort_key) stand-in used only for the
+    home page's/nav's विषयाः listing — for pages (like the chandas/alankara
+    glossary pages) that have their own bespoke rendering path and so
+    aren't full RefPage topic objects."""
+
+    def __init__(self, title: str, rel_out_file: str, frontmatter: dict, source_for_warning: object = ""):
+        self.title = title
+        self.rel_out_file = rel_out_file
+        self.frontmatter = frontmatter
+        self._source = source_for_warning
+
+    @property
+    def sort_key(self):
+        return title_order_sort_key(self.frontmatter, self.title, self._source)
+
+
 class RefPage:
     def __init__(self, kind: str, slug: str, path: Path, frontmatter: dict, body: str):
         self.kind = kind  # "topic"
@@ -326,13 +357,7 @@ class RefPage:
 
     @property
     def sort_key(self):
-        order = self.frontmatter.get("order")
-        try:
-            order = float(order) if order is not None else float("inf")
-        except (TypeError, ValueError):
-            warn(f"{self.path}: 'order: {order!r}' isn't a number — ignoring it, sorting by title instead")
-            order = float("inf")
-        return (order, self.title)
+        return title_order_sort_key(self.frontmatter, self.title, self.path)
 
     @property
     def rel_out_file(self) -> str:
@@ -426,13 +451,16 @@ class TableEntry:
         return DOCS / self.rel_out_file
 
 
-def build_glossary_page(kind: str, path: Path) -> tuple[dict[str, TableEntry], str]:
-    """Returns (entries, rendered_body) for shastra/topics/{chandas,alankara}.md.
-    `rendered_body` is the source body with every matched entry's name cell
-    turned into a link to its (nav-less) detail page."""
+def build_glossary_page(kind: str, path: Path) -> tuple[dict[str, TableEntry], str, dict]:
+    """Returns (entries, rendered_body, page_frontmatter) for
+    shastra/topics/{chandas,alankara}.md. `rendered_body` is the source
+    body with every matched entry's name cell turned into a link to its
+    (nav-less) detail page. `page_frontmatter` (title/order/etc.) is
+    exposed so callers can list this page under विषयाः alongside regular
+    topics, sorted/titled the same way."""
     if not path.exists():
         warn(f"{path} does not exist — no {kind} entries will be available")
-        return {}, ""
+        return {}, "", {}
 
     raw = path.read_text(encoding="utf-8")
     fm, body = split_frontmatter(raw)
@@ -488,7 +516,7 @@ def build_glossary_page(kind: str, path: Path) -> tuple[dict[str, TableEntry], s
 
     title = str(fm.get("title", kind)).strip()
     rendered = new_body if H1_RE.match(new_body) else f"# {title}\n\n{new_body}"
-    return entries, rendered
+    return entries, rendered, fm
 
 
 def render_glossary_entry_page(entry: TableEntry) -> str:
@@ -936,7 +964,7 @@ def render_ref_page(page: RefPage) -> str:
 def build_home_page(
     shastra_texts: list[Text],
     kavya_texts: list[Text],
-    topics: dict[str, RefPage],
+    topic_nav_entries: list,
 ) -> str:
     lines = ["# साहित्यशास्त्रम्", ""]
 
@@ -948,10 +976,8 @@ def build_home_page(
 
     lines.append("## विषयाः")
     lines.append("")
-    for title, page in sorted(topics.items(), key=lambda kv: kv[1].sort_key):
-        lines.append(f"- [{title}]({page.rel_out_file})")
-    lines.append("- [छन्दांसि](shastra/topics/chandas.md)")
-    lines.append("- [अलङ्काराः](shastra/topics/alankara.md)")
+    for entry in topic_nav_entries:
+        lines.append(f"- [{entry.title}]({entry.rel_out_file})")
     lines.append("")
 
     lines.append("# काव्यानि")
@@ -1036,7 +1062,7 @@ def yaml_dump_nav(nav) -> str:
 def build_nav(
     shastra_texts: list[Text],
     kavya_texts: list[Text],
-    topics: dict[str, RefPage],
+    topic_nav_entries: list,
 ) -> list:
     def text_nav(t: Text):
         entry = [{"परिचयः": f"{t.rel_out_dir}/index.md"}]
@@ -1054,15 +1080,7 @@ def build_nav(
     shastra_section = [
         {"शास्त्रम्": "shastra/index.md"},
         {"ग्रन्थाः": [text_nav(t) for t in shastra_texts]},
-        {
-            "विषयाः": [
-                {title: p.rel_out_file} for title, p in sorted(topics.items(), key=lambda kv: kv[1].sort_key)
-            ]
-            + [
-                {"छन्दांसि": "shastra/topics/chandas.md"},
-                {"अलङ्काराः": "shastra/topics/alankara.md"},
-            ]
-        },
+        {"विषयाः": [{entry.title: entry.rel_out_file} for entry in topic_nav_entries]},
     ]
     kavya_section = [{"काव्यम्": "kavya/index.md"}] + [text_nav(t) for t in kavya_texts]
 
@@ -1080,8 +1098,31 @@ def main():
     topics = discover_ref_pages(
         "topic", SHASTRA_SRC / "topics", exclude={"chandas.md", "alankara.md"}
     )
-    chandas, chandas_body = build_glossary_page("chandas", SHASTRA_SRC / "topics" / "chandas.md")
-    alankaras, alankara_body = build_glossary_page("alankara", SHASTRA_SRC / "topics" / "alankara.md")
+    chandas, chandas_body, chandas_page_fm = build_glossary_page("chandas", SHASTRA_SRC / "topics" / "chandas.md")
+    alankaras, alankara_body, alankara_page_fm = build_glossary_page("alankara", SHASTRA_SRC / "topics" / "alankara.md")
+
+    # विषयाः listing: regular topics plus the chandas/alankara glossary
+    # pages themselves, all sorted together the same way (order: frontmatter,
+    # falling back to title) — the glossary pages' own title/order comes
+    # from their own frontmatter, same as any other topic.
+    topic_nav_entries = list(topics.values())
+    topic_nav_entries.append(
+        NavListEntry(
+            str(chandas_page_fm.get("title", "chandas")).strip(),
+            "shastra/topics/chandas.md",
+            chandas_page_fm,
+            SHASTRA_SRC / "topics" / "chandas.md",
+        )
+    )
+    topic_nav_entries.append(
+        NavListEntry(
+            str(alankara_page_fm.get("title", "alankara")).strip(),
+            "shastra/topics/alankara.md",
+            alankara_page_fm,
+            SHASTRA_SRC / "topics" / "alankara.md",
+        )
+    )
+    topic_nav_entries.sort(key=lambda e: e.sort_key)
 
     shastra_texts = discover_texts(SHASTRA_SRC, "shastra")
     kavya_texts = discover_texts(KAVYA_SRC, "kavya")
@@ -1130,10 +1171,10 @@ def main():
         write_md(entry.out_file, render_glossary_entry_page(entry))
 
     # --- home page ---------------------------------------------------------
-    write_md(DOCS / "index.md", build_home_page(shastra_texts, kavya_texts, topics))
+    write_md(DOCS / "index.md", build_home_page(shastra_texts, kavya_texts, topic_nav_entries))
 
     # --- mkdocs.yml (nav auto-generated, static settings preserved) -------
-    nav = build_nav(shastra_texts, kavya_texts, topics)
+    nav = build_nav(shastra_texts, kavya_texts, topic_nav_entries)
     mkdocs_yml = NAV_HEADER + "\n" + yaml_dump_nav(nav) + "\n" + build_mkdocs_static()
     write(ROOT / "mkdocs.yml", mkdocs_yml)
 

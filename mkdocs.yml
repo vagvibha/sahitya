@@ -15,10 +15,10 @@ nav:
       - परिचयः: shastra/rgd/index.md
       - अध्यायः 1: shastra/rgd/01.md
   - विषयाः:
+    - अलङ्कारः: shastra/topics/alankara.md
     - काव्यप्रयोजनम्: shastra/topics/kavyaprayojana.md
+    - छन्दः: shastra/topics/chandas.md
     - रसः: shastra/topics/rasa.md
-    - छन्दांसि: shastra/topics/chandas.md
-    - अलङ्काराः: shastra/topics/alankara.md
 - काव्यम्:
   - काव्यम्: kavya/index.md
   - अभिज्ञानशाकुन्तलम्:
