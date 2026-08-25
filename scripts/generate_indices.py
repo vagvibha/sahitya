@@ -250,6 +250,9 @@ def discover_texts(src_root: Path, domain: str) -> list[Text]:
             warn(f"{d} has no meta.yaml/meta.yml — skipping this text")
             continue
         meta = read_meta(d)
+        if meta.get("ignore"):
+            print(f"Skipping {d} (ignore: true in meta.yaml)")
+            continue
         if "title" not in meta:
             warn(f"{meta_path} has no 'title' — skipping this text")
             continue
@@ -420,7 +423,9 @@ def build_glossary_page(kind: str, path: Path) -> tuple[dict[str, TableEntry], s
         for tr in table.find_all("tr"):
             if tr.find("th"):
                 continue  # header row
-            has_marker = any(isinstance(c, Comment) and marker in c for c in tr.children)
+            has_marker = bool(
+                tr.find_all(string=lambda s, marker=marker: isinstance(s, Comment) and marker in s)
+            )
             if not has_marker:
                 continue
             tds = tr.find_all("td", recursive=False)
@@ -544,6 +549,99 @@ def extract_shlokas(
 
     new_body = SHLOKA_RE.sub(repl, body)
     return new_body, shlokas, counter
+
+
+# ---------------------------------------------------------------------------
+# "Labeled hideable sections" — commentary-type content blocks that get
+# formatted as "<u>Label</u> – content" and can be toggled off along with
+# .notes. Three conventions, handled together in process_labeled_sections():
+#
+# 1. A fixed set of kavya-verse sections — <div class="anvaya">,
+#    "padartha", "vyutpatti", "tika" (label = its own data-name attribute,
+#    since a tika is named after its commentator), "alankara", "bhavartha",
+#    "vyakarana", "kosha" — always get labeled with a hardcoded Sanskrit
+#    word (data-name for tika), are always hideable, and are always
+#    reordered into that exact sequence and reinserted right after the
+#    chapter's shloka, regardless of what order they were written in.
+# 2. <div class="commentary" data-name="..."> (usable in shastra/ or
+#    kavya/) is labeled from data-name if given, left exactly where it was
+#    written (never reordered), and is only made hideable if the source
+#    explicitly adds toggle-hide="true".
+# 3. Any other div at all, of any class, becomes hideable if it explicitly
+#    carries toggle-hide="true" — a generic opt-in that doesn't require a
+#    hardcoded class name, so new hideable section types don't need script
+#    changes.
+#
+# <div class="notes"> is always hideable too, but never labeled/reordered
+# — it's left exactly where it was written, same as before.
+
+LABELED_ORDER = ["anvaya", "padartha", "vyutpatti", "tika", "alankara", "bhavartha", "vyakarana", "kosha"]
+LABELED_FIXED_TEXT = {
+    "anvaya": "अन्वयः",
+    "padartha": "पदार्थः",
+    "vyutpatti": "व्युत्पत्तिः",
+    "alankara": "अलङ्कारः",
+    "bhavartha": "भावार्थः",
+    "vyakarana": "व्याकरणः",
+    "kosha": "कोशः",
+}
+HIDEABLE_CLASS = "sv-hideable"
+
+_LABELED_ALT = "|".join(LABELED_ORDER)
+LABELED_DIV_RE = re.compile(rf'<div\s+class="({_LABELED_ALT})"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
+COMMENTARY_DIV_RE = re.compile(r'<div\s+class="commentary"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
+NOTES_DIV_RE = re.compile(r'<div\s+class="notes"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
+ANY_DIV_RE = re.compile(r'<div\s+class="([^"]+)"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
+TOGGLE_HIDE_TRUE_RE = re.compile(r'\btoggle-hide\s*=\s*"true"', re.IGNORECASE)
+_ALREADY_HANDLED_CLASSES = set(LABELED_ORDER) | {"commentary", "notes"}
+
+
+def labeled_section_html(cls: str, attrs: str, content: str) -> str:
+    label = parse_attrs(attrs).get("data-name", "").strip() if cls == "tika" else LABELED_FIXED_TEXT.get(cls, "")
+    inner = content.strip()
+    rendered = f"<u>{label}</u> – {inner}" if label else inner
+    return f'<div class="{cls} {HIDEABLE_CLASS}">\n\n{rendered}\n\n</div>'
+
+
+def process_labeled_sections(body: str) -> tuple[str, str]:
+    """Returns (body_with_those_8_sections_removed, reordered_html_block).
+    Caller is responsible for reinserting the returned block wherever it
+    belongs (right after the chapter's shloka, for kavya-verse)."""
+    by_class: dict[str, list[tuple[str, str]]] = {}
+
+    def _collect(m: re.Match) -> str:
+        by_class.setdefault(m.group(1).lower(), []).append((m.group(2), m.group(3)))
+        return ""
+
+    body = LABELED_DIV_RE.sub(_collect, body)
+    reordered_html = "\n\n".join(
+        labeled_section_html(cls, attrs, content)
+        for cls in LABELED_ORDER
+        for attrs, content in by_class.get(cls, [])
+    )
+
+    def _commentary(m: re.Match) -> str:
+        attrs, content = m.group(1), m.group(2)
+        label = parse_attrs(attrs).get("data-name", "").strip()
+        cls = f"commentary {HIDEABLE_CLASS}" if TOGGLE_HIDE_TRUE_RE.search(attrs) else "commentary"
+        rendered = f"<u>{label}</u> – {content.strip()}" if label else content.strip()
+        return f'<div class="{cls}">\n\n{rendered}\n\n</div>'
+
+    body = COMMENTARY_DIV_RE.sub(_commentary, body)
+
+    def _notes(m: re.Match) -> str:
+        return f'<div class="notes {HIDEABLE_CLASS}">{m.group(2)}</div>'
+
+    body = NOTES_DIV_RE.sub(_notes, body)
+
+    def _generic(m: re.Match) -> str:
+        cls, attrs, content = m.group(1), m.group(2), m.group(3)
+        if cls.lower() in _ALREADY_HANDLED_CLASSES or not TOGGLE_HIDE_TRUE_RE.search(attrs):
+            return m.group(0)
+        return f'<div class="{cls} {HIDEABLE_CLASS}"{TOGGLE_HIDE_TRUE_RE.sub("", attrs)}>{content}</div>'
+
+    body = ANY_DIV_RE.sub(_generic, body)
+    return body, reordered_html
 
 
 TOPIC_LINK_TMPL = "- [{title}]({link})"
@@ -677,7 +775,11 @@ def render_shastra_chapter(chapter: Chapter, topics: dict[str, RefPage]) -> str:
             anchor = f"sec{i+1}"
             topics[t].references.append(Reference(t, chapter, anchor, label))
         anchor = f"sec{i+1}"
-        body_parts.append(f'<a id="{anchor}"></a>\n\n{body.strip()}')
+        body, reordered = process_labeled_sections(body)
+        section_content = f'<a id="{anchor}"></a>\n\n{body.strip()}'
+        if reordered:
+            section_content += f"\n\n{reordered}"
+        body_parts.append(section_content)
 
     header = []
     if seen_topics:
@@ -707,8 +809,12 @@ def render_kavya_chapter(
     for section in chapter.sections:
         raw = section.read_text(encoding="utf-8")
         fm, body = split_frontmatter(raw)
-        fm_meter = str(fm.get("meter", "")).strip()
+        fm_meter = str(fm.get("chandas", "")).strip()
+        if not fm_meter and fm.get("meter"):
+            warn(f"{section} uses 'meter:' instead of 'chandas:' — please rename it (treating it as 'chandas:' for now)")
+            fm_meter = str(fm.get("meter", "")).strip()
         fm_alankaras = as_list(fm.get("alankara"))
+        body, reordered = process_labeled_sections(body)
         new_body, shlokas, counter = extract_shlokas(body, fm_meter, fm_alankaras, counter)
         for sh in shlokas:
             if sh.meter and sh.meter not in chandas:
@@ -717,7 +823,15 @@ def render_kavya_chapter(
                 if a not in alankaras:
                     warn(f"{section} references unknown alankara '{a}' (no matching <!-- alankara-name --> row in shastra/topics/alankara.md)")
         all_shlokas.extend(shlokas)
-        body_parts.append(new_body.strip())
+        section_content = new_body.strip()
+        if reordered:
+            shloka_matches = list(SHLOKA_RE.finditer(new_body))
+            if shloka_matches:
+                cut = shloka_matches[-1].end()
+                section_content = f"{new_body[:cut].strip()}\n\n{reordered}\n\n{new_body[cut:].strip()}".strip()
+            else:
+                section_content = f"{section_content}\n\n{reordered}".strip()
+        body_parts.append(section_content)
 
     def link_meter(m: str) -> str:
         if not m:

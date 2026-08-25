@@ -1,25 +1,32 @@
-// Adds a floating button that toggles visibility of every
-// <div class="notes"> block on the current page. Runs on every page load,
-// including MkDocs Material's instant-navigation swaps.
+// Adds a floating button that shows/hides every "hideable" content block
+// on the current page: <div class="notes">, the kavya-verse commentary
+// sections (anvaya/padartha/vyutpatti/tika/alankara/bhavartha/vyakarana/
+// kosha), and any other block the source explicitly marked with
+// toggle-hide="true" — generate_indices.py tags all of these with the
+// shared class "sv-hideable" at build time. Hidden by default; clicking
+// the button adds .sv-show-notes to <body> to reveal them. Runs on every
+// page load, including MkDocs Material's instant-navigation swaps.
 
 (function () {
   function setup() {
-    var notes = document.querySelectorAll(".md-typeset .notes");
+    var hideable = document.querySelectorAll(".md-typeset .sv-hideable");
     var existing = document.getElementById("sv-notes-toggle");
     if (existing) existing.remove();
-    if (!notes.length) return;
+    if (!hideable.length) return;
+
+    document.body.classList.remove("sv-show-notes"); // hidden by default on every page load
 
     var btn = document.createElement("button");
     btn.id = "sv-notes-toggle";
     btn.type = "button";
 
     function render() {
-      var hidden = document.body.classList.contains("sv-hide-notes");
-      btn.textContent = hidden ? "टिप्पणीः दर्शय" : "टिप्पणीः गोपय";
+      var shown = document.body.classList.contains("sv-show-notes");
+      btn.textContent = shown ? "टिप्पणीः गोपय" : "टिप्पणीः दर्शय";
     }
 
     btn.addEventListener("click", function () {
-      document.body.classList.toggle("sv-hide-notes");
+      document.body.classList.toggle("sv-show-notes");
       render();
     });
 

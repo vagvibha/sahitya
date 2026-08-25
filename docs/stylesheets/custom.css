@@ -15,7 +15,15 @@
 .md-typeset .shloka,
 .md-typeset .karika,
 .md-typeset .udaharana,
-.md-typeset .anvaya {
+.md-typeset .anvaya,
+.md-typeset .padartha,
+.md-typeset .vyutpatti,
+.md-typeset .tika,
+.md-typeset .alankara,
+.md-typeset .bhavartha,
+.md-typeset .vyakarana,
+.md-typeset .kosha,
+.md-typeset .commentary {
   font-family: var(--sv-devanagari-serif);
 }
 
@@ -78,9 +86,11 @@
   margin-bottom: 0.3rem;
 }
 
-/* --- chandas / alankara reference pages -------------------------------- */
-.md-typeset .chandas,
-.md-typeset .alankara {
+/* --- chandas / alankara glossary detail-page headers (renamed from
+   .chandas/.alankara to free up .alankara for the new per-shloka
+   commentary section below, which is a different meaning entirely) ---- */
+.md-typeset .chandasdf,
+.md-typeset .alankaradf {
   font-size: 1.2rem;
   font-weight: 600;
   margin: 1rem 0 0.5rem;
@@ -108,29 +118,45 @@
 }
 
 .md-typeset .anvaya {
-  background: rgba(76, 175, 80, 0.08);
-  border-left: 4px solid #4caf50;
-  border-radius: 0.2rem;
-  padding: 0.9rem 1.2rem;
-  margin: 1rem 0;
-  line-height: 1.8;
+  margin: 0.5rem 0 0.5rem 1rem;
+  line-height: 1.7;
+}
+
+/* the rest of the kavya-verse "labeled hideable sections" (padartha,
+   vyutpatti, tika, alankara, bhavartha, vyakarana, kosha) plus the
+   generic named "commentary" block — all share the same understated
+   treatment: the <u>Label</u> is added by the generator, this is just
+   spacing/color to match .anvaya and .notes. */
+.md-typeset .padartha,
+.md-typeset .vyutpatti,
+.md-typeset .tika,
+.md-typeset .alankara,
+.md-typeset .bhavartha,
+.md-typeset .vyakarana,
+.md-typeset .kosha,
+.md-typeset .commentary {
+  margin: 0.5rem 0 0.5rem 1rem;
+  line-height: 1.7;
+  color: var(--md-default-fg-color--light);
 }
 
 /* shloka-play: an embedded verse quoted within kavya-play dialogue —
    styled like .dialog-block (no box), just bold and nudged right a
    little so it visually separates from the speaker's name/dash without
-   trying to align to it exactly (that varies with name length). */
+   trying to align to it exactly (that varies with name length). No extra
+   vertical margin beyond normal paragraph flow. */
 .md-typeset .shloka-play {
+  display: block;
   font-weight: 600;
-  margin: 1.2rem 0 1.2rem 1.5rem;
+  margin: 0 0 0 1.5rem;
   line-height: 1.9;
   white-space: pre-line;
 }
 
-/* --- notes: small, italic, gently indented, no box — should read as a
-   quiet aside rather than part of the main text. Experiment freely with
-   these three properties (font-size / margin-left / margin-top) if this
-   isn't subtle-but-clear enough in practice. */
+/* --- notes and every "labeled hideable section" above are hidden by
+   default and only shown once the toggle button is clicked (see
+   notes-toggle.js, which adds .sv-show-notes to <body>). .shloka is
+   deliberately never part of this — it should always stay visible. --- */
 .md-typeset .notes {
   font-size: 0.85rem;
   font-style: italic;
@@ -138,8 +164,12 @@
   color: var(--md-default-fg-color--light);
 }
 
-body.sv-hide-notes .md-typeset .notes {
+.md-typeset .sv-hideable {
   display: none;
+}
+
+body.sv-show-notes .md-typeset .sv-hideable {
+  display: block;
 }
 
 /* --- floating notes toggle button --------------------------------------- */
@@ -177,6 +207,14 @@ body.sv-hide-notes .md-typeset .notes {
 [data-md-color-scheme="slate"] .md-typeset table:not([class]) tr:nth-child(even),
 [data-md-color-scheme="slate"] .md-typeset table tbody tr:nth-child(even) {
   background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* table headers: distinct tint + a rule separating them from the body */
+.md-typeset table thead th,
+.md-typeset table > tr:first-child th {
+  background-color: var(--md-primary-fg-color);
+  color: var(--md-primary-bg-color);
+  border-bottom: 2px solid var(--md-primary-fg-color--dark);
 }
 
 /* --- put navigation into a top dropdown instead of a permanent left
