@@ -10,12 +10,14 @@ order: 2
 ## शब्दालङ्काराः
 
 <table>
+<thead>
   <tr>
     <th><b>अलङ्कारः</b></th>
     <th><b>लक्षणम्</b></th>
     <th><b>उदाहरणानि</b></th>
   </tr>
-
+</thead>
+<tbody>
   <tr>
     <td>अनुप्रासः</td> <!-- alankara-name -->
     <td>
@@ -54,16 +56,20 @@ order: 2
       सर्वदा सर्वदास्माकं सन्निधिं सन्निधिं क्रिर्यात् ॥
     </td>
   </tr>
+</tbody>
 </table>
 
 ## अर्थालङ्काराः
 
 <table>
+<thead>
   <tr>
     <th><b>अलङ्कारः</b></th>
     <th><b>लक्षणम्</b></th>
     <th><b>उदाहरणानि</b></th>
   </tr>
+</thead>
+<tbody>
   <tr>
     <td>उपमा</td> <!-- alankara-name -->
     <td>उपमा यत्र सादृश्यलक्ष्मीरुल्लसति द्वयोः<br>
@@ -245,5 +251,6 @@ order: 2
     </td>
     <td></td>
   </tr>
+</tbody>
 </table>
 
