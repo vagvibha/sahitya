@@ -85,15 +85,19 @@ sections:
     hidden_by_default: true
     reposition: true
 
-  - class: commentary
-    label_from_attr: data-name
+  - class: vritti
     hidden_by_default: false
     reposition: false
 
-  - class: vritti
-    hidden_by_default: true
+  - class: udaharana
+    hidden_by_default: false
     reposition: false
+
+  - class: commentary
+    label_from_attr: data-name
+    hidden_by_default: false
+    reposition: true
 
   - class: notes
     hidden_by_default: true
-    reposition: true
+    reposition: false

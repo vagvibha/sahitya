@@ -44,8 +44,9 @@ What it does, in order:
 7.  Writes `mkdocs.yml`, including an auto-generated `nav:` block.
 
 This script is idempotent: it always starts by deleting only the generated
-output directory contents for each configured section, `docs/index.md`,
-and `mkdocs.yml` — never the hand-maintained `docs/stylesheets/`,
+output directory contents for each configured section, `docs/resources/`
+(a fresh mirror of `resources/` — see below), `docs/index.md`, and
+`mkdocs.yml` — never the hand-maintained `docs/stylesheets/`,
 `docs/javascripts/`, or any source directory.
 
 Requires: PyYAML, beautifulsoup4 is no longer required — this script now
@@ -66,7 +67,7 @@ has the old flat layout):
                                   lives in site_config.yaml instead)
         texts/
             <slug>/
-                meta.yaml        title, author, type, default_type, order, ...
+                meta.yaml        title, author, type, default_shloka_type, default_class, order, ...
                 <chapter>/
                     meta.yaml    (optional) chapter_name
                     *.md         section files, concatenated in numeric order
@@ -75,6 +76,17 @@ has the old flat layout):
             *.md
             chandas.md
             alankara.md
+
+    resources/                  (optional, repo root — NOT inside any
+                                  section) — static assets (audio/*.mp3
+                                  today, anything else later) referenced
+                                  by an explicit link/embed from some
+                                  page's content, e.g.
+                                  `<audio src="../../resources/audio/foo.mp3">`.
+                                  Mirrored verbatim into docs/resources/
+                                  on every build (see copy_resources());
+                                  never parsed as Markdown, never linked
+                                  from nav or the home page on its own.
 """
 
 from __future__ import annotations
@@ -428,6 +440,27 @@ def title_order_sort_key(frontmatter: dict, title: str, source_for_warning: obje
     return (order, title)
 
 
+LEGACY_DEFAULT_TYPE_KEY = "default_type"
+
+
+def check_legacy_default_type(meta: dict, source: object) -> None:
+    """`default_type:` (singular, ambiguous) was briefly this project's
+    name for what's now split into two separate meta.yaml keys:
+    `default_shloka_type:` (fills in data-type= on an already-explicit
+    <div class="shloka">) and `default_class:` (wraps ANY naked text not
+    inside some div as that class — a much bigger effect). Keeping the
+    old key silently would be actively wrong for anyone who meant the
+    "vritti" case (an explicit vritti div behaving differently from naked
+    text was exactly the bug this split fixes), so warn instead of
+    guessing which one was meant."""
+    if LEGACY_DEFAULT_TYPE_KEY in meta:
+        warn(
+            f"{source}: 'default_type:' was split into 'default_shloka_type:' (fills in a bare "
+            f"<div class=\"shloka\">'s data-type=) and 'default_class:' (wraps naked/undived text "
+            f"as that class) — please rename to whichever you meant; 'default_type:' is now ignored."
+        )
+
+
 class Text:
     def __init__(self, slug: str, directory: Path, meta: dict, section: SectionConfig):
         self.slug = slug
@@ -437,7 +470,9 @@ class Text:
         self.title = str(meta.get("title", slug)).strip()
         self.author = str(meta.get("author", "")).strip()
         self.type = str(meta.get("type", "")).strip()
-        self.default_type = str(meta.get("default_type", "")).strip()
+        self.default_shloka_type = str(meta.get("default_shloka_type", "")).strip()
+        self.default_class = str(meta.get("default_class", "")).strip()
+        check_legacy_default_type(meta, directory / "meta.yaml")
         self.chapters: list["Chapter"] = []
 
     @property
@@ -459,6 +494,7 @@ class Chapter:
         self.slug = slug
         self.sections = sections  # list of source .md Paths, in order
         self.meta = meta or {}
+        check_legacy_default_type(self.meta, f"{text.dir / slug}/meta.yaml")
 
     @property
     def out_file(self) -> Path:
@@ -469,15 +505,28 @@ class Chapter:
         return f"{self.text.rel_out_dir}/{self.slug}.md"
 
     @property
-    def default_type(self) -> str:
-        """Type a bare `<div class="shloka">` (no data-type of its own)
-        inherits: the chapter's own meta.yaml wins over the text's."""
-        return str(self.meta.get("default_type", "")).strip() or self.text.default_type
+    def default_shloka_type(self) -> str:
+        """Value that fills in `data-type=` on a bare `<div class="shloka">`
+        (one that doesn't already carry its own data-type=) — the
+        chapter's own meta.yaml wins over the text's. This ONLY ever
+        touches already-explicit shloka divs; see default_class for
+        naked/undived text."""
+        return str(self.meta.get("default_shloka_type", "")).strip() or self.text.default_shloka_type
+
+    @property
+    def default_class(self) -> str:
+        """Class that any text NOT inside some `<div class="...">` (at
+        any nesting level) is wrapped in, as if the author had written
+        that div themselves — the chapter's own meta.yaml wins over the
+        text's. Unset means naked text stays plain Markdown, unchanged
+        (the default)."""
+        return str(self.meta.get("default_class", "")).strip() or self.text.default_class
 
     @property
     def nav_label(self) -> str:
         if self.meta.get("chapter_name"):
             return str(self.meta["chapter_name"]).strip()
+
         try:
             n = int(self.slug)
             word = (
@@ -526,7 +575,7 @@ def discover_chapters(text: Text) -> list[Chapter]:
         if not sections:
             warn(f"chapter directory {d} contains no .md sections — skipping")
             continue
-        chapter_meta = read_meta(d)  # optional meta.yaml/meta.yml inside the chapter dir (chapter_name, default_type, ...)
+        chapter_meta = read_meta(d)  # optional meta.yaml/meta.yml inside the chapter dir (chapter_name, default_shloka_type, default_class, ...)
         chapters.append(Chapter(text, name, sections, chapter_meta))
 
     for f in text.dir.glob("*.md"):
@@ -786,7 +835,7 @@ def render_glossary_entry_page(entry: TableEntry) -> str:
 # Attributes read off a shloka div (all optional):
 #   data-type      one of karika / nataka / dialog / ... (free-form; CSS
 #                  keys off it). Falls back to the chapter's/text's
-#                  default_type (meta.yaml) when omitted — and the
+#                  default_shloka_type (meta.yaml) when omitted — and the
 #                  resolved value is written back into the OUTPUT div
 #                  (never into source) so `[data-type="..."]` CSS actually
 #                  has something to match even when the author never
@@ -828,12 +877,15 @@ class Shloka:
 
 
 def extract_shlokas(
-    body: str, fm_chandas: str, fm_alankaras: list[str], default_type: str, start_index: int = 0,
+    body: str, fm_chandas: str, fm_alankaras: list[str], default_shloka_type: str, start_index: int = 0,
     source_for_warning: object = "",
 ) -> tuple[str, list[Shloka], int]:
     """Find every <div class="shloka"> in `body` at any nesting depth,
     insert an anchor <a id=...> right before each one, inject a resolved
-    data-type="..." attribute into the ones that didn't specify their own,
+    data-type="..." attribute into the ones that didn't specify their own
+    (from `default_shloka_type` — see Chapter.default_shloka_type; this
+    ONLY ever touches an already-explicit <div class="shloka">, never
+    naked text — see process_content_sections' `default_class` for that),
     and return (modified_body, [Shloka, ...], next_index).
 
     `start_index` lets callers number shlokas contiguously across every
@@ -856,7 +908,7 @@ def extract_shlokas(
             counter += 1
             attrs = parse_attrs(node.attrs_str)
 
-            data_type = attrs.get("data-type", "").strip() or default_type
+            data_type = attrs.get("data-type", "").strip() or default_shloka_type
 
             chandas = attrs.get("data-chandas", "").strip()
             if not chandas and attrs.get("data-meter"):
@@ -948,28 +1000,92 @@ def render_commentary_div(cls_raw: str, attrs: str, content: str) -> str:
     return f'<div class="{classes}">\n\n{rendered}\n\n</div>'
 
 
-def process_content_sections(body: str) -> tuple[str, str]:
-    """Returns (body_with_repositioned_sections_removed, reordered_html)."""
+def process_content_sections(body: str, default_class: str = "") -> tuple[str, str]:
+    """Returns (body_with_repositioned_sections_removed, reordered_html).
+
+    `default_class`, when set, makes THAT the chapter-wide default for
+    content: any run of text that isn't inside some other `<div>` (at any
+    nesting level) is treated exactly as if the author had written
+    `<div class="{default_class}">` around it themselves — same
+    hidden/reposition/label handling as an explicit div of that class,
+    with no difference in outcome. This is what makes e.g.
+    `default_class: vritti` mean "the whole chapter is वृत्ति prose by
+    default; only explicitly-tagged blocks (shloka/karika, other
+    commentary classes, ...) are anything else" — matching how these
+    texts actually alternate root-verse and prose, without needing a
+    `<div class="vritti">` wrapped around every single paragraph.
+
+    Unset (the default), body text outside of any div is left as plain
+    Markdown, unchanged — the pre-existing behavior.
+
+    This is a *different* mechanism from `default_shloka_type` (see
+    extract_shlokas), which only fills in `data-type=` on an *already
+    explicit* `<div class="shloka">` lacking one — that one only ever
+    concerns shloka divs, never naked text.
+    """
     tree = parse_divs(body)
     splices: list[tuple[int, int, str]] = []
     by_class: dict[str, list[tuple[str, str]]] = {}
+    wrap_cls = default_class.strip().lower()
 
-    def visit(nodes: list[DivNode]):
+    def handle_matched(cls_raw: str, base_cls: str, attrs: str, content: str, start: int, end: int, pad: bool = False) -> None:
+        if base_cls in REPOSITION_ORDER:
+            by_class.setdefault(base_cls, []).append((attrs, content))
+            splices.append((start, end, ""))
+        else:
+            rendered = render_commentary_div(cls_raw, attrs, content)
+            if pad:
+                # a gap-wrapped synthetic div (see wrap_gaps) swallows all
+                # of the original whitespace between it and its neighbors
+                # as part of the splice — re-add a blank line on each
+                # side so it doesn't end up glued directly against an
+                # adjacent </div><div...> with no blank line between
+                # them, which risks the two not being parsed as separate
+                # block-level HTML.
+                rendered = f"\n\n{rendered}\n\n"
+            splices.append((start, end, rendered))
+
+    def wrap_gaps(start: int, end: int, nodes: list[DivNode]) -> None:
+        """Any non-whitespace text directly inside [start, end) that
+        ISN'T covered by one of `nodes` (this level's div children,
+        already known to be non-overlapping and in order) gets treated as
+        a synthetic `<div class="{wrap_cls}">`, run through the exact
+        same handling as a real one (including reposition, if
+        `default_class` happens to name a reposition: true class)."""
+        if not wrap_cls:
+            return
+        cursor = start
+        for n in nodes + [None]:
+            gap_end = n.start if n is not None else end
+            gap = body[cursor:gap_end]
+            if gap.strip():
+                handle_matched(wrap_cls, wrap_cls, "", gap, cursor, gap_end, pad=True)
+            cursor = n.end if n is not None else end
+
+    def visit(nodes: list[DivNode], parent_start: int, parent_end: int):
+        wrap_gaps(parent_start, parent_end, nodes)
         for node in nodes:
+            if node.base_cls == "shloka":
+                # shloka is its own leaf unit, handled entirely and
+                # separately by extract_shlokas() afterward — its inner
+                # text is already explicitly typed by being inside a
+                # <div class="shloka">, so it must NOT be re-wrapped in
+                # default_class (there'd be nothing bounding it from the
+                # inside, since a shloka div has no div children of its
+                # own — every character of it would otherwise look like
+                # "naked" text to wrap_gaps). Left completely untouched
+                # here; it still correctly bounds the gaps around it,
+                # since it's one of `nodes`.
+                continue
             matched = node.base_cls in SECTION_CONFIG_BY_CLASS or bool(TOGGLE_HIDE_RE.search(node.attrs_str))
             if not matched:
-                visit(node.children)  # structural divs (shloka, dialog-block, ...) — look inside, but leave as-is
+                visit(node.children, node.tag_end, node.inner_end)  # structural divs (dialog-block, ...) — look inside, but leave as-is
                 continue
             content = body[node.tag_end:node.inner_end]
-            if node.base_cls in REPOSITION_ORDER:
-                by_class.setdefault(node.base_cls, []).append((node.attrs_str, content))
-                splices.append((node.start, node.end, ""))
-            else:
-                rendered = render_commentary_div(node.cls, node.attrs_str, content)
-                splices.append((node.start, node.end, rendered))
+            handle_matched(node.cls, node.base_cls, node.attrs_str, content, node.start, node.end)
             # a matched commentary div is opaque — don't recurse into it
 
-    visit(tree)
+    visit(tree, 0, len(body))
     body = apply_splices(body, splices)
     reordered_html = "\n\n".join(
         render_commentary_div(cls, attrs, content)
@@ -1019,14 +1135,40 @@ def render_topnav(current_rel_file: str, up_target_rel_file: str | None, up_labe
 # Output helpers
 # ---------------------------------------------------------------------------
 
+RESOURCES_SRC = ROOT / "resources"
+RESOURCES_OUT = DOCS / "resources"
+
+
 def clean_output():
     for section in SECTIONS:
         if section.out_dir.exists():
             shutil.rmtree(section.out_dir)
+    if RESOURCES_OUT.exists():
+        shutil.rmtree(RESOURCES_OUT)
     index_md = DOCS / "index.md"
     if index_md.exists():
         index_md.unlink()
     DOCS.mkdir(parents=True, exist_ok=True)
+
+
+def copy_resources() -> int:
+    """Mirrors `resources/` (repo root — audio/*.mp3 today, anything else
+    later) into `docs/resources/`, so MkDocs serves it as static files.
+    Unlike everything else this script writes, these files are never
+    parsed as Markdown or linked from nav/home cards on their own — they
+    only exist to be linked (or embedded, e.g. `<audio src=...>`) FROM a
+    regular page, with a plain relative path (`rel_link` works fine for
+    this — resources aren't clean-URL-rewritten the way *.md pages are,
+    so no special-casing is needed there). Dotfiles (.DS_Store, .gitkeep,
+    ...) are skipped. Returns the number of files copied."""
+    if not RESOURCES_SRC.exists():
+        return 0
+
+    def ignore_dotfiles(_dir: str, names: list[str]) -> list[str]:
+        return [n for n in names if n.startswith(".")]
+
+    shutil.copytree(RESOURCES_SRC, RESOURCES_OUT, ignore=ignore_dotfiles)
+    return sum(1 for p in RESOURCES_OUT.rglob("*") if p.is_file())
 
 
 def write(path: Path, content: str):
@@ -1184,13 +1326,13 @@ def render_shastra_chapter(chapter: Chapter, topics: dict[str, RefPage]) -> str:
             anchor = f"sec{i+1}"
             topics[t].references.append(Reference(t, chapter, anchor, label))
         anchor = f"sec{i+1}"
-        body, reordered = process_content_sections(body)
+        body, reordered = process_content_sections(body, chapter.default_class)
         # shastra sections aren't shloka-numbered chapter-wide the way kavya
         # ones are, but they can still carry `<div class="shloka">` blocks
         # (e.g. shastra-karika texts, after the migration) — resolve
-        # data-type via the chapter's default_type the same way kavya does.
+        # data-type via the chapter's default_shloka_type the same way kavya does.
         fm_chandas = str(fm.get("chandas", "")).strip()
-        body, _shlokas, _n = extract_shlokas(body, fm_chandas, as_list(fm.get("alankara")), chapter.default_type,
+        body, _shlokas, _n = extract_shlokas(body, fm_chandas, as_list(fm.get("alankara")), chapter.default_shloka_type,
                                               source_for_warning=section)
         section_content = f'<a id="{anchor}"></a>\n\n{insert_reordered_sections(body, reordered)}'
         body_parts.append(section_content)
@@ -1230,9 +1372,9 @@ def render_kavya_chapter(
             warn(f"{section} uses 'meter:' instead of 'chandas:' — please rename it (treating it as 'chandas:' for now)")
             fm_chandas = str(fm.get("meter", "")).strip()
         fm_alankaras = as_list(fm.get("alankara"))
-        body, reordered = process_content_sections(body)
+        body, reordered = process_content_sections(body, chapter.default_class)
         new_body, shlokas, counter = extract_shlokas(
-            body, fm_chandas, fm_alankaras, chapter.default_type, counter, source_for_warning=section
+            body, fm_chandas, fm_alankaras, chapter.default_shloka_type, counter, source_for_warning=section
         )
         for sh in shlokas:
             if sh.chandas and sh.chandas not in chandas:
@@ -1484,6 +1626,7 @@ def main():
         sys.exit(1)
 
     clean_output()
+    n_resources = copy_resources()
 
     topics: dict[str, RefPage] = {}
     chandas: dict[str, TableEntry] = {}
@@ -1606,7 +1749,8 @@ def main():
 
     n_texts = sum(len(texts) for _, texts in sections_with_texts)
     print(f"\nDone. {n_texts} text(s) across {len(SECTIONS)} section(s), "
-          f"{len(topics)} topic(s), {len(chandas)} meter(s), {len(alankaras)} alankara(s).")
+          f"{len(topics)} topic(s), {len(chandas)} meter(s), {len(alankaras)} alankara(s), "
+          f"{n_resources} resource file(s).")
     if WARNINGS:
         print(f"\n{len(WARNINGS)} warning(s) were printed above — please review.", file=sys.stderr)
 
