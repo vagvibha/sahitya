@@ -297,56 +297,58 @@ body.sv-show-notes .md-typeset .sv-hideable {
   white-space: nowrap;
 }
 
-/* --- home page: one large card per top-level content section (शास्त्रम्/
+/* --- home page: one card per top-level content section (शास्त्रम्/
    काव्यम्/...), each containing that section's own ग्रन्थाः (and, for the
    topics-carrying section, विषयाः) — see build_home_page() in
-   generate_indices.py. Wraps automatically as sections are added via
+   generate_indices.py. Sized to sit side-by-side (small min-width, so two
+   cards comfortably share a row); wraps to stacked only on narrow/mobile
+   screens. Wraps automatically as sections are added via
    site_config.yaml, no CSS changes needed. ------------------------------ */
 .sv-home-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.75rem;
-  margin: 2rem 0;
+  gap: 1rem;
+  margin: 1.5rem 0;
 }
 
 .md-typeset .sv-home-card {
-  flex: 1 1 26rem;
-  min-width: 22rem;
+  flex: 1 1 14rem;
+  min-width: 13rem;
   border: 1px solid var(--md-default-fg-color--lightest);
-  border-top: 0.35rem solid var(--md-primary-fg-color);
-  border-radius: 0.6rem;
-  padding: 1.6rem 2rem 2rem;
+  border-top: 0.3rem solid var(--md-primary-fg-color);
+  border-radius: 0.5rem;
+  padding: 0.9rem 1.2rem 1.2rem;
   background: var(--md-default-bg-color);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .md-typeset .sv-home-card:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.13);
   transform: translateY(-2px);
 }
 
 .md-typeset .sv-home-card h2 {
   margin-top: 0;
-  font-size: 1.7rem;
-  padding-bottom: 0.6rem;
+  font-size: 1.25rem;
+  padding-bottom: 0.4rem;
   border-bottom: 2px solid var(--md-primary-fg-color--dark);
 }
 
 .md-typeset .sv-home-card h3 {
-  font-size: 1rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--md-primary-fg-color);
-  margin: 1.4rem 0 0.6rem;
+  margin: 1rem 0 0.4rem;
 }
 
 .md-typeset .sv-home-card ul {
-  margin-top: 0.4rem;
+  margin-top: 0.3rem;
 }
 
 .md-typeset .sv-home-card li {
-  margin: 0.3rem 0;
-  font-size: 1.05rem;
+  margin: 0.2rem 0;
+  font-size: 0.92rem;
 }
 
