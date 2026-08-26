@@ -2,5 +2,5 @@ title: अभिज्ञानशाकुन्तलम्
 author: कालिदासः
 type: kavya-play
 chapters: अङ्काः
-ignore: false
-default_type: nataka
+ignore: true
+default_type: dialog-block
