@@ -5,28 +5,48 @@
 
 nav:
 - मुखपृष्ठम्: index.md
-- शास्त्रम्:
-  - शास्त्रम्: shastra/index.md
+- साहित्यशास्त्रम्:
+  - साहित्यशास्त्रम्: shastra/index.md
   - ग्रन्थाः:
+    - ध्वन्यालोकः:
+      - परिचयः: shastra/texts/da/index.md
+      - परिचयः: shastra/texts/da/00.md
+      - प्रथमः उद्योतः: shastra/texts/da/01.md
     - काव्यप्रकाशः:
-      - परिचयः: shastra/kp/index.md
-      - प्रथम उल्लासः: shastra/kp/01.md
+      - परिचयः: shastra/texts/kp/index.md
+      - परिचयः: shastra/texts/kp/00.md
+      - प्रथमः उल्लासः: shastra/texts/kp/01.md
+    - साहित्यदर्पणः:
+      - परिचयः: shastra/texts/sd/index.md
+      - द्वितीयः परिच्छेदः (वाक्यार्थविचारः): shastra/texts/sd/02.md
+      - पञ्चमः परिच्छेदः (प्रतीत्यादिविचारः): shastra/texts/sd/05.md
     - रसगङ्गाधरः:
-      - परिचयः: shastra/rgd/index.md
-      - अध्यायः 1: shastra/rgd/01.md
+      - परिचयः: shastra/texts/rgd/index.md
+      - परिचयः: shastra/texts/rgd/00.md
+      - प्रथममाननम्: shastra/texts/rgd/01.md
   - विषयाः:
+    - विषयाः: shastra/topics/index.md
+    - छन्दः: shastra/topics/chandas.md
     - अलङ्कारः: shastra/topics/alankara.md
     - काव्यप्रयोजनम्: shastra/topics/kavyaprayojana.md
-    - छन्दः: shastra/topics/chandas.md
+    - शब्दशक्तिः: shastra/topics/shabdashakti.md
     - रसः: shastra/topics/rasa.md
-- काव्यम्:
-  - काव्यम्: kavya/index.md
-  - अभिज्ञानशाकुन्तलम्:
-    - परिचयः: kavya/as/index.md
-    - भागः 1: kavya/as/01.md
-  - कुमारसम्भवम्:
-    - परिचयः: kavya/ks/index.md
-    - पञ्चमः सर्गः: kavya/ks/05.md
+- काव्यानि:
+  - काव्यानि: kavya/index.md
+  - ग्रन्थाः:
+    - अभिज्ञानशाकुन्तलम्:
+      - परिचयः: kavya/texts/as/index.md
+      - प्रथमोऽङ्कः: kavya/texts/as/01.md
+    - कादम्बरी:
+      - परिचयः: kavya/texts/kd/index.md
+      - परिचयः: kavya/texts/kd/00.md
+      - पूर्वभागः: kavya/texts/kd/01.md
+    - किरातार्जुनीयम्:
+      - परिचयः: kavya/texts/ka/index.md
+      - प्रथमः सर्गः: kavya/texts/ka/01.md
+    - कुमारसम्भवम्:
+      - परिचयः: kavya/texts/ks/index.md
+      - पञ्चमः सर्गः: kavya/texts/ks/05.md
 
 site_name: साहित्यशास्त्रम्
 docs_dir: docs
@@ -35,9 +55,10 @@ theme:
   name: material
   language: en
   features:
+    # navigation.tabs is deliberately OFF: the top bar is just the two
+    # buttons rendered by render_topnav() (Home / Up-to-TOC) on every
+    # page, not a tab per top-level section — see site update notes.
     - navigation.instant
-    - navigation.tabs
-    - navigation.tabs.sticky
     - navigation.indexes
     - navigation.top
     - toc.follow
@@ -61,14 +82,21 @@ markdown_extensions:
   - footnotes
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      # Enables ```mermaid fenced code blocks (flowcharts, sequence
+      # diagrams, etc.) anywhere in any source .md file — Material for
+      # MkDocs renders them client-side, no extra_javascript needed.
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - toc:
       permalink: true
 
-# The chandas/alankara detail pages under shastra/topics/_chandas/ and
-# _alankara/ are intentionally not linked from nav (only reachable by
-# clicking an entry's name in shastra/topics/chandas.md / alankara.md), so
-# tell MkDocs not to warn/fail on them under --strict.
+# The chandas/alankara detail pages under topics/_chandas/ and
+# topics/_alankara/ are intentionally not linked from nav (only reachable
+# by clicking an entry's name in topics/chandas.md / alankara.md), so tell
+# MkDocs not to warn/fail on them under --strict.
 validation:
   nav:
     omitted_files: ignore

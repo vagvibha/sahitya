@@ -13,7 +13,6 @@
 }
 
 .md-typeset .shloka,
-.md-typeset .karika,
 .md-typeset .udaharana,
 .md-typeset .anvaya,
 .md-typeset .padartha,
@@ -27,9 +26,12 @@
   font-family: var(--sv-devanagari-serif);
 }
 
-/* --- shloka / verse blocks: kavya shlokas should read compactly — many
-   need to be visible on screen at once — so just bold, no box, minimal
-   vertical margin. -------------------------------------------------- */
+/* --- shloka / verse blocks --------------------------------------------
+   Unified base style for every <div class="shloka" data-type="...">,
+   whatever its data-type (previously separate .shloka/.karika/
+   .shloka-play classes — see site update notes). Compact by default: many
+   need to be visible on screen at once, so just bold, no box, minimal
+   vertical margin. Each data-type below only overrides what's different. */
 .md-typeset .shloka {
   font-weight: 600;
   margin: 0.4rem 0;
@@ -37,13 +39,51 @@
   white-space: pre-line;
 }
 
-/* --- karika / vritti (dialectics) ------------------------------------ */
-.md-typeset .karika {
-  font-weight: 600;
+/* karika (शास्त्र root verses, e.g. काव्यप्रकाश/ध्वन्यालोक/साहित्यदर्पण) —
+   slightly more breathing room since these are usually followed
+   immediately by their own वृत्ति/commentary. */
+.md-typeset .shloka[data-type="karika"] {
   margin: 0.8rem 0;
   line-height: 1.8;
 }
 
+/* nataka (a verse quoted within kavya-play dialogue, previously
+   .shloka-play) — no box, nudged right so it visually separates from the
+   speaker's name/dash without trying to align to it exactly (that varies
+   with name length). Rendered inline with normal paragraph flow, so no
+   extra vertical margin beyond that. */
+.md-typeset .shloka[data-type="nataka"] {
+  display: block;
+  margin: 0 0 0 1.5rem;
+  line-height: 1.9;
+  white-space: pre-line;
+}
+
+/* dialog (plain spoken prose in a kavya-play, when tagged as a shloka
+   block rather than left as ordinary paragraph text) — matches
+   .dialog-block's spacing, not bold. */
+.md-typeset .shloka[data-type="dialog"] {
+  font-weight: normal;
+  line-height: 1.9;
+  margin: 0.6rem 0;
+}
+
+/* --- highlight="true" — an optional, independent flag any shloka can
+   carry regardless of data-type, for marking a particularly important
+   verse. Warm gold/amber tint (deliberately not red, which reads as an
+   error/warning in this theme). --------------------------------------- */
+.md-typeset .shloka[highlight="true"] {
+  background: rgba(255, 179, 0, 0.14);
+  border-left: 4px solid #ffab00;
+  border-radius: 0.2rem;
+  padding: 0.7rem 1rem;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .shloka[highlight="true"] {
+  background: rgba(255, 179, 0, 0.1);
+}
+
+/* --- vritti (शास्त्र prose commentary directly under a karika) --------- */
 .md-typeset .vritti {
   margin: 0.6rem 0;
   line-height: 1.8;
@@ -140,19 +180,6 @@
   color: var(--md-default-fg-color--light);
 }
 
-/* shloka-play: an embedded verse quoted within kavya-play dialogue —
-   styled like .dialog-block (no box), just bold and nudged right a
-   little so it visually separates from the speaker's name/dash without
-   trying to align to it exactly (that varies with name length). No extra
-   vertical margin beyond normal paragraph flow. */
-.md-typeset .shloka-play {
-  display: block;
-  font-weight: 600;
-  margin: 0 0 0 1.5rem;
-  line-height: 1.9;
-  white-space: pre-line;
-}
-
 /* --- notes and every "labeled hideable section" above are hidden by
    default and only shown once the toggle button is clicked (see
    notes-toggle.js, which adds .sv-show-notes to <body>). .shloka is
@@ -228,11 +255,10 @@ body.sv-show-notes .md-typeset .sv-hideable {
   border-left: none;
 }
 
-/* --- put navigation into a top dropdown instead of a permanent left
-   sidebar, to save horizontal space (navigation.tabs already puts a
-   hover-dropdown on each top tab; this just hides the secondary tree so
-   it isn't reserving a column on every page). Delete this block to get
-   the standard MkDocs Material sidebar back. --- */
+/* --- keep the permanent left sidebar tree out of the way, since every
+   page now carries its own Home/Up bar (see .sv-topnav below) instead —
+   this just stops it reserving a column on every page. Delete this block
+   to get the standard MkDocs Material sidebar back. --- */
 @media screen and (min-width: 76.25em) {
   .md-sidebar--primary {
     display: none;
@@ -241,3 +267,86 @@ body.sv-show-notes .md-typeset .sv-hideable {
     margin-left: 0;
   }
 }
+
+/* --- top navbar: just "मुखपृष्ठम्" (Home) + "⬆ <text title>" (Up / TOC),
+   rendered by render_topnav() at build time — see site update notes. A
+   plain sticky bar right above each page's own heading, not part of the
+   MkDocs Material chrome itself (keeps this independent of any future
+   theme upgrade). ------------------------------------------------------ */
+.md-typeset .sv-topnav {
+  position: sticky;
+  top: 0.6rem;
+  z-index: 5;
+  display: flex;
+  gap: 1rem;
+  width: fit-content;
+  margin: 0 0 1rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 2rem;
+  background: var(--md-primary-fg-color);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.md-typeset .sv-topnav p {
+  margin: 0;
+}
+
+.md-typeset .sv-topnav a {
+  color: var(--md-primary-bg-color);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* --- home page: one large card per top-level content section (शास्त्रम्/
+   काव्यम्/...), each containing that section's own ग्रन्थाः (and, for the
+   topics-carrying section, विषयाः) — see build_home_page() in
+   generate_indices.py. Wraps automatically as sections are added via
+   site_config.yaml, no CSS changes needed. ------------------------------ */
+.sv-home-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.75rem;
+  margin: 2rem 0;
+}
+
+.md-typeset .sv-home-card {
+  flex: 1 1 26rem;
+  min-width: 22rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-top: 0.35rem solid var(--md-primary-fg-color);
+  border-radius: 0.6rem;
+  padding: 1.6rem 2rem 2rem;
+  background: var(--md-default-bg-color);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.md-typeset .sv-home-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  transform: translateY(-2px);
+}
+
+.md-typeset .sv-home-card h2 {
+  margin-top: 0;
+  font-size: 1.7rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid var(--md-primary-fg-color--dark);
+}
+
+.md-typeset .sv-home-card h3 {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--md-primary-fg-color);
+  margin: 1.4rem 0 0.6rem;
+}
+
+.md-typeset .sv-home-card ul {
+  margin-top: 0.4rem;
+}
+
+.md-typeset .sv-home-card li {
+  margin: 0.3rem 0;
+  font-size: 1.05rem;
+}
+

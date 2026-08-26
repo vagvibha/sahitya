@@ -7,38 +7,74 @@ Pre-build generation script for the साहित्यशास्त्र�
 
 What it does, in order:
 
-1.  Reads `meta.yaml`/`meta.yml` for every text under `shastra/` and `kavya/`,
-    and (optionally) for every individual chapter directory (`chapter_name`).
-2.  Reads every topic page under `shastra/topics/` (their Devanagari
-    `title:` frontmatter is the canonical key other files point back to via
-    `topics:`), plus the two glossary pages `shastra/topics/chandas.md` and
-    `shastra/topics/alankara.md`, each an HTML `<table>` of meters/alankaras
-    (see `build_glossary_page` for the exact convention).
-3.  Walks every chapter directory under each text, concatenates its section
-    files into a single generated chapter page, and along the way:
-      - collects every `topics:` reference (for shastra sections) so the
-        chapter page can show back-links, and so each topic page can list
-        every section that cites it;
-      - extracts every `<div class="shloka">`/`<div class="shloka-play">`
-        (attributes `data-meter=` and `data-alankara=`) and every
-        verse-level `meter:`/`alankara:` frontmatter pair, builds a
-        per-chapter Shloka Table, and records each occurrence against the
-        matching row in the chandas/alankara glossary.
-4.  Writes the generated chapter pages, per-text landing pages, topic pages,
-    the two glossary pages, and one auto-generated (nav-less) detail page
-    per meter/alankara into `docs/` (source files under `shastra/` and
-    `kavya/` at the repo root are never modified).
-5.  Writes `docs/index.md` (home page).
-6.  Writes `mkdocs.yml`, including an auto-generated `nav:` block that
-    reflects whatever texts/topics currently exist, so nav never needs to
-    be hand-maintained.
+1.  Reads scripts/site_config.yaml, which declares the site's top-level
+    content sections (shastra, kavya, and any future ones) purely as data
+    — see that file's header comment for the schema. Adding a new section
+    that follows the `<dir>/texts/<slug>/...` convention needs no code
+    changes here.
+2.  Reads `meta.yaml`/`meta.yml` for every text under each configured
+    section's `texts/` directory, and (optionally) for every individual
+    chapter directory (`chapter_name`).
+3.  Reads every topic page under the topics-carrying section's `topics/`
+    folder (their Devanagari `title:` frontmatter is the canonical key
+    other files point back to via `topics:`), plus the two glossary pages
+    `topics/chandas.md` and `topics/alankara.md`, each an HTML `<table>`
+    of meters/alankaras (see `build_glossary_page` for the exact
+    convention).
+4.  Walks every chapter directory under each text, concatenates its
+    section files into a single generated chapter page, and along the
+    way:
+      - collects every `topics:` reference (for shastra-domain sections)
+        so the chapter page can show back-links, and so each topic page
+        can list every section that cites it;
+      - extracts every `<div class="shloka" ...>` (with `data-type=`,
+        `data-chandas=`, `data-alankara=`, optional `highlight="true"`)
+        and every verse-level `chandas:`/`alankara:` frontmatter pair,
+        builds a per-chapter Shloka Table, and records each occurrence
+        against the matching row in the chandas/alankara glossary.
+        Extraction walks a real nesting-aware parse tree (see
+        `parse_divs` below) rather than scanning with a flat regex, so it
+        works correctly no matter how deeply a shloka sits inside
+        wrapper divs (e.g. a kavya-play's dialog-block).
+5.  Writes the generated chapter pages, per-text landing pages (sorted by
+    `order:` in meta.yaml, falling back to title), topic pages, the two
+    glossary pages, and one auto-generated (nav-less) detail page per
+    meter/alankara into `docs/` (source files are never modified).
+6.  Writes `docs/index.md` (home page, one card per content section).
+7.  Writes `mkdocs.yml`, including an auto-generated `nav:` block.
 
 This script is idempotent: it always starts by deleting only the generated
-output directories (`docs/shastra`, `docs/kavya`, `docs/index.md` and
-`mkdocs.yml`), never the hand-maintained `docs/stylesheets/`,
-`docs/javascripts/`, or the `shastra/`/`kavya/` sources.
+output directory contents for each configured section, `docs/index.md`,
+and `mkdocs.yml` — never the hand-maintained `docs/stylesheets/`,
+`docs/javascripts/`, or any source directory.
 
-Requires: PyYAML, beautifulsoup4
+Requires: PyYAML, beautifulsoup4 is no longer required — this script now
+does its own nesting-aware div parsing (see `parse_divs`) rather than
+relying on BeautifulSoup, so it can splice text back in place without
+re-serializing (and thereby risking mangling) untouched Devanagari
+Markdown content. BeautifulSoup is still used for the chandas/alankara
+glossary `<table>` parsing, where full re-serialization is fine because
+those tables are small, hand-authored, well-formed HTML.
+
+Layout expected on disk (see scripts/migrate_layout.py if your repo still
+has the old flat layout):
+
+    <section>/                 e.g. shastra/, kavya/
+        meta.yaml               (optional, currently unused by the script
+                                  itself — reserved for future section-level
+                                  notes; section-level *display* config
+                                  lives in site_config.yaml instead)
+        texts/
+            <slug>/
+                meta.yaml        title, author, type, default_type, order, ...
+                <chapter>/
+                    meta.yaml    (optional) chapter_name
+                    *.md         section files, concatenated in numeric order
+        topics/                 (optional, only on the section with
+                                  `topics: true` in site_config.yaml)
+            *.md
+            chandas.md
+            alankara.md
 """
 
 from __future__ import annotations
@@ -57,25 +93,13 @@ from bs4 import BeautifulSoup, Comment
 # ---------------------------------------------------------------------------
 
 ROOT = Path(__file__).resolve().parent.parent
-SHASTRA_SRC = ROOT / "shastra"
-KAVYA_SRC = ROOT / "kavya"
 DOCS = ROOT / "docs"
-SHASTRA_OUT = DOCS / "shastra"
-KAVYA_OUT = DOCS / "kavya"
 
-RESERVED_SHASTRA_DIRS = {"topics"}
+SCRIPTS_DIR = Path(__file__).resolve().parent
+SITE_CONFIG_PATH = SCRIPTS_DIR / "site_config.yaml"
+COMMENTARY_CONFIG_PATH = SCRIPTS_DIR / "commentary_sections.yaml"
+
 META_FILENAMES = ("meta.yaml", "meta.yml")
-
-SITE_CONFIG_PATH = Path(__file__).resolve().parent / "site_config.yaml"
-
-
-def load_site_config() -> dict:
-    if not SITE_CONFIG_PATH.exists():
-        return {}
-    return yaml.safe_load(SITE_CONFIG_PATH.read_text(encoding="utf-8")) or {}
-
-
-SITE_CONFIG = load_site_config()
 
 KAVYA_PROSE_TYPES = {"kavya-play", "kavya-prose"}
 KAVYA_VERSE_TYPES = {"kavya-verse"}
@@ -87,6 +111,54 @@ WARNINGS: list[str] = []
 def warn(msg: str) -> None:
     WARNINGS.append(msg)
     print(f"WARNING: {msg}", file=sys.stderr)
+
+
+def load_yaml(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+
+SITE_CONFIG = load_yaml(SITE_CONFIG_PATH)
+if not SITE_CONFIG.get("content_sections"):
+    warn(f"{SITE_CONFIG_PATH} has no content_sections: — nothing will be built")
+
+
+class SectionConfig:
+    """One entry of site_config.yaml's content_sections: list."""
+
+    def __init__(self, raw: dict):
+        self.dir = str(raw.get("dir", "")).strip()
+        self.h1_label = str(raw.get("h1_label", self.dir)).strip()
+        self.h2_text_label = str(raw.get("h2_text_label", "ग्रन्थाः")).strip()
+        self.h2_topics_label = str(raw.get("h2_topics_label", "विषयाः")).strip()
+        self.default_chapter_word = (
+            str(raw.get("default_chapter_word", "")).strip()
+            or str(SITE_CONFIG.get("default_chapter_word", "अध्यायः")).strip()
+        )
+        self.has_topics = bool(raw.get("topics", False))
+
+    @property
+    def src(self) -> Path:
+        return ROOT / self.dir
+
+    @property
+    def texts_src(self) -> Path:
+        return self.src / "texts"
+
+    @property
+    def out_dir(self) -> Path:
+        return DOCS / self.dir
+
+    @property
+    def topics_src(self) -> Path:
+        return self.src / "topics"
+
+
+SECTIONS: list[SectionConfig] = [
+    SectionConfig(raw) for raw in (SITE_CONFIG.get("content_sections") or [])
+]
+TOPICS_SECTION = next((s for s in SECTIONS if s.has_topics), None)
 
 
 # ---------------------------------------------------------------------------
@@ -163,17 +235,13 @@ def numeric_key(stem: str):
 
 def rel_link(from_rel_file: str, to_rel_file: str) -> str:
     """Relative link from the page at `from_rel_file` to `to_rel_file`,
-    both given as paths relative to the docs root (e.g.
-    'shastra/topics/_chandas/anustubh.md'). Using real relative-path math
-    here (rather than assuming both pages sit at the same depth) matters
-    once pages can live at different nesting depths, as the glossary
-    detail pages now do.
+    both given as paths relative to the docs root. Real relative-path math
+    (not same-depth assumptions), needed once pages live at varying depths
+    (e.g. the glossary detail pages).
 
-    NOTE: this form (a plain relative path ending in .md) only works
-    inside genuine Markdown link syntax `[text](...)` — MkDocs' own build
-    rewrites those `.md` links into the correct clean-URL form for you.
-    It does NOT work inside literal HTML `<a href="...">` (e.g. hand-built
-    inside a raw <table>), because MkDocs never touches raw HTML — use
+    NOTE: only works inside genuine Markdown link syntax `[text](...)`
+    (MkDocs rewrites those into the clean-URL form for you) — NOT inside
+    literal HTML `<a href="...">`, which MkDocs never touches. Use
     `raw_html_href()` for that instead."""
     from_dir = posixpath.dirname(from_rel_file)
     return posixpath.relpath(to_rel_file, start=from_dir or ".")
@@ -205,27 +273,184 @@ def raw_html_href(from_rel_md_file: str, to_rel_md_file: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Discovery: texts (shastra/<text>, kavya/<text>)
+# Nesting-aware <div class="..."> parser
+# ---------------------------------------------------------------------------
+#
+# The old version of this script found shloka/commentary divs with a flat
+# regex: `<div class="...">(.*?)</div>`. Non-greedy `.*?` stops at the
+# FIRST `</div>` it sees — which silently mispairs open/close tags the
+# moment a div contains another div before its own true closing tag (e.g.
+# a kavya-play's <div class="dialog-block"> wrapping a <div class="shloka">,
+# or — found live in shastra/texts/sd/05/sd05-01.md — a run of
+# <div class="karika">...) blocks whose authors didn't close each one
+# before the next opens). That mispairing is exactly what caused the
+# श्लोकसूची to sometimes silently drop verses.
+#
+# parse_divs() below replaces that with a real (if lightweight) stack-based
+# parser: every open/close <div> tag is tracked on a stack, so nesting is
+# resolved correctly regardless of depth. It also recovers from the
+# "forgot to close it" pattern above with the same rule browsers use for
+# things like unclosed <p>: a new div reopening the SAME class while the
+# previous one of that class is still open on top of the stack implicitly
+# closes the previous one first, rather than nesting under it.
+#
+# Callers get back a tree of DivNode objects with exact character offsets
+# into the original string — so callers can do precise, minimal text
+# splices (insert an anchor, replace one div's span, remove a span
+# entirely for repositioning) without ever re-serializing text they didn't
+# touch. This is important: these files are hand-authored Devanagari
+# Markdown, and round-tripping them through an HTML serializer risks
+# subtly rewriting whitespace/entities in content the script has no
+# business touching.
+
+DIV_OPEN_RE = re.compile(r'<div\b((?:[^>"]|"[^"]*")*)>')
+DIV_CLOSE_RE = re.compile(r'</div\s*>')
+CLASS_ATTR_RE = re.compile(r'class\s*=\s*"([^"]*)"')
+
+
+class DivNode:
+    __slots__ = (
+        "cls", "classes", "base_cls", "attrs_str",
+        "start", "tag_end", "inner_end", "end", "children",
+    )
+
+    def __init__(self, cls: str, attrs_str: str, start: int, tag_end: int):
+        self.cls = cls
+        self.classes = cls.split()
+        self.base_cls = self.classes[0].lower() if self.classes else ""
+        self.attrs_str = attrs_str
+        self.start = start          # index of '<' of the opening tag
+        self.tag_end = tag_end      # index right after the opening tag's '>'
+        self.inner_end: int | None = None   # index of '<' of the matching close (or end-of-text)
+        self.end: int | None = None         # index right after the matching close (or == inner_end)
+        self.children: list["DivNode"] = []
+
+    def has_class(self, name: str) -> bool:
+        return name in self.classes
+
+
+def parse_divs(text: str) -> list[DivNode]:
+    """Parse every <div class="..."> ... </div> in `text` into a forest of
+    DivNode, tolerant of (a) real nesting to any depth and (b) a div of
+    some class left unclosed right before a sibling *of the same class*
+    reopens (see module-level comment above)."""
+    tokens: list[tuple[int, int, str, str | None]] = []
+    for m in DIV_OPEN_RE.finditer(text):
+        tokens.append((m.start(), m.end(), "open", m.group(1)))
+    for m in DIV_CLOSE_RE.finditer(text):
+        tokens.append((m.start(), m.end(), "close", None))
+    tokens.sort(key=lambda t: t[0])
+
+    root: list[DivNode] = []
+    stack: list[DivNode] = []
+
+    def finish(node: DivNode, inner_end: int, end: int) -> None:
+        node.inner_end = inner_end
+        node.end = end
+        (stack[-1].children if stack else root).append(node)
+
+    for start, tag_end, kind, attrs_str in tokens:
+        if kind == "open":
+            cls_m = CLASS_ATTR_RE.search(attrs_str or "")
+            cls = cls_m.group(1).strip() if cls_m else ""
+            node = DivNode(cls, attrs_str or "", start, tag_end)
+            if stack and stack[-1].base_cls == node.base_cls and node.base_cls:
+                # implicit close of the previous same-class div right here
+                prev = stack.pop()
+                finish(prev, start, start)
+            stack.append(node)
+        else:  # close
+            if not stack:
+                continue  # stray </div> with nothing open — ignore
+            node = stack.pop()
+            finish(node, start, tag_end)
+
+    # anything still open at EOF: close it at end-of-text
+    while stack:
+        node = stack.pop()
+        finish(node, len(text), len(text))
+
+    return root
+
+
+def walk_divs(nodes: list[DivNode]):
+    """Pre-order iterator over every DivNode in the forest, recursing into
+    every node's children (callers that want to STOP descending into a
+    particular node's children — e.g. once it's been matched and handled
+    — should not use this; see the hand-written recursive visits in
+    extract_shlokas / process_content_sections instead, which need that
+    control)."""
+    for node in nodes:
+        yield node
+        yield from walk_divs(node.children)
+
+
+def apply_splices(text: str, splices: list[tuple[int, int, str]]) -> str:
+    """Apply a list of non-overlapping (start, end, replacement) spans to
+    `text` in one pass. (end == start) means a pure insertion at that
+    position with nothing removed."""
+    splices = sorted(splices, key=lambda s: s[0])
+    out = []
+    pos = 0
+    for start, end, repl in splices:
+        if start < pos:
+            raise ValueError(f"overlapping splice at {start} (previous ended at {pos})")
+        out.append(text[pos:start])
+        out.append(repl)
+        pos = end
+    out.append(text[pos:])
+    return "".join(out)
+
+
+ATTR_RE = re.compile(r'([a-zA-Z\-]+)\s*=\s*"([^"]*)"')
+
+
+def parse_attrs(attr_str: str) -> dict:
+    return {m.group(1): m.group(2) for m in ATTR_RE.finditer(attr_str)}
+
+
+# ---------------------------------------------------------------------------
+# Discovery: texts (<section>/texts/<slug>)
 # ---------------------------------------------------------------------------
 
+def title_order_sort_key(frontmatter: dict, title: str, source_for_warning: object = "") -> tuple:
+    """Shared sort key for anything with an optional numeric `order:` field
+    (texts on a section's landing page, topics under विषयाः, ...) — explicit
+    `order:` takes priority (ascending), with unordered entries (or a
+    non-numeric order:) falling back to alphabetical-by-title, sorted after
+    every explicitly ordered one."""
+    order = frontmatter.get("order")
+    try:
+        order = float(order) if order is not None else float("inf")
+    except (TypeError, ValueError):
+        warn(f"{source_for_warning}: 'order: {order!r}' isn't a number — ignoring it, sorting by title instead")
+        order = float("inf")
+    return (order, title)
+
+
 class Text:
-    def __init__(self, slug: str, directory: Path, meta: dict, domain: str):
+    def __init__(self, slug: str, directory: Path, meta: dict, section: SectionConfig):
         self.slug = slug
         self.dir = directory
         self.meta = meta
-        self.domain = domain  # "shastra" | "kavya"
+        self.section = section
         self.title = str(meta.get("title", slug)).strip()
         self.author = str(meta.get("author", "")).strip()
         self.type = str(meta.get("type", "")).strip()
+        self.default_type = str(meta.get("default_type", "")).strip()
         self.chapters: list["Chapter"] = []
 
     @property
+    def sort_key(self):
+        return title_order_sort_key(self.meta, self.title, self.dir)
+
+    @property
     def out_dir(self) -> Path:
-        return (SHASTRA_OUT if self.domain == "shastra" else KAVYA_OUT) / self.slug
+        return self.section.out_dir / "texts" / self.slug
 
     @property
     def rel_out_dir(self) -> str:
-        return f"{self.domain}/{self.slug}"
+        return f"{self.section.dir}/texts/{self.slug}"
 
 
 class Chapter:
@@ -244,27 +469,34 @@ class Chapter:
         return f"{self.text.rel_out_dir}/{self.slug}.md"
 
     @property
+    def default_type(self) -> str:
+        """Type a bare `<div class="shloka">` (no data-type of its own)
+        inherits: the chapter's own meta.yaml wins over the text's."""
+        return str(self.meta.get("default_type", "")).strip() or self.text.default_type
+
+    @property
     def nav_label(self) -> str:
         if self.meta.get("chapter_name"):
             return str(self.meta["chapter_name"]).strip()
         try:
             n = int(self.slug)
-            word = str(self.text.meta.get("chapter_type", "")).strip() or (
-                SITE_CONFIG.get("chapter_word", {}).get(self.text.domain)
-                or ("अध्यायः" if self.text.domain == "shastra" else "भागः")
+            word = (
+                str(self.text.meta.get("chapter_type", "")).strip()
+                or self.text.section.default_chapter_word
             )
             return f"{word} {n}"
         except ValueError:
             return self.slug
 
 
-def discover_texts(src_root: Path, domain: str) -> list[Text]:
+def discover_texts(section: SectionConfig) -> list[Text]:
     texts = []
+    src_root = section.texts_src
     if not src_root.exists():
+        warn(f"{src_root} does not exist — no texts found for section '{section.dir}' "
+             f"(did you run scripts/migrate_layout.py?)")
         return texts
     for d in sorted(p for p in src_root.iterdir() if p.is_dir() and not p.name.startswith(".")):
-        if domain == "shastra" and d.name in RESERVED_SHASTRA_DIRS:
-            continue
         meta_path = find_meta_file(d)
         if not meta_path:
             warn(f"{d} has no meta.yaml/meta.yml — skipping this text")
@@ -276,7 +508,8 @@ def discover_texts(src_root: Path, domain: str) -> list[Text]:
         if "title" not in meta:
             warn(f"{meta_path} has no 'title' — skipping this text")
             continue
-        texts.append(Text(d.name, d, meta, domain))
+        texts.append(Text(d.name, d, meta, section))
+    texts.sort(key=lambda t: t.sort_key)
     return texts
 
 
@@ -293,7 +526,7 @@ def discover_chapters(text: Text) -> list[Chapter]:
         if not sections:
             warn(f"chapter directory {d} contains no .md sections — skipping")
             continue
-        chapter_meta = read_meta(d)  # optional meta.yaml/meta.yml inside the chapter dir (chapter_name, ...)
+        chapter_meta = read_meta(d)  # optional meta.yaml/meta.yml inside the chapter dir (chapter_name, default_type, ...)
         chapters.append(Chapter(text, name, sections, chapter_meta))
 
     for f in text.dir.glob("*.md"):
@@ -311,21 +544,12 @@ def discover_chapters(text: Text) -> list[Chapter]:
 
 
 # ---------------------------------------------------------------------------
-# Discovery: reference pages (topics / chandas / alankara)
+# Discovery: reference pages (topics / chandas / alankara) — always live
+# under the one section configured with `topics: true` in site_config.yaml.
 # ---------------------------------------------------------------------------
 
-def title_order_sort_key(frontmatter: dict, title: str, source_for_warning: object = "") -> tuple:
-    """Shared sort key for anything listed under विषयाः on the home page/nav
-    — an optional numeric `order:` frontmatter field takes priority, with
-    unordered entries (or a non-numeric order:) falling back to
-    alphabetical-by-title, sorted after every explicitly ordered one."""
-    order = frontmatter.get("order")
-    try:
-        order = float(order) if order is not None else float("inf")
-    except (TypeError, ValueError):
-        warn(f"{source_for_warning}: 'order: {order!r}' isn't a number — ignoring it, sorting by title instead")
-        order = float("inf")
-    return (order, title)
+def title_sort_key_for_ref(fm, title, path):
+    return title_order_sort_key(fm, title, path)
 
 
 class NavListEntry:
@@ -346,12 +570,13 @@ class NavListEntry:
 
 
 class RefPage:
-    def __init__(self, kind: str, slug: str, path: Path, frontmatter: dict, body: str):
+    def __init__(self, kind: str, slug: str, path: Path, frontmatter: dict, body: str, rel_dir: str):
         self.kind = kind  # "topic"
         self.slug = slug
         self.path = path
         self.frontmatter = frontmatter
         self.body = body
+        self.rel_dir = rel_dir  # e.g. "shastra/topics"
         self.title = str(frontmatter.get("title", slug)).strip()
         self.references: list["Reference"] = []  # filled in during the scan
 
@@ -361,7 +586,7 @@ class RefPage:
 
     @property
     def rel_out_file(self) -> str:
-        return f"shastra/topics/{self.slug}.md"
+        return f"{self.rel_dir}/{self.slug}.md"
 
     @property
     def out_file(self) -> Path:
@@ -378,7 +603,7 @@ class Reference:
         self.preview = preview
 
 
-def discover_ref_pages(kind: str, folder: Path, exclude: set[str] = frozenset()) -> dict[str, RefPage]:
+def discover_ref_pages(kind: str, folder: Path, rel_dir: str, exclude: set[str] = frozenset()) -> dict[str, RefPage]:
     pages: dict[str, RefPage] = {}
     if not folder.exists():
         return pages
@@ -394,7 +619,7 @@ def discover_ref_pages(kind: str, folder: Path, exclude: set[str] = frozenset())
         if title in pages:
             warn(f"duplicate title '{title}' between {pages[title].path} and {f}")
             continue
-        pages[title] = RefPage(kind, f.stem, f, fm, body)
+        pages[title] = RefPage(kind, f.stem, f, fm, body, rel_dir)
     return pages
 
 
@@ -402,15 +627,19 @@ def discover_ref_pages(kind: str, folder: Path, exclude: set[str] = frozenset())
 # Chandas / alankara glossary tables
 # ---------------------------------------------------------------------------
 #
-# shastra/topics/chandas.md and shastra/topics/alankara.md are each a single
-# hand-maintained page containing one or more HTML <table>s (one row per
-# meter/alankara). A row counts as a matchable glossary entry if it carries
-# an HTML comment `<!-- chandas-name -->` / `<!-- alankara-name -->`
-# anywhere among that <tr>'s direct children — that comment is only a
-# marker (its exact wording isn't otherwise used); the entry's canonical
-# name is the exact text of that row's first <td>, and must match
-# `meter:`/`alankara:` frontmatter or `data-meter=`/`data-alankara=`
-# attributes exactly.
+# topics/chandas.md and topics/alankara.md (under the topics-carrying
+# section) are each a single hand-maintained page containing one or more
+# HTML <table>s (one row per meter/alankara). A row counts as a matchable
+# glossary entry if it carries an HTML comment `<!-- chandas-name -->` /
+# `<!-- alankara-name -->` anywhere among that <tr>'s direct children —
+# that comment is only a marker (its exact wording isn't otherwise used);
+# the entry's canonical name is the exact text of that row's first <td>,
+# and must match `chandas:`/`alankara:` frontmatter or
+# `data-chandas=`/`data-alankara=` attributes exactly.
+#
+# These tables are small, well-formed, hand-authored HTML, so — unlike the
+# shloka/commentary scanning above — using BeautifulSoup here (full parse
+# + re-serialize) is safe and simpler than hand-rolling it.
 #
 # For every marked row the script: (1) auto-generates a detail page (the
 # row's own remaining columns + every shloka across the codebase tagging
@@ -432,32 +661,40 @@ def slugify(name: str) -> str:
 
 class TableEntry:
     """One glossary row (a meter or an alankara) parsed out of
-    shastra/topics/chandas.md or alankara.md."""
+    topics/chandas.md or alankara.md."""
 
-    def __init__(self, kind: str, title: str, slug: str, col_labels: list[str], col_html: list[str]):
+    def __init__(self, kind: str, title: str, slug: str, col_labels: list[str], col_html: list[str], rel_dir: str):
         self.kind = kind
         self.title = title
         self.slug = slug
         self.col_labels = col_labels  # header text for each remaining column
         self.col_html = col_html  # that row's inner HTML for each remaining column
+        self.rel_dir = rel_dir
         self.references: list[Reference] = []
+        self.listing_title = kind  # filled in by main() with the real chandas.md/alankara.md page title
+
+    @property
+    def listing_rel_file(self) -> str:
+        """The chandas.md / alankara.md page this entry's row lives on —
+        the "Up" target for this entry's own (nav-less) detail page."""
+        return f"{self.rel_dir}/{self.kind}.md"
 
     @property
     def rel_out_file(self) -> str:
-        return f"shastra/topics/{GLOSSARY_OUT_SUBDIR[self.kind]}/{self.slug}.md"
+        return f"{self.rel_dir}/{GLOSSARY_OUT_SUBDIR[self.kind]}/{self.slug}.md"
 
     @property
     def out_file(self) -> Path:
         return DOCS / self.rel_out_file
 
 
-def build_glossary_page(kind: str, path: Path) -> tuple[dict[str, TableEntry], str, dict]:
+def build_glossary_page(kind: str, path: Path, rel_dir: str) -> tuple[dict[str, TableEntry], str, dict]:
     """Returns (entries, rendered_body, page_frontmatter) for
-    shastra/topics/{chandas,alankara}.md. `rendered_body` is the source
-    body with every matched entry's name cell turned into a link to its
-    (nav-less) detail page. `page_frontmatter` (title/order/etc.) is
-    exposed so callers can list this page under विषयाः alongside regular
-    topics, sorted/titled the same way."""
+    topics/{chandas,alankara}.md. `rendered_body` is the source body with
+    every matched entry's name cell turned into a link to its (nav-less)
+    detail page. `page_frontmatter` (title/order/etc.) is exposed so
+    callers can list this page under विषयाः alongside regular topics,
+    sorted/titled the same way."""
     if not path.exists():
         warn(f"{path} does not exist — no {kind} entries will be available")
         return {}, "", {}
@@ -500,9 +737,9 @@ def build_glossary_page(kind: str, path: Path) -> tuple[dict[str, TableEntry], s
             slug = slugify(name)
             rest_labels = header_labels[1:1 + len(tds) - 1] if header_labels else []
             rest_html = ["".join(str(c) for c in td.contents).strip() for td in tds[1:]]
-            entries[name] = TableEntry(kind, name, slug, rest_labels, rest_html)
+            entries[name] = TableEntry(kind, name, slug, rest_labels, rest_html, rel_dir)
 
-            href = raw_html_href(f"shastra/topics/{kind}.md", entries[name].rel_out_file)
+            href = raw_html_href(f"{rel_dir}/{kind}.md", entries[name].rel_out_file)
             a_tag = soup.new_tag("a", href=href)
             for child in list(tds[0].children):
                 a_tag.append(child.extract())
@@ -520,7 +757,8 @@ def build_glossary_page(kind: str, path: Path) -> tuple[dict[str, TableEntry], s
 
 
 def render_glossary_entry_page(entry: TableEntry) -> str:
-    parts = [f"# {entry.title}", ""]
+    topnav = render_topnav(entry.rel_out_file, entry.listing_rel_file, entry.listing_title)
+    parts = [topnav, f"# {entry.title}", ""]
     for label, html in zip(entry.col_labels, entry.col_html):
         if not html:
             continue
@@ -541,15 +779,31 @@ def render_glossary_entry_page(entry: TableEntry) -> str:
 
 
 # ---------------------------------------------------------------------------
-# HTML scanning helpers (tolerant of minor malformed markup in sources)
+# Shloka extraction — walks the nesting-aware div tree from parse_divs(),
+# looking for every <div class="shloka" ...> at any depth.
 # ---------------------------------------------------------------------------
+#
+# Attributes read off a shloka div (all optional):
+#   data-type      one of karika / nataka / dialog / ... (free-form; CSS
+#                  keys off it). Falls back to the chapter's/text's
+#                  default_type (meta.yaml) when omitted — and the
+#                  resolved value is written back into the OUTPUT div
+#                  (never into source) so `[data-type="..."]` CSS actually
+#                  has something to match even when the author never
+#                  wrote data-type at all.
+#   data-chandas   meter name; falls back to the section's `chandas:`
+#                  frontmatter (verse-per-file kavya-verse texts tag the
+#                  meter once in frontmatter instead of per-div).
+#   data-alankara  comma-separated alankara name(s); same frontmatter
+#                  fallback (`alankara:`).
+#   highlight="true"   optional; CSS renders a distinct highlight tint.
+#                      Left exactly as authored — never rewritten.
+#
+# Legacy `data-meter=` is still read (with a warning) as a synonym for
+# `data-chandas=`, in case migrate_layout.py hasn't been run over every
+# file yet.
 
-ATTR_RE = re.compile(r'([a-zA-Z\-]+)\s*=\s*"([^"]*)"')
-SHLOKA_RE = re.compile(r'<div\s+class="(?:shloka|shloka-play)"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
-
-
-def parse_attrs(attr_str: str) -> dict:
-    return {m.group(1): m.group(2) for m in ATTR_RE.finditer(attr_str)}
+DATA_TYPE_INJECT_RE = None  # placeholder, unused — injection is done via splice, see below
 
 
 def preview_text(raw: str, max_len: int = 60) -> str:
@@ -565,67 +819,93 @@ def preview_text(raw: str, max_len: int = 60) -> str:
 
 
 class Shloka:
-    def __init__(self, meter: str, alankaras: list[str], preview: str):
-        self.meter = meter
+    def __init__(self, chandas: str, alankaras: list[str], preview: str, data_type: str, highlight: bool):
+        self.chandas = chandas
         self.alankaras = alankaras
         self.preview = preview
+        self.data_type = data_type
+        self.highlight = highlight
 
 
 def extract_shlokas(
-    body: str, fm_meter: str, fm_alankaras: list[str], start_index: int = 0
+    body: str, fm_chandas: str, fm_alankaras: list[str], default_type: str, start_index: int = 0,
+    source_for_warning: object = "",
 ) -> tuple[str, list[Shloka], int]:
-    """Find every <div class="shloka"> in `body`, insert an anchor <a id=...>
-    right before each one, and return (modified_body, [Shloka, ...], next_index).
+    """Find every <div class="shloka"> in `body` at any nesting depth,
+    insert an anchor <a id=...> right before each one, inject a resolved
+    data-type="..." attribute into the ones that didn't specify their own,
+    and return (modified_body, [Shloka, ...], next_index).
 
     `start_index` lets callers number shlokas contiguously across every
     section in a chapter (anchors must be chapter-unique, since all
     sections end up concatenated onto a single generated chapter page and
     the Shloka Table numbers verses chapter-wide, not per-section).
-
-    For a shloka div that has no data-meter/data-alankara of its own (the
-    verse-only text style), the file-level frontmatter meter/alankara is
-    used instead — this covers kavya-verse texts where one file == one
-    shloka tagged only in frontmatter.
     """
+    tree = parse_divs(body)
     shlokas: list[Shloka] = []
+    splices: list[tuple[int, int, str]] = []
     counter = start_index
 
-    def repl(m: re.Match) -> str:
+    def visit(nodes: list[DivNode]):
         nonlocal counter
-        counter += 1
-        attrs = parse_attrs(m.group(1))
-        inner = m.group(2)
-        meter = attrs.get("data-meter", "").strip() or fm_meter
-        alankaras = (
-            [a.strip() for a in attrs["data-alankara"].split(",") if a.strip()]
-            if attrs.get("data-alankara")
-            else list(fm_alankaras)
-        )
-        anchor = f"s{counter}"
-        shlokas.append(Shloka(meter, alankaras, preview_text(inner)))
-        return f'<a id="{anchor}"></a>\n{m.group(0)}'
+        for node in nodes:
+            if node.base_cls != "shloka":
+                visit(node.children)  # keep looking, however deep the shloka is nested
+                continue
 
-    new_body = SHLOKA_RE.sub(repl, body)
+            counter += 1
+            attrs = parse_attrs(node.attrs_str)
+
+            data_type = attrs.get("data-type", "").strip() or default_type
+
+            chandas = attrs.get("data-chandas", "").strip()
+            if not chandas and attrs.get("data-meter"):
+                warn(f"{source_for_warning}: div uses legacy data-meter= — please migrate to data-chandas= "
+                     f"(scripts/migrate_layout.py does this automatically)")
+                chandas = attrs.get("data-meter", "").strip()
+            chandas = chandas or fm_chandas
+
+            alankaras = (
+                [a.strip() for a in attrs["data-alankara"].split(",") if a.strip()]
+                if attrs.get("data-alankara")
+                else list(fm_alankaras)
+            )
+            highlight = attrs.get("highlight", "").strip().lower() == "true"
+
+            inner = body[node.tag_end:node.inner_end]
+            anchor = f"s{counter}"
+            shlokas.append(Shloka(chandas, alankaras, preview_text(inner), data_type, highlight))
+
+            splices.append((node.start, node.start, f'<a id="{anchor}"></a>\n'))
+            if data_type and not attrs.get("data-type", "").strip():
+                # inject the resolved default right before the tag's closing '>'
+                splices.append((node.tag_end - 1, node.tag_end - 1, f' data-type="{data_type}"'))
+            # a shloka div is a leaf for our purposes — don't recurse into it
+
+    visit(tree)
+    new_body = apply_splices(body, splices)
     return new_body, shlokas, counter
 
 
 # ---------------------------------------------------------------------------
 # "Labeled hideable sections" — commentary-type content blocks, driven by
-# scripts/content_sections.yaml (see that file for the full convention).
-# Sections declared with reposition: true are extracted from wherever they
-# were written and reinserted, in the config file's order, right after the
-# section's shloka (or appended at the end if there's no shloka). Everything
-# else is labeled/marked hideable in place, never moved.
+# scripts/commentary_sections.yaml (see that file for the full
+# convention). Sections declared with reposition: true are extracted from
+# wherever they were written and reinserted, in the config file's order,
+# right after the section's shloka (or appended at the end if there's no
+# shloka). Everything else is labeled/marked hideable in place, never
+# moved. Also tree-based now, for the same reason as extract_shlokas: a
+# commentary div can legitimately sit inside a structural wrapper (e.g.
+# dialog-block), and a flat regex would mispair it.
 
-CONTENT_SECTIONS_CONFIG_PATH = Path(__file__).resolve().parent / "content_sections.yaml"
 HIDEABLE_CLASS = "sv-hideable"
 
 
-def load_content_sections_config() -> dict:
-    if not CONTENT_SECTIONS_CONFIG_PATH.exists():
-        warn(f"{CONTENT_SECTIONS_CONFIG_PATH} not found — no commentary sections will be labeled/hideable")
+def load_commentary_sections_config() -> dict:
+    if not COMMENTARY_CONFIG_PATH.exists():
+        warn(f"{COMMENTARY_CONFIG_PATH} not found — no commentary sections will be labeled/hideable")
         return {}
-    data = yaml.safe_load(CONTENT_SECTIONS_CONFIG_PATH.read_text(encoding="utf-8")) or {}
+    data = yaml.safe_load(COMMENTARY_CONFIG_PATH.read_text(encoding="utf-8")) or {}
     by_class = {}
     for entry in data.get("sections", []):
         cls = str(entry.get("class", "")).strip().lower()
@@ -634,10 +914,9 @@ def load_content_sections_config() -> dict:
     return by_class
 
 
-SECTION_CONFIG_BY_CLASS = load_content_sections_config()
+SECTION_CONFIG_BY_CLASS = load_commentary_sections_config()
 REPOSITION_ORDER = [cls for cls, cfg in SECTION_CONFIG_BY_CLASS.items() if cfg.get("reposition")]
 
-ANY_CLASS_DIV_RE = re.compile(r'<div\s+class="([^"]+)"([^>]*)>(.*?)</div\s*>?', re.IGNORECASE | re.DOTALL)
 TOGGLE_HIDE_RE = re.compile(r'\btoggle-hide\s*=\s*"(true|false)"', re.IGNORECASE)
 
 
@@ -658,13 +937,8 @@ def commentary_hidden(cls: str, attrs: str) -> bool:
     return bool(cfg and cfg.get("hidden_by_default"))
 
 
-def render_commentary_div(cls_raw: str, attrs: str, content: str) -> str | None:
-    """Returns the rewritten div, or None if this class/instance isn't part
-    of the labeled-section system at all (structural divs like shloka,
-    karika, dialog-block, etc. — left completely untouched by the caller)."""
-    base_cls = cls_raw.strip().split()[0].lower()
-    if base_cls not in SECTION_CONFIG_BY_CLASS and not TOGGLE_HIDE_RE.search(attrs):
-        return None
+def render_commentary_div(cls_raw: str, attrs: str, content: str) -> str:
+    base_cls = cls_raw.strip().split()[0].lower() if cls_raw.strip() else ""
     label = commentary_label(base_cls, attrs)
     classes = cls_raw.strip()
     if commentary_hidden(base_cls, attrs):
@@ -676,18 +950,27 @@ def render_commentary_div(cls_raw: str, attrs: str, content: str) -> str | None:
 
 def process_content_sections(body: str) -> tuple[str, str]:
     """Returns (body_with_repositioned_sections_removed, reordered_html)."""
+    tree = parse_divs(body)
+    splices: list[tuple[int, int, str]] = []
     by_class: dict[str, list[tuple[str, str]]] = {}
 
-    def repl(m: re.Match) -> str:
-        cls_raw, attrs, content = m.group(1), m.group(2), m.group(3)
-        base_cls = cls_raw.strip().split()[0].lower()
-        if base_cls in REPOSITION_ORDER:
-            by_class.setdefault(base_cls, []).append((attrs, content))
-            return ""
-        rendered = render_commentary_div(cls_raw, attrs, content)
-        return rendered if rendered is not None else m.group(0)
+    def visit(nodes: list[DivNode]):
+        for node in nodes:
+            matched = node.base_cls in SECTION_CONFIG_BY_CLASS or bool(TOGGLE_HIDE_RE.search(node.attrs_str))
+            if not matched:
+                visit(node.children)  # structural divs (shloka, dialog-block, ...) — look inside, but leave as-is
+                continue
+            content = body[node.tag_end:node.inner_end]
+            if node.base_cls in REPOSITION_ORDER:
+                by_class.setdefault(node.base_cls, []).append((node.attrs_str, content))
+                splices.append((node.start, node.end, ""))
+            else:
+                rendered = render_commentary_div(node.cls, node.attrs_str, content)
+                splices.append((node.start, node.end, rendered))
+            # a matched commentary div is opaque — don't recurse into it
 
-    body = ANY_CLASS_DIV_RE.sub(repl, body)
+    visit(tree)
+    body = apply_splices(body, splices)
     reordered_html = "\n\n".join(
         render_commentary_div(cls, attrs, content)
         for cls in REPOSITION_ORDER
@@ -700,17 +983,56 @@ def insert_reordered_sections(body: str, reordered: str) -> str:
     """Splices `reordered` right after the section's (last) shloka, or
     appends it at the end of the section if there's no shloka at all
     (e.g. shastra sections, or a kavya-play section with none of these
-    commentary blocks)."""
+    commentary blocks). Uses the same tree parser so it finds the true
+    last shloka regardless of nesting."""
     if not reordered:
         return body.strip()
-    shloka_matches = list(SHLOKA_RE.finditer(body))
-    if shloka_matches:
-        cut = shloka_matches[-1].end()
+    tree = parse_divs(body)
+    shloka_ends = [n.end for n in walk_divs(tree) if n.base_cls == "shloka"]
+    if shloka_ends:
+        cut = max(shloka_ends)
         return f"{body[:cut].strip()}\n\n{reordered}\n\n{body[cut:].strip()}".strip()
     return f"{body.strip()}\n\n{reordered}".strip()
 
 
-TOPIC_LINK_TMPL = "- [{title}]({link})"
+# ---------------------------------------------------------------------------
+# Top navbar: just "Home" + "Up / TOC" (see render_topnav). Replaces the
+# previous full list of top-level section tabs (navigation.tabs is turned
+# off in build_mkdocs_static below) — every generated page gets a small
+# two-button bar computed at build time (a plain relative link, no JS
+# needed) pointing at the site home and at whatever TOC makes sense for
+# that specific page (the containing text's TOC for a chapter page, the
+# containing section's landing page for a text's own TOC page, etc).
+# ---------------------------------------------------------------------------
+
+def render_topnav(current_rel_file: str, up_target_rel_file: str | None, up_label: str | None) -> str:
+    home_link = rel_link(current_rel_file, "index.md")
+    parts = [f'[मुखपृष्ठम्]({home_link})']
+    if up_target_rel_file:
+        up_link = rel_link(current_rel_file, up_target_rel_file)
+        parts.append(f'[⬆ {up_label}]({up_link})')
+    inner = " · ".join(parts)
+    return f'<div class="sv-topnav">\n\n{inner}\n\n</div>\n'
+
+
+# ---------------------------------------------------------------------------
+# Output helpers
+# ---------------------------------------------------------------------------
+
+def clean_output():
+    for section in SECTIONS:
+        if section.out_dir.exists():
+            shutil.rmtree(section.out_dir)
+    index_md = DOCS / "index.md"
+    if index_md.exists():
+        index_md.unlink()
+    DOCS.mkdir(parents=True, exist_ok=True)
+
+
+def write(path: Path, content: str):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
 
 DIV_OPEN_ANY_RE = re.compile(r"<div\b([^>]*)>")
 
@@ -757,26 +1079,6 @@ def convert_bracket_attr_spans(text: str) -> str:
     return BRACKET_ATTR_SPAN_RE.sub(repl, text)
 
 
-# ---------------------------------------------------------------------------
-# Main build
-# ---------------------------------------------------------------------------
-
-def clean_output():
-    if SHASTRA_OUT.exists():
-        shutil.rmtree(SHASTRA_OUT)
-    if KAVYA_OUT.exists():
-        shutil.rmtree(KAVYA_OUT)
-    index_md = DOCS / "index.md"
-    if index_md.exists():
-        index_md.unlink()
-    DOCS.mkdir(parents=True, exist_ok=True)
-
-
-def write(path: Path, content: str):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
 def write_md(path: Path, content: str):
     """Like write(), but also enables md_in_html on every <div> so inline
     Markdown (bold, links, etc.) inside content blocks renders correctly.
@@ -786,17 +1088,55 @@ def write_md(path: Path, content: str):
     write(path, content)
 
 
-def build_domain_index_page(title: str, domain_index_rel: str, texts: list[Text]) -> str:
-    lines = [f"# {title}", ""]
+# ---------------------------------------------------------------------------
+# Section (शास्त्रम्/काव्यम्/...) + text + chapter page rendering
+# ---------------------------------------------------------------------------
+
+def build_domain_index_page(section: SectionConfig, texts: list[Text], topic_nav_entries: list) -> str:
+    """A section's own landing page — mirrors its home-page card (texts,
+    then topics if this is the topics-carrying section), just as a full
+    page rather than a card. This is the "Up" target for every text's own
+    TOC page, and (via the "मुखपृष्ठम्" button) reachable from anywhere."""
+    rel_file = f"{section.dir}/index.md"
+    lines = [render_topnav(rel_file, None, None), f"# {section.h1_label}", ""]
+    lines.append(f"## {section.h2_text_label}")
+    lines.append("")
     for t in texts:
         target = f"{t.rel_out_dir}/index.md"
-        lines.append(f"- [{t.title}]({rel_link(domain_index_rel, target)})")
+        lines.append(f"- [{t.title}]({rel_link(rel_file, target)})")
+    lines.append("")
+    if section.has_topics and topic_nav_entries:
+        lines.append(f"## {section.h2_topics_label}")
+        lines.append("")
+        for entry in topic_nav_entries:
+            lines.append(f"- [{entry.title}]({rel_link(rel_file, entry.rel_out_file)})")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def build_topics_index_page(section: SectionConfig, topic_nav_entries: list) -> str:
+    """Dedicated विषयाः landing page — the "Up" target for every individual
+    topic page and for the chandas/alankara glossary listing pages, so
+    going "up" from inside a topic lands you back among *other topics*,
+    not back among the texts (which is a different, unrelated listing one
+    level further up, at the section's own domain index page)."""
+    rel_file = f"{section.dir}/topics/index.md"
+    up_target = f"{section.dir}/index.md"
+    lines = [
+        render_topnav(rel_file, up_target, section.h1_label),
+        f"# {section.h2_topics_label}",
+        "",
+    ]
+    for entry in topic_nav_entries:
+        lines.append(f"- [{entry.title}]({rel_link(rel_file, entry.rel_out_file)})")
     lines.append("")
     return "\n".join(lines)
 
 
 def build_text_index_page(text: Text) -> str:
-    lines = [f"# {text.title}", ""]
+    rel_file = f"{text.rel_out_dir}/index.md"
+    up_target = f"{text.section.dir}/index.md"
+    lines = [render_topnav(rel_file, up_target, text.section.h1_label), f"# {text.title}", ""]
     if text.author:
         lines += [f"**कर्ता:** {text.author}", ""]
     chapters_label = str(text.meta.get("chapters", "")).strip() or "अध्यायाः / भागाः"
@@ -823,6 +1163,9 @@ def section_label(fm: dict, body: str, fallback_stem: str) -> str:
     return fallback_stem
 
 
+TOPIC_LINK_TMPL = "- [{title}]({link})"
+
+
 def render_shastra_chapter(chapter: Chapter, topics: dict[str, RefPage]) -> str:
     seen_topics: list[str] = []
     body_parts = []
@@ -834,7 +1177,7 @@ def render_shastra_chapter(chapter: Chapter, topics: dict[str, RefPage]) -> str:
             if fm.get("topic") and not fm.get("topics"):
                 warn(f"{section} uses 'topic:' instead of 'topics:' — please rename it (treating it as 'topics:' for now)")
             if t not in topics:
-                warn(f"{section} references unknown topic '{t}' (no matching shastra/topics/*.md title)")
+                warn(f"{section} references unknown topic '{t}' (no matching topics/*.md title)")
                 continue
             if t not in seen_topics:
                 seen_topics.append(t)
@@ -842,6 +1185,13 @@ def render_shastra_chapter(chapter: Chapter, topics: dict[str, RefPage]) -> str:
             topics[t].references.append(Reference(t, chapter, anchor, label))
         anchor = f"sec{i+1}"
         body, reordered = process_content_sections(body)
+        # shastra sections aren't shloka-numbered chapter-wide the way kavya
+        # ones are, but they can still carry `<div class="shloka">` blocks
+        # (e.g. shastra-karika texts, after the migration) — resolve
+        # data-type via the chapter's default_type the same way kavya does.
+        fm_chandas = str(fm.get("chandas", "")).strip()
+        body, _shlokas, _n = extract_shlokas(body, fm_chandas, as_list(fm.get("alankara")), chapter.default_type,
+                                              source_for_warning=section)
         section_content = f'<a id="{anchor}"></a>\n\n{insert_reordered_sections(body, reordered)}'
         body_parts.append(section_content)
 
@@ -856,8 +1206,10 @@ def render_shastra_chapter(chapter: Chapter, topics: dict[str, RefPage]) -> str:
         header.append("---")
         header.append("")
 
+    up_target = f"{chapter.text.rel_out_dir}/index.md"
+    topnav = render_topnav(chapter.rel_out_file, up_target, chapter.text.title)
     title_line = f"# {chapter.text.title} — {chapter.nav_label}"
-    return "\n".join([title_line, ""] + header + body_parts) + "\n"
+    return "\n".join([topnav, title_line, ""] + header + body_parts) + "\n"
 
 
 def render_kavya_chapter(
@@ -873,23 +1225,25 @@ def render_kavya_chapter(
     for section in chapter.sections:
         raw = section.read_text(encoding="utf-8")
         fm, body = split_frontmatter(raw)
-        fm_meter = str(fm.get("chandas", "")).strip()
-        if not fm_meter and fm.get("meter"):
+        fm_chandas = str(fm.get("chandas", "")).strip()
+        if not fm_chandas and fm.get("meter"):
             warn(f"{section} uses 'meter:' instead of 'chandas:' — please rename it (treating it as 'chandas:' for now)")
-            fm_meter = str(fm.get("meter", "")).strip()
+            fm_chandas = str(fm.get("meter", "")).strip()
         fm_alankaras = as_list(fm.get("alankara"))
         body, reordered = process_content_sections(body)
-        new_body, shlokas, counter = extract_shlokas(body, fm_meter, fm_alankaras, counter)
+        new_body, shlokas, counter = extract_shlokas(
+            body, fm_chandas, fm_alankaras, chapter.default_type, counter, source_for_warning=section
+        )
         for sh in shlokas:
-            if sh.meter and sh.meter not in chandas:
-                warn(f"{section} references unknown meter '{sh.meter}' (no matching <!-- chandas-name --> row in shastra/topics/chandas.md)")
+            if sh.chandas and sh.chandas not in chandas:
+                warn(f"{section} references unknown meter '{sh.chandas}' (no matching <!-- chandas-name --> row in the chandas glossary)")
             for a in sh.alankaras:
                 if a not in alankaras:
-                    warn(f"{section} references unknown alankara '{a}' (no matching <!-- alankara-name --> row in shastra/topics/alankara.md)")
+                    warn(f"{section} references unknown alankara '{a}' (no matching <!-- alankara-name --> row in the alankara glossary)")
         all_shlokas.extend(shlokas)
         body_parts.append(insert_reordered_sections(new_body, reordered))
 
-    def link_meter(m: str) -> str:
+    def link_chandas(m: str) -> str:
         if not m:
             return "—"
         if m not in chandas:
@@ -915,22 +1269,24 @@ def render_kavya_chapter(
         table_lines.append("| --- | --- | --- |")
         for i, sh in enumerate(all_shlokas, start=1):
             table_lines.append(
-                f"| [{sh.preview}](#s{i}) | {link_meter(sh.meter)} | {link_alankaras(sh.alankaras)} |"
+                f"| [{sh.preview}](#s{i}) | {link_chandas(sh.chandas)} | {link_alankaras(sh.alankaras)} |"
             )
         table_lines.append("")
         table_lines.append("---")
         table_lines.append("")
 
+    up_target = f"{chapter.text.rel_out_dir}/index.md"
+    topnav = render_topnav(chapter.rel_out_file, up_target, chapter.text.title)
     title_line = f"# {chapter.text.title} — {chapter.nav_label}"
-    content = "\n".join([title_line, ""] + body_parts + [""] + table_lines) + "\n"
+    content = "\n".join([topnav, title_line, ""] + body_parts + [""] + table_lines) + "\n"
     return content, all_shlokas
 
 
 def record_kavya_references(chapter: Chapter, chandas: dict, alankaras: dict, shlokas_with_index: list[tuple[int, Shloka]]):
     for i, sh in shlokas_with_index:
         anchor = f"s{i}"
-        if sh.meter and sh.meter in chandas:
-            chandas[sh.meter].references.append(Reference(sh.meter, chapter, anchor, sh.preview))
+        if sh.chandas and sh.chandas in chandas:
+            chandas[sh.chandas].references.append(Reference(sh.chandas, chapter, anchor, sh.preview))
         for a in sh.alankaras:
             if a in alankaras:
                 alankaras[a].references.append(Reference(a, chapter, anchor, sh.preview))
@@ -940,7 +1296,12 @@ H1_RE = re.compile(r"^\s*#\s+\S")
 
 
 def render_ref_page(page: RefPage) -> str:
-    parts = []
+    # "Up" goes to the विषयाः listing (other topics), NOT to the section's
+    # texts listing one level further up — those are a different, sibling
+    # menu, not this topic's parent.
+    up_target = f"{TOPICS_SECTION.dir}/topics/index.md" if TOPICS_SECTION else None
+    up_label = TOPICS_SECTION.h2_topics_label if TOPICS_SECTION else None
+    parts = [render_topnav(page.rel_out_file, up_target, up_label)]
     body = page.body.strip()
     if not H1_RE.match(body):
         # only add a title heading if the source body doesn't already
@@ -961,33 +1322,48 @@ def render_ref_page(page: RefPage) -> str:
     return "\n".join(parts)
 
 
+# ---------------------------------------------------------------------------
+# Home page — one card per configured content section (see site_config.yaml
+# content_sections:), each listing that section's texts (and, for the
+# topics-carrying section, its विषयाः too). Cards are plain <div
+# class="sv-home-card">...</div> — docs/stylesheets/custom.css draws the
+# box; add a new section to site_config.yaml and its card just appears.
+# ---------------------------------------------------------------------------
+
 def build_home_page(
-    shastra_texts: list[Text],
-    kavya_texts: list[Text],
+    sections_with_texts: list[tuple[SectionConfig, list[Text]]],
     topic_nav_entries: list,
 ) -> str:
-    lines = ["# साहित्यशास्त्रम्", ""]
+    home_title = str(SITE_CONFIG.get("labels", {}).get("home_title", "")).strip() or "मुखपृष्ठम्"
+    lines = [f"# {home_title}", "", '<div class="sv-home-cards" markdown="1">', ""]
 
-    lines.append("## ग्रन्थाः")
-    lines.append("")
-    for t in shastra_texts:
-        lines.append(f"- [{t.title}]({t.rel_out_dir}/index.md)")
-    lines.append("")
+    for section, texts in sections_with_texts:
+        lines.append('<div class="sv-home-card" markdown="1">')
+        lines.append("")
+        lines.append(f"## {section.h1_label}")
+        lines.append("")
+        lines.append(f"### {section.h2_text_label}")
+        lines.append("")
+        for t in texts:
+            lines.append(f"- [{t.title}]({t.rel_out_dir}/index.md)")
+        lines.append("")
+        if section.has_topics and topic_nav_entries:
+            lines.append(f"### {section.h2_topics_label}")
+            lines.append("")
+            for entry in topic_nav_entries:
+                lines.append(f"- [{entry.title}]({entry.rel_out_file})")
+            lines.append("")
+        lines.append("</div>")
+        lines.append("")
 
-    lines.append("## विषयाः")
+    lines.append("</div>")
     lines.append("")
-    for entry in topic_nav_entries:
-        lines.append(f"- [{entry.title}]({entry.rel_out_file})")
-    lines.append("")
-
-    lines.append("# काव्यानि")
-    lines.append("")
-    for t in kavya_texts:
-        lines.append(f"- [{t.title}]({t.rel_out_dir}/index.md)")
-    lines.append("")
-
     return "\n".join(lines)
 
+
+# ---------------------------------------------------------------------------
+# mkdocs.yml — static settings + auto-generated nav
+# ---------------------------------------------------------------------------
 
 NAV_HEADER = """\
 # THIS FILE IS AUTO-GENERATED by scripts/generate_indices.py — do not edit
@@ -1004,9 +1380,10 @@ theme:
   name: material
   language: en
   features:
+    # navigation.tabs is deliberately OFF: the top bar is just the two
+    # buttons rendered by render_topnav() (Home / Up-to-TOC) on every
+    # page, not a tab per top-level section — see site update notes.
     - navigation.instant
-    - navigation.tabs
-    - navigation.tabs.sticky
     - navigation.indexes
     - navigation.top
     - toc.follow
@@ -1030,14 +1407,21 @@ markdown_extensions:
   - footnotes
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      # Enables ```mermaid fenced code blocks (flowcharts, sequence
+      # diagrams, etc.) anywhere in any source .md file — Material for
+      # MkDocs renders them client-side, no extra_javascript needed.
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - toc:
       permalink: true
 
-# The chandas/alankara detail pages under shastra/topics/_chandas/ and
-# _alankara/ are intentionally not linked from nav (only reachable by
-# clicking an entry's name in shastra/topics/chandas.md / alankara.md), so
-# tell MkDocs not to warn/fail on them under --strict.
+# The chandas/alankara detail pages under topics/_chandas/ and
+# topics/_alankara/ are intentionally not linked from nav (only reachable
+# by clicking an entry's name in topics/chandas.md / alankara.md), so tell
+# MkDocs not to warn/fail on them under --strict.
 validation:
   nav:
     omitted_files: ignore
@@ -1060,8 +1444,7 @@ def yaml_dump_nav(nav) -> str:
 
 
 def build_nav(
-    shastra_texts: list[Text],
-    kavya_texts: list[Text],
+    sections_with_texts: list[tuple[SectionConfig, list[Text]]],
     topic_nav_entries: list,
 ) -> list:
     def text_nav(t: Text):
@@ -1070,115 +1453,159 @@ def build_nav(
             entry.append({ch.nav_label: ch.rel_out_file})
         return {t.title: entry}
 
-    # A section like "शास्त्रम्"/"काव्यम्" has no page of its own — without
-    # one, MkDocs makes the top nav tab link to the first descendant page
-    # it finds (e.g. the first text's intro), which looks like "the tab
-    # only shows the first text". Giving the section an explicit landing
-    # page as its very first entry fixes that; naming it identically to
-    # the section title also lets Material's navigation.indexes feature
-    # treat it as that section's own overview.
-    shastra_section = [
-        {"शास्त्रम्": "shastra/index.md"},
-        {"ग्रन्थाः": [text_nav(t) for t in shastra_texts]},
-        {"विषयाः": [{entry.title: entry.rel_out_file} for entry in topic_nav_entries]},
-    ]
-    kavya_section = [{"काव्यम्": "kavya/index.md"}] + [text_nav(t) for t in kavya_texts]
-
-    nav = [
-        {"मुखपृष्ठम्": "index.md"},
-        {"शास्त्रम्": shastra_section},
-        {"काव्यम्": kavya_section},
-    ]
+    nav = [{"मुखपृष्ठम्": "index.md"}]
+    for section, texts in sections_with_texts:
+        # Give the section an explicit landing page as its own first
+        # entry — without one, MkDocs makes any nav group link to the
+        # first descendant page it finds, which looks like the section
+        # only shows its first text.
+        entries = [
+            {section.h1_label: f"{section.dir}/index.md"},
+            {section.h2_text_label: [text_nav(t) for t in texts]},
+        ]
+        if section.has_topics and topic_nav_entries:
+            entries.append(
+                {section.h2_topics_label: [
+                    {section.h2_topics_label: f"{section.dir}/topics/index.md"},
+                    *({e.title: e.rel_out_file} for e in topic_nav_entries),
+                ]}
+            )
+        nav.append({section.h1_label: entries})
     return nav
 
 
+# ---------------------------------------------------------------------------
+# Main build
+# ---------------------------------------------------------------------------
+
 def main():
+    if not SECTIONS:
+        print("No content_sections configured in site_config.yaml — nothing to build.", file=sys.stderr)
+        sys.exit(1)
+
     clean_output()
 
-    topics = discover_ref_pages(
-        "topic", SHASTRA_SRC / "topics", exclude={"chandas.md", "alankara.md"}
-    )
-    chandas, chandas_body, chandas_page_fm = build_glossary_page("chandas", SHASTRA_SRC / "topics" / "chandas.md")
-    alankaras, alankara_body, alankara_page_fm = build_glossary_page("alankara", SHASTRA_SRC / "topics" / "alankara.md")
+    topics: dict[str, RefPage] = {}
+    chandas: dict[str, TableEntry] = {}
+    alankaras: dict[str, TableEntry] = {}
+    topic_nav_entries: list = []
+    topics_rel_dir = f"{TOPICS_SECTION.dir}/topics" if TOPICS_SECTION else ""
 
-    # विषयाः listing: regular topics plus the chandas/alankara glossary
-    # pages themselves, all sorted together the same way (order: frontmatter,
-    # falling back to title) — the glossary pages' own title/order comes
-    # from their own frontmatter, same as any other topic.
-    topic_nav_entries = list(topics.values())
-    topic_nav_entries.append(
-        NavListEntry(
-            str(chandas_page_fm.get("title", "chandas")).strip(),
-            "shastra/topics/chandas.md",
-            chandas_page_fm,
-            SHASTRA_SRC / "topics" / "chandas.md",
+    if TOPICS_SECTION:
+        topics = discover_ref_pages(
+            "topic", TOPICS_SECTION.topics_src, topics_rel_dir, exclude={"chandas.md", "alankara.md"}
         )
-    )
-    topic_nav_entries.append(
-        NavListEntry(
-            str(alankara_page_fm.get("title", "alankara")).strip(),
-            "shastra/topics/alankara.md",
-            alankara_page_fm,
-            SHASTRA_SRC / "topics" / "alankara.md",
+        chandas, chandas_body, chandas_page_fm = build_glossary_page(
+            "chandas", TOPICS_SECTION.topics_src / "chandas.md", topics_rel_dir
         )
-    )
-    topic_nav_entries.sort(key=lambda e: e.sort_key)
+        alankaras, alankara_body, alankara_page_fm = build_glossary_page(
+            "alankara", TOPICS_SECTION.topics_src / "alankara.md", topics_rel_dir
+        )
 
-    shastra_texts = discover_texts(SHASTRA_SRC, "shastra")
-    kavya_texts = discover_texts(KAVYA_SRC, "kavya")
+        # विषयाः listing: regular topics plus the chandas/alankara glossary
+        # pages themselves, all sorted together the same way (order:
+        # frontmatter, falling back to title).
+        topic_nav_entries = list(topics.values())
+        topic_nav_entries.append(
+            NavListEntry(
+                str(chandas_page_fm.get("title", "chandas")).strip(),
+                f"{topics_rel_dir}/chandas.md",
+                chandas_page_fm,
+                TOPICS_SECTION.topics_src / "chandas.md",
+            )
+        )
+        topic_nav_entries.append(
+            NavListEntry(
+                str(alankara_page_fm.get("title", "alankara")).strip(),
+                f"{topics_rel_dir}/alankara.md",
+                alankara_page_fm,
+                TOPICS_SECTION.topics_src / "alankara.md",
+            )
+        )
+        topic_nav_entries.sort(key=lambda e: e.sort_key)
 
-    for t in shastra_texts:
-        if t.type not in SHASTRA_TEXT_TYPES:
-            warn(f"{t.dir}/meta.yaml has unrecognized type '{t.type}' (expected one of {sorted(SHASTRA_TEXT_TYPES)})")
-        t.chapters = discover_chapters(t)
+    # --- discover every configured section's texts + chapters ------------
+    sections_with_texts: list[tuple[SectionConfig, list[Text]]] = []
+    for section in SECTIONS:
+        texts = discover_texts(section)
+        for t in texts:
+            expected_types = (
+                (SHASTRA_TEXT_TYPES if section is TOPICS_SECTION else KAVYA_PROSE_TYPES | KAVYA_VERSE_TYPES)
+            )
+            if t.type not in expected_types:
+                warn(f"{t.dir}/meta.yaml has unrecognized type '{t.type}' (expected one of {sorted(expected_types)})")
+            t.chapters = discover_chapters(t)
+        sections_with_texts.append((section, texts))
 
-    for t in kavya_texts:
-        if t.type not in KAVYA_PROSE_TYPES | KAVYA_VERSE_TYPES:
-            warn(f"{t.dir}/meta.yaml has unrecognized type '{t.type}' (expected one of {sorted(KAVYA_PROSE_TYPES | KAVYA_VERSE_TYPES)})")
-        t.chapters = discover_chapters(t)
+    # --- render chapters + text index pages for every section ------------
+    # Whether a text renders "shastra-style" (topic back-links,
+    # paragraph-flow sections) or "kavya-style" (shloka table, meter/
+    # alankara linking) is driven by the text's own `type:` — not by which
+    # section it's filed under — so a future section can freely mix either
+    # kind of text.
+    for section, texts in sections_with_texts:
+        for t in texts:
+            for ch in t.chapters:
+                if t.type in SHASTRA_TEXT_TYPES:
+                    content = render_shastra_chapter(ch, topics)
+                    write_md(ch.out_file, content)
+                elif t.type in KAVYA_PROSE_TYPES | KAVYA_VERSE_TYPES:
+                    content, all_shlokas = render_kavya_chapter(ch, chandas, alankaras)
+                    write_md(ch.out_file, content)
+                    indexed = list(enumerate(all_shlokas, start=1))
+                    record_kavya_references(ch, chandas, alankaras, indexed)
+                else:
+                    # unrecognized type already warned about above — treat
+                    # it like a kavya-verse text (no topic back-links) so
+                    # the build still completes.
+                    content, all_shlokas = render_kavya_chapter(ch, chandas, alankaras)
+                    write_md(ch.out_file, content)
+                    record_kavya_references(ch, chandas, alankaras, list(enumerate(all_shlokas, start=1)))
+            write_md(t.out_dir / "index.md", build_text_index_page(t))
 
-    # --- shastra: render chapters, collect topic references -------------
-    for t in shastra_texts:
-        for ch in t.chapters:
-            content = render_shastra_chapter(ch, topics)
-            write_md(ch.out_file, content)
-        write_md(t.out_dir / "index.md", build_text_index_page(t))
+        write_md(DOCS / f"{section.dir}/index.md", build_domain_index_page(section, texts, topic_nav_entries))
 
-    # --- kavya: render chapters, collect meter/alankara references -------
-    for t in kavya_texts:
-        for ch in t.chapters:
-            content, all_shlokas = render_kavya_chapter(ch, chandas, alankaras)
-            write_md(ch.out_file, content)
-            indexed = list(enumerate(all_shlokas, start=1))
-            record_kavya_references(ch, chandas, alankaras, indexed)
-
-        write_md(t.out_dir / "index.md", build_text_index_page(t))
-
-    # --- शास्त्रम्/काव्यम् landing pages (fixes the top-tab-jumps-to-first-text bug) --
-    write_md(DOCS / "shastra/index.md", build_domain_index_page("शास्त्रम्", "shastra/index.md", shastra_texts))
-    write_md(DOCS / "kavya/index.md", build_domain_index_page("काव्यम्", "kavya/index.md", kavya_texts))
+    # --- topics index page (the "Up" target for individual topic pages
+    # and for the chandas/alankara glossary listing pages) ----------------
+    if TOPICS_SECTION and topic_nav_entries:
+        write_md(
+            DOCS / f"{TOPICS_SECTION.dir}/topics/index.md",
+            build_topics_index_page(TOPICS_SECTION, topic_nav_entries),
+        )
 
     # --- topic pages: write with injected back-links ----------------------
     for title, page in topics.items():
         write_md(page.out_file, render_ref_page(page))
 
     # --- chandas/alankara glossary pages + their (nav-less) detail pages --
-    write_md(DOCS / "shastra/topics/chandas.md", chandas_body)
-    write_md(DOCS / "shastra/topics/alankara.md", alankara_body)
-    for entry in chandas.values():
-        write_md(entry.out_file, render_glossary_entry_page(entry))
-    for entry in alankaras.values():
-        write_md(entry.out_file, render_glossary_entry_page(entry))
+    if TOPICS_SECTION:
+        chandas_rel = f"{topics_rel_dir}/chandas.md"
+        alankara_rel = f"{topics_rel_dir}/alankara.md"
+        # "Up" from a glossary listing page goes to विषयाः (other topics),
+        # matching every individual topic page — not to the texts listing.
+        up_target = f"{TOPICS_SECTION.dir}/topics/index.md"
+        up_label = TOPICS_SECTION.h2_topics_label
+        chandas_title = str(chandas_page_fm.get("title", "chandas")).strip()
+        alankara_title = str(alankara_page_fm.get("title", "alankara")).strip()
+        write_md(DOCS / chandas_rel, render_topnav(chandas_rel, up_target, up_label) + "\n" + chandas_body)
+        write_md(DOCS / alankara_rel, render_topnav(alankara_rel, up_target, up_label) + "\n" + alankara_body)
+        for entry in chandas.values():
+            entry.listing_title = chandas_title
+            write_md(entry.out_file, render_glossary_entry_page(entry))
+        for entry in alankaras.values():
+            entry.listing_title = alankara_title
+            write_md(entry.out_file, render_glossary_entry_page(entry))
 
     # --- home page ---------------------------------------------------------
-    write_md(DOCS / "index.md", build_home_page(shastra_texts, kavya_texts, topic_nav_entries))
+    write_md(DOCS / "index.md", build_home_page(sections_with_texts, topic_nav_entries))
 
     # --- mkdocs.yml (nav auto-generated, static settings preserved) -------
-    nav = build_nav(shastra_texts, kavya_texts, topic_nav_entries)
+    nav = build_nav(sections_with_texts, topic_nav_entries)
     mkdocs_yml = NAV_HEADER + "\n" + yaml_dump_nav(nav) + "\n" + build_mkdocs_static()
     write(ROOT / "mkdocs.yml", mkdocs_yml)
 
-    print(f"\nDone. {len(shastra_texts)} shastra text(s), {len(kavya_texts)} kavya text(s), "
+    n_texts = sum(len(texts) for _, texts in sections_with_texts)
+    print(f"\nDone. {n_texts} text(s) across {len(SECTIONS)} section(s), "
           f"{len(topics)} topic(s), {len(chandas)} meter(s), {len(alankaras)} alankara(s).")
     if WARNINGS:
         print(f"\n{len(WARNINGS)} warning(s) were printed above — please review.", file=sys.stderr)

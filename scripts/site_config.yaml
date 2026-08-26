@@ -1,8 +1,16 @@
 # site_config.yaml
 # =================
-# Cosmetic/site-level settings previously hardcoded inside
-# generate_indices.py. Edit this file (not the script) to change these —
-# it's re-read every run.
+# Site-level + structural settings for generate_indices.py. Edit this file
+# (not the script) to change these — it's re-read every run. Adding a new
+# top-level content section (beyond shastra/kavya) is purely a matter of
+# adding an entry to content_sections below, PROVIDED the section's
+# directory follows the same on-disk convention:
+#
+#   <dir>/meta.yaml        (optional — section-level notes, not required)
+#   <dir>/texts/<slug>/meta.yaml, <dir>/texts/<slug>/<chapter>/*.md, ...
+#   <dir>/topics/*.md      (optional — see `topics` below)
+#
+# No Python changes are needed to add a section that follows this shape.
 
 site_name: "साहित्यशास्त्रम्"
 
@@ -10,9 +18,31 @@ theme:
   primary: "deep orange"
   accent: "amber"
 
+labels:
+  home_title: "साहित्यशास्त्रम्"
+
 # Default word used for a chapter's nav label when neither the chapter's
 # own meta.yaml (chapter_name:) nor the text's meta.yaml (chapter_type:)
-# provides one. Separate defaults for shastra vs. kavya texts.
-chapter_word:
-  shastra: "अध्यायः"
-  kavya: "भागः"
+# provides one. Per-section fallback lives on each content_sections entry
+# below (default_chapter_word); this is only the last-resort fallback if
+# a section entry omits it too.
+default_chapter_word: "अध्यायः"
+
+content_sections:
+  - dir: "shastra"
+    h1_label: "साहित्यशास्त्रम्"
+    h2_text_label: "ग्रन्थाः"
+    h2_topics_label: "विषयाः"
+    default_chapter_word: "अध्यायः"
+    # This section's topics/ subfolder (topics/*.md + topics/chandas.md +
+    # topics/alankara.md) is the one site-wide source for topic back-links
+    # and the chandas/alankara glossary — referenced from every section's
+    # shlokas, not just this one. At most one content_sections entry
+    # should set this.
+    topics: true
+
+  - dir: "kavya"
+    h1_label: "काव्यानि"
+    h2_text_label: "ग्रन्थाः"
+    default_chapter_word: "भागः"
+    topics: false
