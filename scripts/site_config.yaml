@@ -31,7 +31,7 @@ default_chapter_word: "अध्यायः"
 content_sections:
   - dir: "shastra"
     h1_label: "साहित्यशास्त्रम्"
-    h2_text_label: "लक्ष्यग्रन्थाः"
+    h2_text_label: "लक्षणग्रन्थाः"
     h2_topics_label: "शास्त्रीयविषयाः"
     default_chapter_word: "अध्यायः"
     # This section's topics/ subfolder (topics/*.md + topics/chandas.md +
