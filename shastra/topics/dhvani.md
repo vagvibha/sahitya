@@ -1,90 +1,65 @@
-
-
+---
+title: ध्वनिः
+type: shastra-topic
+order: 10
 ---
 
-६. दोष-सामान्यलक्षणम् (Definition of Doṣa)  
-(यद्यपि दशमपरिच्छेदे अलङ्काराः सन्ति, परन्तु दोषाणां सामान्यलक्षणं प्रसङ्गतः अत्र ज्ञेयम्) –   
-रसापकर्षका दोषाः... ।  
-*(यथा काणत्वादयः शरीरस्य दोषाः, तथैव काव्ये रसापकर्षकाः तत्त्वानि दोषाः उच्यन्ते।)*
+*इदमुत्तममतिशयिनि व्यङ्ग्ये वाच्याद्ध्वनिर्बुधैः कथितः ॥का०प्र० १।४॥*
+वाच्यार्थं व्यङ्ग्यार्थः अतेशे यत्र तदेवोत्तमं काव्यं, ध्वनिः ।
 
-* 
+## प्रभेदाः
 
----
+* **वस्तुध्वनिः** – असामान्या प्रस्तुतिः व्यङ्ग्यरूपेण वस्तु प्रकाशयति ।  
+  *हे धार्मिक, निर्भयं वने विचर यतः तवभीतिहेतुः कुक्कुरः ह्यः सिंहेन व्यापादितः!*  
+  <u>वाच्यार्थस्तु</u> – त्वं पूर्वं कस्माच्चन कुक्कुरात् बिभयन् वनं न गच्छति, अधुना स कुक्कुरः मृतः । अतः स्वैरं भ्रम!  
+  <u>व्यङ्ग्यार्थः</u> – वनं मा प्रविश, तत्र साम्प्रतं केसरी विराजते! (त्वं तु कुक्कुरात् बिभेति, सिंहस्य कथा तु अन्यैव!)
+* **अलङ्कारध्वनिः** –  वाक्ये अलङ्कारः अवाच्यः सन्नपि व्यङ्ग्यया अलङ्कारं बोधयति ।  
+  *अरिभिः सममेव समरशिरसि विगलितं रिपुस्त्रीणाम् ।*  
+  <u>वाच्यार्थः</u> – युद्धे अरिभिः सहः तेषां स्त्रीणां विगलितम् (कर्तरि भावे क्तः, अतः स्त्रीणाम् इति षष्ठी) । अर्थात्, द्वयोः युगपत् नाशः ।  
+  <u>व्यङ्ग्यार्थः</u> – अत्र व्यङ्ग्यया उपमालङ्कारप्रतीतिः । युद्धे रिपवः भूमौ यथा पतन्ति, तथैव तेषां भार्यादिकं मृत्युवार्तां श्रुत्वा प्राणान् त्यजन्ति । अत्र उपमा ध्वन्यते ।
+* **रसध्वनिः** – विभावादिपुरःसरं स्थायिभावः रसत्वेन परिणमते ।  
+  *ग्रीवाभङ्गाभिरामं मुहुरनुपतति ष्यन्दने बद्धदृष्टिः  
+   पश्चार्धेन प्रविष्टः शरपतनभिया भूयसा पूर्वकायम्।  
+   शश्वदवकीर्णवर्त्मा श्रमविवृतमुखभ्रंशिभिः कीर्णवर्त्मा  
+   पश्योदग्रप्लुतत्वाद्वियति बहुतरं स्तोकमुर्व्यां प्रयाति॥*
+  <u>वाच्यार्थः</u> – साक्षात् दुष्यन्तस्य बाणैः आत्मानं रक्षितुकामः धावतः कृष्णसारस्य विवरणम् ।
+  <u>व्यङ्ग्यार्थः</u> – अतीवरमणीयं विवरणं (विभावानुभावदिभिः) स्थायिभावम् उद्दीपयति (भयम्), ततः भयानकरसप्रतीतिः ।
 
-## **4\. Importance of Suggestion**
+## ध्वनिः vs व्यञ्जना
 
-Vishvanatha aligns with the **ध्वनि** (Dhvani) school, arguing that while *Abhidha* and *Lakshana* provide the "body" of the poem, it is *Vyanjana* that delivers the **रस** (Rasa) or aesthetic soul. The chapter concludes by establishing that the suggestive power is what elevates mere language into the realm of *Sahitya* (Literature).
+**पू०प०** – भाति यत् व्यञ्जनया एव ध्वनिः प्रतीयते । तर्हि को भेदः ? कुतः व्यञ्जना एव ध्वनित्वेन न स्वीक्रियते?
 
----
+व्यञ्जना काचित् शब्दवृत्तिः ([शब्दशक्तिः](../../topics/shabdashakti)) । शब्दप्रयोगेण शब्दशक्त्या कश्चन अर्थः उद्बुध्यते । स अर्थः अन्यैः व्यापारैः सह विपच्यमानः चमत्कारं जनयति । तत् फलमेव ध्वनिः । व्यञ्जना तु तत्र व्यापारत्वेन तिष्ठति (शब्दप्रयोगः करणम्, शब्दस्य वृत्तिः व्यापारः) ।
 
-Would you like to dive deeper into the specific 80 classifications of **लक्षणा**, or shall we look at how these powers relate to the concept of **रस** in the next chapter?
 
----
+प्रक्रिया एवं भवति –
 
-# ध्वनिः vs शब्दशक्तिः
+* व्यञ्जकशब्दप्रयोगः (करणम्)
+* व्यापारः
+    * शब्दव्यापारः – वाच्यार्थे विरते सति, व्यङ्ग्यार्थस्य उद्बोधः एव अलौकिकः व्यापारः शब्दव्यापारः ।
+    * कवेः प्रतिभाव्यापारः – कवेः प्रतिभया निर्मितः विन्यासविशेषः ।
+    * सहृदयस्य चर्वणाव्यापारः – हृदयस्य अन्तःकरणे यः साधारणीकरणस्य तथा च अखण्डस्य रसस्य आस्वादनस्य व्यापारः भवति, सः एव चर्वणाव्यापारः । सामाजिकस्य चित्ते चर्वणाव्यापारानन्तरमेव जायते ।
+* फलम् – रसानुभूत्यात्कं फलेमेव ध्वनिः ।
 
-In the hierarchy of Indian poetics, **ध्वनि** (Dhvani) is considered the "Soul of Poetry" (**काव्यस्यात्मा ध्वनिः**). While Vishvanatha Kaviraja defines poetry as *Rasa*\-oriented, he deeply incorporates the Dhvani theory established by Anandavardhana.
+    
+```mermaid
+graph TD
+    K["`<u>**करणम्**</u> – व्यञ्जकः शब्दः अर्थश्च`"] --> V
 
-To understand where **ध्वनि** fits, we must look at the transition from literal language to poetic resonance.
+    subgraph V ["`<u>**व्यापारः**</u> – व्यञ्जनावृत्तिः (परिपाकप्रक्रिया)`"]
+        direction TB
+        V1[१. शब्दस्य व्यञ्जनाव्यापारः]
+        V2[२. कवेः प्रतिभाव्यापारः]
+        V3[३. सहृदयस्य चर्वणाव्यापारः]
+    end
 
----
+    V -->|"`**<u>फलम्**</u> – अलौकिकश्चमत्कारः`"| F[साध्यम् : ध्वनिः / रसानुभूतिः]
+```
 
-## **1\. The Relationship –  शब्दशक्ति and ध्वनि**
+## काव्यभेदाः
 
-**ध्वनि** is not a separate power of the word like *Abhidha* or *Lakshana*. Rather, it is the **result** or the **manifestation** produced specifically by the third power –  **व्यञ्जना** (Suggestion).
-
-* **अभिधा (Denotation) –**  Gives the literal meaning (**वाच्यार्थ**).  
-* **लक्षणा (Indication) –**  Gives the indicative meaning (**लक्ष्यार्थ**).  
-* **व्यञ्जना (Suggestion) –**  Gives the suggested meaning (**व्यङ्ग्यार्थ**).  
-* **ध्वनि (Resonance) –**  This is the **class of poetry** where the suggested meaning (**व्यङ्ग्यार्थ**) surpasses the literal meaning in importance and beauty.
-
----
-
-## **2\. Where Dhvani Fits –  The Three Tiers of Poetry**
-
-Vishvanatha, following the Dhvani school, classifies all poetry into three categories based on how the *Vyanjana* (Suggestion) interacts with the literal words – 
-
-### **I. ध्वनिकाव्य (Dhvani-Kavya / Uttama Kavya)**
-
-This is the highest grade of poetry. Here, the literal meaning is subordinate, and the **suggested meaning** shines predominantly. It is like the "resonance" of a bell that continues long after the initial strike.
-
-* **Key feature –**  The *Vyangyartha* is more charming than the *Vachyartha*.
-
-### **II. गुणीभूतव्यङ्ग्य (Gunibhuta-Vyangya / Madhyama Kavya)**
-
-In this "Middle" category, suggestion exists, but it is **secondary** (**गुणीभूत**) to the literal meaning. The literal words are so beautiful or striking that they overshadow the hidden suggestion.
-
-* **Example –**  A poem where an elaborate metaphor (*Alankara*) is so clever that you focus more on the cleverness of the words than the underlying emotion.
-
-### **III. चित्रकाव्य (Chitra-Kavya / Adhama Kavya)**
-
-This is "Inferior" poetry. It relies on verbal tricks, puns, or visual arrangements of letters (like poems shaped like a sword or a lotus) without any significant suggestive depth. It lacks the "soul" of Dhvani.
-
----
-
-## **3\. The Mechanics –  How Dhvani Arises**
-
-Anandavardhana and Vishvanatha explain that Dhvani occurs through two main routes – 
-
-### **A. अविवक्षित-वाच्य ध्वनि (Literal meaning not intended)**
-
-Based on **लक्षणामूला व्यञ्जना**. The literal meaning is completely set aside because it is logically impossible.
-
-* *Example –*  "The sun has set." To a traveler, this suggests "Find a place to stay." To a priest, "Perform evening prayers." The literal setting of the sun is just a pointer to these hidden commands.
-
-### **B. विवक्षितान्यपर-वाच्य ध्वनि (Literal meaning intended but subservient)**
-
-Based on **अभिधामूला व्यञ्जना**. The literal meaning is understood and valid, but it immediately leads the reader to a deeper realization (usually **Rasa**).
-
-* *Example –*  When a poet describes the heavy clouds and the peacock's dance, the literal description is intended, but it serves the higher purpose of suggesting the longing of a lover (**विप्रलम्भ शृङ्गार**).
-
----
-
-## **4\. Why is it called "Dhvani"?**
-
-The term is borrowed from **Grammarians** (*Vaiyakaranas*). Just as grammarians use the term *Dhvani* for the sounds that reveal the eternal, meaningful **स्फोट** (Sphota), literary critics use it for the words that reveal the aesthetic **रस** (Rasa).
-
-**Conclusion –**  If **अभिधा** is the body and **लक्षणा** is a limb, **व्यञ्जना** is the breath, and **ध्वनि** is the life-force or the "glow" (*लावण्य*) that makes the whole body beautiful.
-
-Would you like to explore the specific sub-divisions of **ध्वनिकाव्य**, such as **असंलक्ष्यक्रम-ध्वनि**, which is directly responsible for the manifestation of **Rasa**?
-
+| काव्यभेदः | व्यङ्ग्यार्थस्य स्थितिः | वाच्यार्थ-व्यङ्ग्यार्थयोः सम्बन्धः | पारिभाषिकी संज्ञा |
+| :--- | :--- | :--- | :--- |
+| **उत्तमम्** | **प्रधानः (अतिशयी)** | व्यङ्ग्यार्थः वाच्यार्थम् अतिक्रम्य मुख्यश्चमत्कारकारी भवति। | **ध्वनिकाव्यम्** |
+| **मध्यमम्** | **गौणः (अप्रधानः)** | व्यङ्ग्यार्थः वाच्यार्थस्य शोभां वर्धयितुं तस्याङ्गभावं भजते। | **गुणीभूतव्यङ्ग्यम्** |
+| **अधमम्** | **शून्यः (अभावः)** | व्यङ्ग्यार्थम् अभिभूय बाह्यालङ्काराणां चमत्कारः शोभते। | **चित्रकाव्यम्** |

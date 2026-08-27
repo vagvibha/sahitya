@@ -1,7 +1,7 @@
 ---
 title: गुणः
 type: shastra-topic
-order: 7
+order: 8
 ---
 
 # गुणः
