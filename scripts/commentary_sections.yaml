@@ -96,7 +96,7 @@ sections:
   - class: commentary
     label_from_attr: data-name
     hidden_by_default: false
-    reposition: true
+    reposition: false
 
   - class: notes
     hidden_by_default: true
