@@ -13,16 +13,8 @@
 }
 
 .md-typeset .shloka,
-.md-typeset .udaharana,
-.md-typeset .anvaya,
-.md-typeset .padartha,
-.md-typeset .vyutpatti,
-.md-typeset .tika,
-.md-typeset .alankara,
-.md-typeset .bhavartha,
-.md-typeset .vyakarana,
-.md-typeset .kosha,
-.md-typeset .commentary {
+.md-typeset .gloss,
+.md-typeset .vada {
   font-family: var(--sv-devanagari-serif);
 }
 
@@ -30,11 +22,20 @@
    Unified base style for every <div class="shloka" data-type="...">,
    whatever its data-type (previously separate .shloka/.karika/
    .shloka-play classes — see site update notes). Compact by default: many
-   need to be visible on screen at once, so just bold, no box, minimal
-   vertical margin. Each data-type below only overrides what's different. */
+   need to be visible on screen at once, so just bold, no box.
+
+   Vertical margin between consecutive shloka blocks is deliberately 0:
+   with margin:0, the leftover leading above/below each line (from
+   line-height) is what creates ALL vertical spacing here, so the gap
+   between two shlokas ends up visually identical to the gap between two
+   wrapped lines within one shloka — the whole thing reads as one
+   continuous, evenly-spaced flow of verse rather than "lines" vs.
+   "blocks" having two different rhythms. Each data-type below only
+   overrides what's different (mainly line-height, which still governs
+   the shared spacing); none of them re-introduce a block margin. */
 .md-typeset .shloka {
   font-weight: 600;
-  margin: 0.4rem 0;
+  margin: 0;
   line-height: 1.7;
   white-space: pre-line;
 }
@@ -43,15 +44,13 @@
    slightly more breathing room since these are usually followed
    immediately by their own वृत्ति/commentary. */
 .md-typeset .shloka[data-type="karika"] {
-  margin: 0.8rem 0;
   line-height: 1.8;
 }
 
 /* nataka (a verse quoted within kavya-play dialogue, previously
    .shloka-play) — no box, nudged right so it visually separates from the
    speaker's name/dash without trying to align to it exactly (that varies
-   with name length). Rendered inline with normal paragraph flow, so no
-   extra vertical margin beyond that. */
+   with name length). */
 .md-typeset .shloka[data-type="nataka"] {
   display: block;
   margin: 0 0 0 1.5rem;
@@ -65,7 +64,6 @@
 .md-typeset .shloka[data-type="dialog"] {
   font-weight: normal;
   line-height: 1.9;
-  margin: 0.6rem 0;
 }
 
 /* --- highlight="true" — an optional, independent flag any shloka can
@@ -77,38 +75,39 @@
   border-left: 4px solid #ffab00;
   border-radius: 0.2rem;
   padding: 0.7rem 1rem;
+  margin: 0.5rem 0; /* a bordered/padded box reads better with a little
+                        breathing room, unlike the zero-margin default —
+                        this is a deliberately distinct visual callout,
+                        not part of the normal shloka-to-shloka flow */
 }
 
 [data-md-color-scheme="slate"] .md-typeset .shloka[highlight="true"] {
   background: rgba(255, 179, 0, 0.1);
 }
 
-/* --- vritti (शास्त्र prose commentary directly under a karika) --------- */
-.md-typeset .vritti {
-  margin: 0.6rem 0;
-  line-height: 1.8;
-}
-
-/* --- claim / refute (vada dialectics) --------------------------------- */
-.md-typeset .claim,
-.md-typeset .refute {
+/* --- vada: claim / refute (dialectical exposition) — its own class, not
+   folded into .gloss, since this is PRIMARY argumentative content in a
+   शास्त्र-वाद text (the दialectic itself), not secondary material about
+   the text the way a gloss is — always visible, never repositioned, no
+   entry in gloss_types.yaml. --------------------------------------- */
+.md-typeset .vada {
   border-radius: 0.2rem;
   padding: 0.9rem 1.2rem;
   margin: 1rem 0;
   line-height: 1.8;
 }
 
-.md-typeset .claim {
+.md-typeset .vada[data-type="claim"] {
   background: rgba(33, 150, 243, 0.08);
   border-left: 4px solid #2196f3;
 }
 
-.md-typeset .refute {
+.md-typeset .vada[data-type="refute"] {
   background: rgba(244, 67, 54, 0.08);
   border-left: 4px solid #f44336;
 }
 
-.md-typeset .claim::before {
+.md-typeset .vada[data-type="claim"]::before {
   content: "पक्षः";
   display: block;
   font-weight: 600;
@@ -117,7 +116,7 @@
   margin-bottom: 0.3rem;
 }
 
-.md-typeset .refute::before {
+.md-typeset .vada[data-type="refute"]::before {
   content: "निरासः";
   display: block;
   font-weight: 600;
@@ -157,38 +156,45 @@
   font-style: italic;
 }
 
-.md-typeset .anvaya {
-  margin: 0.5rem 0 0.5rem 1rem;
-  line-height: 1.7;
-}
-
-/* the rest of the kavya-verse "labeled hideable sections" (padartha,
-   vyutpatti, tika, alankara, bhavartha, vyakarana, kosha) plus the
-   generic named "commentary" block — all share the same understated
-   treatment: the <u>Label</u> is added by the generator, this is just
-   spacing/color to match .anvaya and .notes. */
-.md-typeset .padartha,
-.md-typeset .vyutpatti,
-.md-typeset .tika,
-.md-typeset .alankara,
-.md-typeset .bhavartha,
-.md-typeset .vyakarana,
-.md-typeset .kosha,
-.md-typeset .commentary {
+/* --- gloss: the single class for every commentary/annotation-type
+   block (anvaya, padartha, vyutpatti, tika, alankara, bhavartha,
+   vyakarana, kosha, udaharana, vritti, notes — see gloss_types.yaml for
+   which data-type= values are recognized and how each is configured;
+   was one class per type before consolidation, see site update notes).
+   This base rule is the shared "understated aside" look — the
+   <u>Label</u> prefix itself is added by the generator, this is just
+   spacing/color. Only data-types that need something genuinely
+   different get their own override below; most don't. ------------------ */
+.md-typeset .gloss {
   margin: 0.5rem 0 0.5rem 1rem;
   line-height: 1.7;
   color: var(--md-default-fg-color--light);
 }
 
-/* --- notes and every "labeled hideable section" above are hidden by
-   default and only shown once the toggle button is clicked (see
-   notes-toggle.js, which adds .sv-show-notes to <body>). .shloka is
-   deliberately never part of this — it should always stay visible. --- */
-.md-typeset .notes {
+.md-typeset .gloss[data-type="udaharana"] {
+  font-style: italic;
+  margin: 0.6rem 0 0.6rem 1.8rem;
+}
+
+/* vritti (शास्त्र prose commentary directly under a karika) — not muted
+   like the others above, since it's primary reading-flow prose, not an
+   aside (see gloss_types.yaml: reposition: false, stays exactly where
+   authored). */
+.md-typeset .gloss[data-type="vritti"] {
+  margin: 0.6rem 0;
+  line-height: 1.8;
+  color: inherit;
+}
+
+/* --- notes and every reposition:true / hidden_by_default:true gloss
+   data-type above are hidden by default and only shown once the toggle
+   button is clicked (see notes-toggle.js, which adds .sv-show-notes to
+   <body>). .shloka is deliberately never part of this — it should
+   always stay visible. --------------------------------------------------- */
+.md-typeset .gloss[data-type="notes"] {
   font-size: 0.85rem;
   font-style: italic;
   margin: 0.6rem 0 0.8rem 1.2rem;
-  color: var(--md-default-fg-color--light);
 }
 
 .md-typeset .sv-hideable {

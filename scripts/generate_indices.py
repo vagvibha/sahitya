@@ -109,7 +109,7 @@ DOCS = ROOT / "docs"
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 SITE_CONFIG_PATH = SCRIPTS_DIR / "site_config.yaml"
-COMMENTARY_CONFIG_PATH = SCRIPTS_DIR / "commentary_sections.yaml"
+GLOSS_TYPES_CONFIG_PATH = SCRIPTS_DIR / "gloss_types.yaml"
 
 META_FILENAMES = ("meta.yaml", "meta.yml")
 
@@ -941,39 +941,55 @@ def extract_shlokas(
 
 # ---------------------------------------------------------------------------
 # "Labeled hideable sections" — commentary-type content blocks, driven by
-# scripts/commentary_sections.yaml (see that file for the full
-# convention). Sections declared with reposition: true are extracted from
-# wherever they were written and reinserted, in the config file's order,
-# right after the section's shloka (or appended at the end if there's no
+# scripts/gloss_types.yaml (see that file for the full convention). ALL
+# of these are <div class="gloss" data-type="...">; the data-type value
+# (not a separate class per type) is what gloss_types.yaml keys off.
+# Sections declared with reposition: true are extracted from wherever
+# they were written and reinserted, in the config file's order, right
+# after the section's shloka (or appended at the end if there's no
 # shloka). Everything else is labeled/marked hideable in place, never
-# moved. Also tree-based now, for the same reason as extract_shlokas: a
-# commentary div can legitimately sit inside a structural wrapper (e.g.
+# moved. Also tree-based, for the same reason as extract_shlokas: a gloss
+# div can legitimately sit inside a structural wrapper (e.g.
 # dialog-block), and a flat regex would mispair it.
 
+GLOSS_CLASS = "gloss"
+VADA_CLASS = "vada"  # claim/refute — see gloss_types.yaml's header comment for why this is separate
 HIDEABLE_CLASS = "sv-hideable"
 
+# Pre-consolidation class names (see scripts/migrate_gloss_classes.py) —
+# if one of these ever shows up verbatim as a div's own class again
+# (instead of class="gloss" data-type="..." / class="vada" data-type="..."),
+# it's almost certainly a content author reverting to habit rather than a
+# deliberate new class, so it's worth a warning rather than silently
+# treating it as an unrecognized structural div.
+LEGACY_GLOSS_CLASS_NAMES = {
+    "anvaya", "padartha", "vyutpatti", "tika", "alankara", "bhavartha",
+    "vyakarana", "kosha", "commentary", "vritti", "notes", "udaharana",
+    "claim", "refute",
+}
 
-def load_commentary_sections_config() -> dict:
-    if not COMMENTARY_CONFIG_PATH.exists():
-        warn(f"{COMMENTARY_CONFIG_PATH} not found — no commentary sections will be labeled/hideable")
+
+def load_gloss_types_config() -> dict:
+    if not GLOSS_TYPES_CONFIG_PATH.exists():
+        warn(f"{GLOSS_TYPES_CONFIG_PATH} not found — no gloss data-types will be labeled/hideable")
         return {}
-    data = yaml.safe_load(COMMENTARY_CONFIG_PATH.read_text(encoding="utf-8")) or {}
-    by_class = {}
-    for entry in data.get("sections", []):
-        cls = str(entry.get("class", "")).strip().lower()
-        if cls:
-            by_class[cls] = entry
-    return by_class
+    data = yaml.safe_load(GLOSS_TYPES_CONFIG_PATH.read_text(encoding="utf-8")) or {}
+    by_type: dict[str, dict] = {}
+    for entry in data.get("types", []):
+        data_type = str(entry.get("data_type", "")).strip().lower()
+        if data_type:
+            by_type[data_type] = entry
+    return by_type
 
 
-SECTION_CONFIG_BY_CLASS = load_commentary_sections_config()
-REPOSITION_ORDER = [cls for cls, cfg in SECTION_CONFIG_BY_CLASS.items() if cfg.get("reposition")]
+GLOSS_TYPES_BY_KEY = load_gloss_types_config()
+REPOSITION_ORDER = [t for t, cfg in GLOSS_TYPES_BY_KEY.items() if cfg.get("reposition")]
 
 TOGGLE_HIDE_RE = re.compile(r'\btoggle-hide\s*=\s*"(true|false)"', re.IGNORECASE)
 
 
-def commentary_label(cls: str, attrs: str) -> str:
-    cfg = SECTION_CONFIG_BY_CLASS.get(cls)
+def commentary_label(type_key: str, attrs: str) -> str:
+    cfg = GLOSS_TYPES_BY_KEY.get(type_key)
     if not cfg:
         return ""
     if cfg.get("label_from_attr"):
@@ -981,39 +997,57 @@ def commentary_label(cls: str, attrs: str) -> str:
     return str(cfg.get("label", "") or "").strip()
 
 
-def commentary_hidden(cls: str, attrs: str) -> bool:
+def commentary_hidden(type_key: str, attrs: str) -> bool:
     m = TOGGLE_HIDE_RE.search(attrs)
     if m:
-        return m.group(1).lower() == "true"  # a specific instance always overrides the class default
-    cfg = SECTION_CONFIG_BY_CLASS.get(cls)
+        return m.group(1).lower() == "true"  # a specific instance always overrides the data-type default
+    cfg = GLOSS_TYPES_BY_KEY.get(type_key)
     return bool(cfg and cfg.get("hidden_by_default"))
 
 
-def render_commentary_div(cls_raw: str, attrs: str, content: str) -> str:
-    base_cls = cls_raw.strip().split()[0].lower() if cls_raw.strip() else ""
-    label = commentary_label(base_cls, attrs)
+def render_commentary_div(cls_raw: str, type_key: str, attrs: str, content: str) -> str:
+    label = commentary_label(type_key, attrs)
     classes = cls_raw.strip()
-    if commentary_hidden(base_cls, attrs):
+    if commentary_hidden(type_key, attrs):
         classes = f"{classes} {HIDEABLE_CLASS}"
     inner = content.strip()
     rendered = f"<u>{label}</u> – {inner}" if label else inner
-    return f'<div class="{classes}">\n\n{rendered}\n\n</div>'
+    # data-type is re-emitted (data-name and any other original attribute
+    # is intentionally dropped — it was only ever needed to resolve the
+    # label above, at build time; CSS keys off data-type, not those).
+    type_attr = f' data-type="{type_key}"' if type_key else ""
+    return f'<div class="{classes}"{type_attr}>\n\n{rendered}\n\n</div>'
 
 
-def process_content_sections(body: str, default_class: str = "") -> tuple[str, str]:
+def resolve_default_class(default_class: str) -> tuple[str, str]:
+    """`default_class` in meta.yaml names either a gloss data-type (e.g.
+    "vritti") or a literal structural class (e.g. "dialog-block") —
+    returns (div_class_to_synthesize, type_key), so wrap_gaps can build
+    the right synthetic div either way without content authors needing
+    to think about the gloss/data-type split at all."""
+    value = default_class.strip().lower()
+    if not value:
+        return "", ""
+    if value in GLOSS_TYPES_BY_KEY:
+        return GLOSS_CLASS, value
+    return value, ""
+
+
+def process_content_sections(body: str, default_class: str = "", source_for_warning: object = "") -> tuple[str, str]:
     """Returns (body_with_repositioned_sections_removed, reordered_html).
 
     `default_class`, when set, makes THAT the chapter-wide default for
     content: any run of text that isn't inside some other `<div>` (at any
-    nesting level) is treated exactly as if the author had written
-    `<div class="{default_class}">` around it themselves — same
-    hidden/reposition/label handling as an explicit div of that class,
-    with no difference in outcome. This is what makes e.g.
-    `default_class: vritti` mean "the whole chapter is वृत्ति prose by
-    default; only explicitly-tagged blocks (shloka/karika, other
-    commentary classes, ...) are anything else" — matching how these
-    texts actually alternate root-verse and prose, without needing a
-    `<div class="vritti">` wrapped around every single paragraph.
+    nesting level) is treated exactly as if the author had written that
+    div themselves — same hidden/reposition/label handling as an explicit
+    div of that type, with no difference in outcome. This is what makes
+    e.g. `default_class: vritti` mean "the whole chapter is वृत्ति prose
+    by default; only explicitly-tagged blocks (shloka/karika, other gloss
+    data-types, ...) are anything else" — matching how these texts
+    actually alternate root-verse and prose, without needing a
+    `<div class="gloss" data-type="vritti">` wrapped around every single
+    paragraph. See resolve_default_class() for how a value is decided to
+    be a gloss data-type vs. a literal structural class.
 
     Unset (the default), body text outside of any div is left as plain
     Markdown, unchanged — the pre-existing behavior.
@@ -1025,15 +1059,16 @@ def process_content_sections(body: str, default_class: str = "") -> tuple[str, s
     """
     tree = parse_divs(body)
     splices: list[tuple[int, int, str]] = []
-    by_class: dict[str, list[tuple[str, str]]] = {}
-    wrap_cls = default_class.strip().lower()
+    by_type: dict[str, list[tuple[str, str]]] = {}
+    wrap_div_class, wrap_type_key = resolve_default_class(default_class)
 
-    def handle_matched(cls_raw: str, base_cls: str, attrs: str, content: str, start: int, end: int, pad: bool = False) -> None:
-        if base_cls in REPOSITION_ORDER:
-            by_class.setdefault(base_cls, []).append((attrs, content))
+    def handle_matched(cls_raw: str, type_key: str, attrs: str, content: str, start: int, end: int, pad: bool = False) -> None:
+        cfg = GLOSS_TYPES_BY_KEY.get(type_key)
+        if cfg and cfg.get("reposition"):
+            by_type.setdefault(type_key, []).append((attrs, content))
             splices.append((start, end, ""))
         else:
-            rendered = render_commentary_div(cls_raw, attrs, content)
+            rendered = render_commentary_div(cls_raw, type_key, attrs, content)
             if pad:
                 # a gap-wrapped synthetic div (see wrap_gaps) swallows all
                 # of the original whitespace between it and its neighbors
@@ -1049,17 +1084,17 @@ def process_content_sections(body: str, default_class: str = "") -> tuple[str, s
         """Any non-whitespace text directly inside [start, end) that
         ISN'T covered by one of `nodes` (this level's div children,
         already known to be non-overlapping and in order) gets treated as
-        a synthetic `<div class="{wrap_cls}">`, run through the exact
-        same handling as a real one (including reposition, if
-        `default_class` happens to name a reposition: true class)."""
-        if not wrap_cls:
+        a synthetic default_class div, run through the exact same
+        handling as a real one (including reposition, if default_class
+        happens to name a reposition: true gloss data-type)."""
+        if not wrap_div_class:
             return
         cursor = start
         for n in nodes + [None]:
             gap_end = n.start if n is not None else end
             gap = body[cursor:gap_end]
             if gap.strip():
-                handle_matched(wrap_cls, wrap_cls, "", gap, cursor, gap_end, pad=True)
+                handle_matched(wrap_div_class, wrap_type_key, "", gap, cursor, gap_end, pad=True)
             cursor = n.end if n is not None else end
 
     def visit(nodes: list[DivNode], parent_start: int, parent_end: int):
@@ -1077,20 +1112,30 @@ def process_content_sections(body: str, default_class: str = "") -> tuple[str, s
                 # here; it still correctly bounds the gaps around it,
                 # since it's one of `nodes`.
                 continue
-            matched = node.base_cls in SECTION_CONFIG_BY_CLASS or bool(TOGGLE_HIDE_RE.search(node.attrs_str))
+            is_gloss = node.base_cls == GLOSS_CLASS
+            type_key = parse_attrs(node.attrs_str).get("data-type", "").strip().lower() if is_gloss else ""
+            matched = is_gloss or bool(TOGGLE_HIDE_RE.search(node.attrs_str))
             if not matched:
-                visit(node.children, node.tag_end, node.inner_end)  # structural divs (dialog-block, ...) — look inside, but leave as-is
+                if node.base_cls in LEGACY_GLOSS_CLASS_NAMES:
+                    warn(f"{source_for_warning}: div uses legacy class=\"{node.base_cls}\" — please migrate to "
+                         f"class=\"gloss\" data-type=\"{node.base_cls}\" (or class=\"vada\" for claim/refute); "
+                         f"scripts/migrate_gloss_classes.py does this automatically")
+                visit(node.children, node.tag_end, node.inner_end)  # structural divs (dialog-block, vada, ...) — look inside, but leave as-is
                 continue
+            if is_gloss and type_key and type_key not in GLOSS_TYPES_BY_KEY:
+                warn(f"{source_for_warning}: <div class=\"gloss\" data-type=\"{type_key}\"> — "
+                     f"'{type_key}' isn't declared in {GLOSS_TYPES_CONFIG_PATH.name} (no label/hide/reposition "
+                     f"will apply to it, only toggle-hide= if set explicitly)")
             content = body[node.tag_end:node.inner_end]
-            handle_matched(node.cls, node.base_cls, node.attrs_str, content, node.start, node.end)
-            # a matched commentary div is opaque — don't recurse into it
+            handle_matched(node.cls, type_key, node.attrs_str, content, node.start, node.end)
+            # a matched gloss div is opaque — don't recurse into it
 
     visit(tree, 0, len(body))
     body = apply_splices(body, splices)
     reordered_html = "\n\n".join(
-        render_commentary_div(cls, attrs, content)
-        for cls in REPOSITION_ORDER
-        for attrs, content in by_class.get(cls, [])
+        render_commentary_div(GLOSS_CLASS, type_key, attrs, content)
+        for type_key in REPOSITION_ORDER
+        for attrs, content in by_type.get(type_key, [])
     )
     return body, reordered_html
 
@@ -1326,7 +1371,7 @@ def render_shastra_chapter(chapter: Chapter, topics: dict[str, RefPage]) -> str:
             anchor = f"sec{i+1}"
             topics[t].references.append(Reference(t, chapter, anchor, label))
         anchor = f"sec{i+1}"
-        body, reordered = process_content_sections(body, chapter.default_class)
+        body, reordered = process_content_sections(body, chapter.default_class, source_for_warning=section)
         # shastra sections aren't shloka-numbered chapter-wide the way kavya
         # ones are, but they can still carry `<div class="shloka">` blocks
         # (e.g. shastra-karika texts, after the migration) — resolve
@@ -1372,7 +1417,7 @@ def render_kavya_chapter(
             warn(f"{section} uses 'meter:' instead of 'chandas:' — please rename it (treating it as 'chandas:' for now)")
             fm_chandas = str(fm.get("meter", "")).strip()
         fm_alankaras = as_list(fm.get("alankara"))
-        body, reordered = process_content_sections(body, chapter.default_class)
+        body, reordered = process_content_sections(body, chapter.default_class, source_for_warning=section)
         new_body, shlokas, counter = extract_shlokas(
             body, fm_chandas, fm_alankaras, chapter.default_shloka_type, counter, source_for_warning=section
         )
