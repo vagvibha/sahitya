@@ -5,3 +5,5 @@ chapters: अनुक्रमणिका
 default_shloka_type: karika
 default_class: vritti
 order: 2
+sources:
+   - http://sa.wikisource.org
