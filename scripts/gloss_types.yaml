@@ -115,4 +115,4 @@ types:
 
   - data_type: notes
     hidden_by_default: true
-    reposition: true
+    reposition: false

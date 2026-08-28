@@ -881,17 +881,19 @@ def extract_shlokas(
     source_for_warning: object = "",
 ) -> tuple[str, list[Shloka], int]:
     """Find every <div class="shloka"> in `body` at any nesting depth,
-    insert an anchor <a id=...> right before each one, inject a resolved
-    data-type="..." attribute into the ones that didn't specify their own
-    (from `default_shloka_type` — see Chapter.default_shloka_type; this
-    ONLY ever touches an already-explicit <div class="shloka">, never
-    naked text — see process_content_sections' `default_class` for that),
-    and return (modified_body, [Shloka, ...], next_index).
+    inject an id="..." attribute for the Shloka Table to link to (see
+    below for why this is an id= on the div itself, not a separate
+    anchor tag), inject a resolved data-type="..." attribute into the
+    ones that didn't specify their own (from `default_shloka_type` — see
+    Chapter.default_shloka_type; this ONLY ever touches an already-explicit
+    <div class="shloka">, never naked text — see process_content_sections'
+    `default_class` for that), and return (modified_body, [Shloka, ...],
+    next_index).
 
     `start_index` lets callers number shlokas contiguously across every
-    section in a chapter (anchors must be chapter-unique, since all
-    sections end up concatenated onto a single generated chapter page and
-    the Shloka Table numbers verses chapter-wide, not per-section).
+    section in a chapter (ids must be chapter-unique, since all sections
+    end up concatenated onto a single generated chapter page and the
+    Shloka Table numbers verses chapter-wide, not per-section).
     """
     tree = parse_divs(body)
     shlokas: list[Shloka] = []
@@ -928,7 +930,15 @@ def extract_shlokas(
             anchor = f"s{counter}"
             shlokas.append(Shloka(chandas, alankaras, preview_text(inner), data_type, highlight))
 
-            splices.append((node.start, node.start, f'<a id="{anchor}"></a>\n'))
+            # id= goes directly on the shloka div, NOT a separate
+            # <a id="..."></a> tag on its own line before it: a lone <a>
+            # is inline HTML, so Python-Markdown wraps a line containing
+            # only that in its own <p>, which then carries the theme's
+            # default paragraph margin — a real, visible gap before every
+            # single shloka for no reason. A div's own id= attribute is a
+            # perfectly valid link target (#s1 still works identically)
+            # and adds no extra element/margin at all.
+            splices.append((node.tag_end - 1, node.tag_end - 1, f' id="{anchor}"'))
             if data_type and not attrs.get("data-type", "").strip():
                 # inject the resolved default right before the tag's closing '>'
                 splices.append((node.tag_end - 1, node.tag_end - 1, f' data-type="{data_type}"'))
@@ -1379,7 +1389,7 @@ def render_shastra_chapter(chapter: Chapter, topics: dict[str, RefPage]) -> str:
         fm_chandas = str(fm.get("chandas", "")).strip()
         body, _shlokas, _n = extract_shlokas(body, fm_chandas, as_list(fm.get("alankara")), chapter.default_shloka_type,
                                               source_for_warning=section)
-        section_content = f'<a id="{anchor}"></a>\n\n{insert_reordered_sections(body, reordered)}'
+        section_content = f'<div id="{anchor}"></div>\n\n{insert_reordered_sections(body, reordered)}'
         body_parts.append(section_content)
 
     header = []

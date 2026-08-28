@@ -191,10 +191,22 @@
    button is clicked (see notes-toggle.js, which adds .sv-show-notes to
    <body>). .shloka is deliberately never part of this — it should
    always stay visible. --------------------------------------------------- */
+/* notes are annotations ATTACHED to whatever gloss/shloka came right
+   before them, not independent standalone asides — and several can
+   follow the same preceding element in a row (repositioned together, in
+   gloss_types.yaml's order). Small top margin so it hugs the thing it's
+   annotating rather than floating as its own block; consecutive notes
+   (a second, third, ... note following another note) hug each other
+   even tighter, reading as one attached list rather than separate
+   asides each with their own spacing. */
 .md-typeset .gloss[data-type="notes"] {
   font-size: 0.85rem;
   font-style: italic;
-  margin: 0.6rem 0 0.8rem 1.2rem;
+  margin: 0.15rem 0 0.6rem 1.2rem;
+}
+
+.md-typeset .gloss[data-type="notes"] + .gloss[data-type="notes"] {
+  margin-top: 0;
 }
 
 .md-typeset .sv-hideable {
