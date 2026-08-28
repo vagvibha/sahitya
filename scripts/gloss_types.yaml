@@ -67,42 +67,42 @@
 types:
   - data_type: anvaya
     label: "अन्वयः"
-    hidden_by_default: true
+    hidden_by_default: false
     reposition: true
 
   - data_type: padartha
     label: "पदार्थः"
-    hidden_by_default: true
+    hidden_by_default: false
     reposition: true
 
   - data_type: vyutpatti
     label: "व्युत्पत्तिः"
-    hidden_by_default: true
+    hidden_by_default: false
     reposition: true
 
   - data_type: tika
     label_from_attr: data-name
-    hidden_by_default: true
+    hidden_by_default: false
     reposition: true
 
   - data_type: alankara
     label: "अलङ्कारः"
-    hidden_by_default: true
+    hidden_by_default: false
     reposition: true
 
   - data_type: bhavartha
     label: "भावार्थः"
-    hidden_by_default: true
+    hidden_by_default: false
     reposition: true
 
   - data_type: vyakarana
     label: "व्याकरणः"
-    hidden_by_default: true
+    hidden_by_default: false
     reposition: true
 
   - data_type: kosha
     label: "कोशः"
-    hidden_by_default: true
+    hidden_by_default: false
     reposition: true
 
   - data_type: udaharana
