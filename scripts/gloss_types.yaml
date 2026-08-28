@@ -114,5 +114,5 @@ types:
     reposition: false
 
   - data_type: notes
-    hidden_by_default: true
+    hidden_by_default: false
     reposition: false
