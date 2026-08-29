@@ -178,7 +178,7 @@ types:
     reposition: false
 
   - data_type: vritti
-    hideable: true
+    hideable: false
     hidden_by_default: false
     reposition: false
 

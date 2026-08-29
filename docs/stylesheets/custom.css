@@ -40,6 +40,20 @@
   white-space: pre-line;
 }
 
+/* Every div rendered with markdown="1" (all of these) gets its text
+   content wrapped in a <p> by the markdown processor — even a single
+   line with no blank lines in it. That <p> carries its own margin (the
+   browser's UA default is ~1em top+bottom — visually "two blank lines"),
+   completely independent of the OUTER div's own margin above. Zeroing
+   the div's margin (as .shloka does) is therefore not enough by itself;
+   the inner <p> has to be zeroed too, or its default margin still shows
+   up as a large gap above/below the div. This is what was actually
+   causing the large shloka-to-shloka / shloka-to-surrounding-text gaps
+   the CSS comments above claimed shouldn't exist. */
+.md-typeset .shloka p {
+  margin: 0;
+}
+
 /* karika (शास्त्र root verses, e.g. काव्यप्रकाश/ध्वन्यालोक/साहित्यदर्पण) —
    slightly more breathing room since these are usually followed
    immediately by their own वृत्ति/commentary. */
@@ -168,6 +182,10 @@
   margin: 0.6rem 0 0.6rem 1.8rem;
 }
 
+.md-typeset .gloss[data-type="udaharana"] p {
+  margin: 0; /* see .md-typeset .shloka p above — same inner-<p>-margin issue */
+}
+
 /* vritti (शास्त्र prose commentary directly under a karika) — not muted
    like the others above, since it's primary reading-flow prose, not an
    aside (see gloss_types.yaml: reposition: false, stays exactly where
@@ -176,6 +194,14 @@
   margin: 0.6rem 0;
   line-height: 1.8;
   color: inherit;
+}
+
+.md-typeset .gloss[data-type="vritti"] p {
+  margin: 0; /* see .md-typeset .shloka p above — same inner-<p>-margin issue */
+}
+
+.md-typeset .gloss[data-type="vritti"] p + p {
+  margin-top: 0.6rem; /* vritti can genuinely span multiple paragraphs — restore SOME separation between them, just not against the div's own edges */
 }
 
 /* --- notes and every reposition:true / hidden_by_default:true gloss
@@ -226,6 +252,14 @@ body.sv-force-hide .md-typeset .sv-toggleable {
   font-size: 0.85rem;
   font-style: italic;
   margin: 0.15rem 0 0.6rem 1.2rem;
+}
+
+.md-typeset .gloss[data-type="notes"] p {
+  margin: 0; /* see .md-typeset .shloka p above — same inner-<p>-margin issue */
+}
+
+.md-typeset .gloss[data-type="notes"] p + p {
+  margin-top: 0.4rem; /* a note can span multiple paragraphs (e.g. छन्दः line + पदार्थः table above) — restore SOME separation between them, just not against the div's own edges */
 }
 
 .md-typeset .gloss[data-type="notes"] + .gloss[data-type="notes"] {
