@@ -20,6 +20,18 @@ theme:
 
 labels:
   home_title: "साहित्यशास्त्रम्"
+  # Every other UI string the generated site shows, previously literal
+  # Python strings in scripts/generate_indices.py — a differently-labeled
+  # or non-Devanagari deployment now only needs to edit this file. Each
+  # default below (shown in comments) matches the string it replaced, so
+  # omitting a key keeps the current site looking exactly the same.
+  home_nav_label: "मुखपृष्ठम्"        # nav root entry (mkdocs.yml nav's first item)
+  home_button_label: "मुखपृष्ठम्"     # the Home button in every page's own top navbar
+  intro_nav_label: "परिचयः"           # per-text "introduction" TOC nav label
+  author_label: "कर्ता:"              # prefix before a text's author on its TOC page
+  shloka_list_heading: "श्लोकसूची"    # kavya chapter pages' verse table heading
+  related_topics_heading: "सम्बद्धाः विषयाः"  # shastra chapter pages' topic back-link heading
+  references_heading: "सन्दर्भाः"     # "cited in" back-reference heading (topics + chandas/alankara pages)
 
 # Default word used for a chapter's nav label when neither the chapter's
 # own meta.yaml (chapter_name:) nor the text's meta.yaml (chapter_type:)

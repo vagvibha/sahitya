@@ -44,8 +44,8 @@ What it does, in order:
 7.  Writes `mkdocs.yml`, including an auto-generated `nav:` block.
 
 This script is idempotent: it always starts by deleting only the generated
-output directory contents for each configured section, `docs/resources/`
-(a fresh mirror of `resources/` — see below), `docs/index.md`, and
+output directory contents for each configured section, `docs/assets/`
+(a fresh mirror of `assets/` — see below), `docs/index.md`, and
 `mkdocs.yml` — never the hand-maintained `docs/stylesheets/`,
 `docs/javascripts/`, or any source directory.
 
@@ -77,14 +77,14 @@ has the old flat layout):
             chandas.md
             alankara.md
 
-    resources/                  (optional, repo root — NOT inside any
+    assets/                      (optional, repo root — NOT inside any
                                   section) — static assets (audio/*.mp3
                                   today, anything else later) referenced
                                   by an explicit link/embed from some
                                   page's content, e.g.
-                                  `<audio src="../../resources/audio/foo.mp3">`.
-                                  Mirrored verbatim into docs/resources/
-                                  on every build (see copy_resources());
+                                  `<audio src="../../assets/audio/foo.mp3">`.
+                                  Mirrored verbatim into docs/assets/
+                                  on every build (see copy_assets());
                                   never parsed as Markdown, never linked
                                   from nav or the home page on its own.
 """
@@ -134,6 +134,18 @@ def load_yaml(path: Path) -> dict:
 SITE_CONFIG = load_yaml(SITE_CONFIG_PATH)
 if not SITE_CONFIG.get("content_sections"):
     warn(f"{SITE_CONFIG_PATH} has no content_sections: — nothing will be built")
+
+# UI strings shown by the generated site that aren't tied to any one
+# section/text (those go through SectionConfig/Text instead) — see
+# site_config.yaml's labels: block for the full list and what each
+# defaults to. Every default below matches the literal string it used to
+# be, so an existing site_config.yaml without one of these keys yet
+# still builds identically.
+_RAW_LABELS = SITE_CONFIG.get("labels", {}) or {}
+
+
+def site_label(key: str, default: str) -> str:
+    return str(_RAW_LABELS.get(key, "")).strip() or default
 
 
 class SectionConfig:
@@ -440,26 +452,6 @@ def title_order_sort_key(frontmatter: dict, title: str, source_for_warning: obje
     return (order, title)
 
 
-LEGACY_DEFAULT_TYPE_KEY = "default_type"
-
-
-def check_legacy_default_type(meta: dict, source: object) -> None:
-    """`default_type:` (singular, ambiguous) was briefly this project's
-    name for what's now split into two separate meta.yaml keys:
-    `default_shloka_type:` (fills in data-type= on an already-explicit
-    <div class="shloka">) and `default_class:` (wraps ANY naked text not
-    inside some div as that class — a much bigger effect). Keeping the
-    old key silently would be actively wrong for anyone who meant the
-    "vritti" case (an explicit vritti div behaving differently from naked
-    text was exactly the bug this split fixes), so warn instead of
-    guessing which one was meant."""
-    if LEGACY_DEFAULT_TYPE_KEY in meta:
-        warn(
-            f"{source}: 'default_type:' was split into 'default_shloka_type:' (fills in a bare "
-            f"<div class=\"shloka\">'s data-type=) and 'default_class:' (wraps naked/undived text "
-            f"as that class) — please rename to whichever you meant; 'default_type:' is now ignored."
-        )
-
 
 class Text:
     def __init__(self, slug: str, directory: Path, meta: dict, section: SectionConfig):
@@ -472,7 +464,16 @@ class Text:
         self.type = str(meta.get("type", "")).strip()
         self.default_shloka_type = str(meta.get("default_shloka_type", "")).strip()
         self.default_class = str(meta.get("default_class", "")).strip()
-        check_legacy_default_type(meta, directory / "meta.yaml")
+        # per-book (never per-chapter) override of a gloss/vada data-type's
+        # fixed label — e.g. some books call claim/refute something other
+        # than the site-wide पक्षः/निरासः default. Keys are data_type
+        # values from gloss_types.yaml; only ever replaces a fixed
+        # `label`, never a `label_from_attr`. See gloss_types.yaml.
+        raw_labels = meta.get("gloss_labels") or {}
+        self.gloss_labels: dict[str, str] = (
+            {str(k).strip().lower(): str(v).strip() for k, v in raw_labels.items()}
+            if isinstance(raw_labels, dict) else {}
+        )
         self.chapters: list["Chapter"] = []
 
     @property
@@ -494,7 +495,6 @@ class Chapter:
         self.slug = slug
         self.sections = sections  # list of source .md Paths, in order
         self.meta = meta or {}
-        check_legacy_default_type(self.meta, f"{text.dir / slug}/meta.yaml")
 
     @property
     def out_file(self) -> Path:
@@ -817,7 +817,7 @@ def render_glossary_entry_page(entry: TableEntry) -> str:
         parts.append(html)
         parts.append("")
     if entry.references:
-        parts.append("## सन्दर्भाः")
+        parts.append(f"## {site_label('references_heading', 'सन्दर्भाः')}")
         parts.append("")
         for ref in entry.references:
             label = f"{ref.chapter.text.title} — {ref.chapter.nav_label}"
@@ -912,12 +912,7 @@ def extract_shlokas(
 
             data_type = attrs.get("data-type", "").strip() or default_shloka_type
 
-            chandas = attrs.get("data-chandas", "").strip()
-            if not chandas and attrs.get("data-meter"):
-                warn(f"{source_for_warning}: div uses legacy data-meter= — please migrate to data-chandas= "
-                     f"(scripts/migrate_layout.py does this automatically)")
-                chandas = attrs.get("data-meter", "").strip()
-            chandas = chandas or fm_chandas
+            chandas = attrs.get("data-chandas", "").strip() or fm_chandas
 
             alankaras = (
                 [a.strip() for a in attrs["data-alankara"].split(",") if a.strip()]
@@ -951,32 +946,37 @@ def extract_shlokas(
 
 # ---------------------------------------------------------------------------
 # "Labeled hideable sections" — commentary-type content blocks, driven by
-# scripts/gloss_types.yaml (see that file for the full convention). ALL
-# of these are <div class="gloss" data-type="...">; the data-type value
-# (not a separate class per type) is what gloss_types.yaml keys off.
+# scripts/gloss_types.yaml (see that file for the full convention). Most
+# of these are <div class="gloss" data-type="...">, but a data-type entry
+# can instead declare class: vada (claim/refute) — see gloss_types.yaml.
 # Sections declared with reposition: true are extracted from wherever
 # they were written and reinserted, in the config file's order, right
 # after the section's shloka (or appended at the end if there's no
 # shloka). Everything else is labeled/marked hideable in place, never
-# moved. Also tree-based, for the same reason as extract_shlokas: a gloss
-# div can legitimately sit inside a structural wrapper (e.g.
+# moved. Also tree-based, for the same reason as extract_shlokas: a
+# commentary div can legitimately sit inside a structural wrapper (e.g.
 # dialog-block), and a flat regex would mispair it.
 
-GLOSS_CLASS = "gloss"
-VADA_CLASS = "vada"  # claim/refute — see gloss_types.yaml's header comment for why this is separate
-HIDEABLE_CLASS = "sv-hideable"
+GLOSS_CLASS = "gloss"  # default div class for a gloss_types.yaml entry when it doesn't set class:
 
-# Pre-consolidation class names (see scripts/migrate_gloss_classes.py) —
-# if one of these ever shows up verbatim as a div's own class again
-# (instead of class="gloss" data-type="..." / class="vada" data-type="..."),
-# it's almost certainly a content author reverting to habit rather than a
-# deliberate new class, so it's worth a warning rather than silently
-# treating it as an unrecognized structural div.
-LEGACY_GLOSS_CLASS_NAMES = {
-    "anvaya", "padartha", "vyutpatti", "tika", "alankara", "bhavartha",
-    "vyakarana", "kosha", "commentary", "vritti", "notes", "udaharana",
-    "claim", "refute",
-}
+# Two INDEPENDENT concerns, each its own CSS class — see gloss_types.yaml
+# for the full convention:
+#   TOGGLEABLE_CLASS  - this div is a member of the global Show/Hide
+#                       toggle group at all (drives whether the button
+#                       even appears — button shows iff >=1 div on the
+#                       page carries this class — and whether the button
+#                       has any effect on this div once clicked).
+#   HIDDEN_INITIAL_CLASS - this div starts hidden on page load. Purely
+#                       about initial display; has no bearing on whether
+#                       the div is a toggle-group member. A div can be
+#                       TOGGLEABLE without HIDDEN_INITIAL (visible on
+#                       load, but the button can still hide it), or (in
+#                       principle) HIDDEN_INITIAL without TOGGLEABLE —
+#                       though nothing currently produces that combination,
+#                       since a div that's permanently hidden with no way
+#                       to reveal it would be pointless.
+TOGGLEABLE_CLASS = "sv-toggleable"
+HIDDEN_INITIAL_CLASS = "sv-hidden-default"
 
 
 def load_gloss_types_config() -> dict:
@@ -995,43 +995,99 @@ def load_gloss_types_config() -> dict:
 GLOSS_TYPES_BY_KEY = load_gloss_types_config()
 REPOSITION_ORDER = [t for t, cfg in GLOSS_TYPES_BY_KEY.items() if cfg.get("reposition")]
 
+# Every div class that gloss_types.yaml routes some data-type through —
+# "gloss" is always included (the default/implicit class), plus whatever
+# other class: values (e.g. "vada") appear in the config. A <div> whose
+# base class isn't in this set is left alone as structural content (and,
+# per gloss_types.yaml, also breaks notes-attachment for whatever follows
+# it — see the "notes" cascade in process_content_sections below).
+RECOGNIZED_DIV_CLASSES = {GLOSS_CLASS} | {
+    str(cfg.get("class", GLOSS_CLASS)).strip().lower() for cfg in GLOSS_TYPES_BY_KEY.values()
+}
+
 TOGGLE_HIDE_RE = re.compile(r'\btoggle-hide\s*=\s*"(true|false)"', re.IGNORECASE)
 
 
-def commentary_label(type_key: str, attrs: str) -> str:
+def commentary_class(type_key: str) -> str:
+    cfg = GLOSS_TYPES_BY_KEY.get(type_key)
+    return str(cfg.get("class", GLOSS_CLASS)).strip().lower() if cfg else GLOSS_CLASS
+
+
+def commentary_label(type_key: str, attrs: str, label_overrides: dict[str, str] | None = None) -> str:
     cfg = GLOSS_TYPES_BY_KEY.get(type_key)
     if not cfg:
         return ""
+    # a per-book gloss_labels: override (meta.yaml) only ever replaces a
+    # fixed `label`, never `label_from_attr` — that's already per-instance.
+    if label_overrides and type_key in label_overrides:
+        return str(label_overrides[type_key]).strip()
     if cfg.get("label_from_attr"):
         return parse_attrs(attrs).get(cfg["label_from_attr"], "").strip()
     return str(cfg.get("label", "") or "").strip()
 
 
-def commentary_hidden(type_key: str, attrs: str) -> bool:
+def commentary_toggleable(type_key: str, attrs: str, force_hidden: bool = False) -> bool:
+    """Is this instance a member of the global Show/Hide toggle group at
+    all? An explicit instance-level toggle-hide="true"/"false" always
+    wins — "true" opts this one instance IN (regardless of its type's own
+    hideable:), "false" opts it OUT entirely (always visible, completely
+    ignoring the button — see gloss_types.yaml). `force_hidden` is the
+    notes-attachment cascade (see process_content_sections): a "notes"
+    div forced hidden by a preceding hidden element must itself become
+    toggleable, or it could never be revealed at all."""
     m = TOGGLE_HIDE_RE.search(attrs)
     if m:
-        return m.group(1).lower() == "true"  # a specific instance always overrides the data-type default
+        return m.group(1).lower() == "true"
+    if force_hidden:
+        return True
+    cfg = GLOSS_TYPES_BY_KEY.get(type_key)
+    return bool(cfg and cfg.get("hideable", True))
+
+
+def commentary_hidden_initial(type_key: str, attrs: str, force_hidden: bool = False) -> bool:
+    """Does this instance start hidden on page load? Only meaningful for
+    a div that's actually toggleable (see commentary_toggleable) — this
+    function doesn't check that itself, callers gate on it. An instance's
+    own toggle-hide="true"/"false" always wins (and self-selects "start
+    hidden" / "start visible" respectively); otherwise a "notes" cascade
+    force_hidden wins next; otherwise falls back to the type's own
+    hidden_by_default in gloss_types.yaml."""
+    m = TOGGLE_HIDE_RE.search(attrs)
+    if m:
+        return m.group(1).lower() == "true"
+    if force_hidden:
+        return True
     cfg = GLOSS_TYPES_BY_KEY.get(type_key)
     return bool(cfg and cfg.get("hidden_by_default"))
 
 
-def render_commentary_div(cls_raw: str, type_key: str, attrs: str, content: str) -> str:
-    label = commentary_label(type_key, attrs)
+def render_commentary_div(
+    cls_raw: str, type_key: str, attrs: str, content: str,
+    label_overrides: dict[str, str] | None = None, force_hidden: bool = False,
+) -> tuple[str, bool]:
+    """Returns (rendered_html, hidden_initial) — `hidden_initial` is
+    exposed so callers can track it for the notes-attachment cascade (see
+    process_content_sections)."""
+    label = commentary_label(type_key, attrs, label_overrides)
     classes = cls_raw.strip()
-    if commentary_hidden(type_key, attrs):
-        classes = f"{classes} {HIDEABLE_CLASS}"
+    toggleable = commentary_toggleable(type_key, attrs, force_hidden)
+    hidden_initial = toggleable and commentary_hidden_initial(type_key, attrs, force_hidden)
+    if toggleable:
+        classes = f"{classes} {TOGGLEABLE_CLASS}"
+        if hidden_initial:
+            classes = f"{classes} {HIDDEN_INITIAL_CLASS}"
     inner = content.strip()
     rendered = f"<u>{label}</u> – {inner}" if label else inner
     # data-type is re-emitted (data-name and any other original attribute
     # is intentionally dropped — it was only ever needed to resolve the
     # label above, at build time; CSS keys off data-type, not those).
     type_attr = f' data-type="{type_key}"' if type_key else ""
-    return f'<div class="{classes}"{type_attr}>\n\n{rendered}\n\n</div>'
+    return f'<div class="{classes}"{type_attr}>\n\n{rendered}\n\n</div>', hidden_initial
 
 
 def resolve_default_class(default_class: str) -> tuple[str, str]:
-    """`default_class` in meta.yaml names either a gloss data-type (e.g.
-    "vritti") or a literal structural class (e.g. "dialog-block") —
+    """`default_class` in meta.yaml names either a gloss/vada data-type
+    (e.g. "vritti") or a literal structural class (e.g. "dialog-block") —
     returns (div_class_to_synthesize, type_key), so wrap_gaps can build
     the right synthetic div either way without content authors needing
     to think about the gloss/data-type split at all."""
@@ -1043,7 +1099,10 @@ def resolve_default_class(default_class: str) -> tuple[str, str]:
     return value, ""
 
 
-def process_content_sections(body: str, default_class: str = "", source_for_warning: object = "") -> tuple[str, str]:
+def process_content_sections(
+    body: str, default_class: str = "", source_for_warning: object = "",
+    label_overrides: dict[str, str] | None = None,
+) -> tuple[str, str]:
     """Returns (body_with_repositioned_sections_removed, reordered_html).
 
     `default_class`, when set, makes THAT the chapter-wide default for
@@ -1072,23 +1131,36 @@ def process_content_sections(body: str, default_class: str = "", source_for_warn
     by_type: dict[str, list[tuple[str, str]]] = {}
     wrap_div_class, wrap_type_key = resolve_default_class(default_class)
 
-    def handle_matched(cls_raw: str, type_key: str, attrs: str, content: str, start: int, end: int, pad: bool = False) -> None:
+    def handle_matched(
+        cls_raw: str, type_key: str, attrs: str, content: str, start: int, end: int,
+        pad: bool = False, force_hidden: bool = False,
+    ) -> bool:
+        """Returns whether this div started hidden — used by visit() to
+        feed the notes-attachment cascade (see gloss_types.yaml)."""
         cfg = GLOSS_TYPES_BY_KEY.get(type_key)
         if cfg and cfg.get("reposition"):
             by_type.setdefault(type_key, []).append((attrs, content))
             splices.append((start, end, ""))
-        else:
-            rendered = render_commentary_div(cls_raw, type_key, attrs, content)
-            if pad:
-                # a gap-wrapped synthetic div (see wrap_gaps) swallows all
-                # of the original whitespace between it and its neighbors
-                # as part of the splice — re-add a blank line on each
-                # side so it doesn't end up glued directly against an
-                # adjacent </div><div...> with no blank line between
-                # them, which risks the two not being parsed as separate
-                # block-level HTML.
-                rendered = f"\n\n{rendered}\n\n"
-            splices.append((start, end, rendered))
+            # still resolve initial hidden-ness for cascade-tracking
+            # purposes even though this div is rendered later, at its new
+            # position, by the REPOSITION_ORDER pass below (which calls
+            # commentary_hidden_initial identically) — reposition:true
+            # types are never "notes" themselves, so this never affects
+            # their own rendering, only what a sibling "notes" div sees.
+            toggleable = commentary_toggleable(type_key, attrs, force_hidden)
+            return toggleable and commentary_hidden_initial(type_key, attrs, force_hidden)
+        rendered, hidden = render_commentary_div(cls_raw, type_key, attrs, content, label_overrides, force_hidden)
+        if pad:
+            # a gap-wrapped synthetic div (see wrap_gaps) swallows all
+            # of the original whitespace between it and its neighbors
+            # as part of the splice — re-add a blank line on each
+            # side so it doesn't end up glued directly against an
+            # adjacent </div><div...> with no blank line between
+            # them, which risks the two not being parsed as separate
+            # block-level HTML.
+            rendered = f"\n\n{rendered}\n\n"
+        splices.append((start, end, rendered))
+        return hidden
 
     def wrap_gaps(start: int, end: int, nodes: list[DivNode]) -> None:
         """Any non-whitespace text directly inside [start, end) that
@@ -1109,6 +1181,7 @@ def process_content_sections(body: str, default_class: str = "", source_for_warn
 
     def visit(nodes: list[DivNode], parent_start: int, parent_end: int):
         wrap_gaps(parent_start, parent_end, nodes)
+        last_hidden = False  # notes-attachment cascade — see gloss_types.yaml
         for node in nodes:
             if node.base_cls == "shloka":
                 # shloka is its own leaf unit, handled entirely and
@@ -1120,30 +1193,39 @@ def process_content_sections(body: str, default_class: str = "", source_for_warn
                 # own — every character of it would otherwise look like
                 # "naked" text to wrap_gaps). Left completely untouched
                 # here; it still correctly bounds the gaps around it,
-                # since it's one of `nodes`.
+                # since it's one of `nodes`. A shloka is never hidden, so
+                # it always resets the notes-attachment chain.
+                last_hidden = False
                 continue
-            is_gloss = node.base_cls == GLOSS_CLASS
-            type_key = parse_attrs(node.attrs_str).get("data-type", "").strip().lower() if is_gloss else ""
-            matched = is_gloss or bool(TOGGLE_HIDE_RE.search(node.attrs_str))
+            is_glosslike = node.base_cls in RECOGNIZED_DIV_CLASSES
+            type_key = parse_attrs(node.attrs_str).get("data-type", "").strip().lower() if is_glosslike else ""
+            matched = is_glosslike or bool(TOGGLE_HIDE_RE.search(node.attrs_str))
             if not matched:
-                if node.base_cls in LEGACY_GLOSS_CLASS_NAMES:
-                    warn(f"{source_for_warning}: div uses legacy class=\"{node.base_cls}\" — please migrate to "
-                         f"class=\"gloss\" data-type=\"{node.base_cls}\" (or class=\"vada\" for claim/refute); "
-                         f"scripts/migrate_gloss_classes.py does this automatically")
-                visit(node.children, node.tag_end, node.inner_end)  # structural divs (dialog-block, vada, ...) — look inside, but leave as-is
+                visit(node.children, node.tag_end, node.inner_end)  # structural divs (dialog-block, ...) — look inside, but leave as-is
+                # an unrecognized structural div — including a bare
+                # <div></div> with no class at all — breaks the
+                # notes-attachment chain (see gloss_types.yaml: this is
+                # the "dummy div" convention for detaching a note from
+                # whatever precedes it).
+                last_hidden = False
                 continue
-            if is_gloss and type_key and type_key not in GLOSS_TYPES_BY_KEY:
-                warn(f"{source_for_warning}: <div class=\"gloss\" data-type=\"{type_key}\"> — "
+            if is_glosslike and type_key and type_key not in GLOSS_TYPES_BY_KEY:
+                warn(f"{source_for_warning}: <div class=\"{node.base_cls}\" data-type=\"{type_key}\"> — "
                      f"'{type_key}' isn't declared in {GLOSS_TYPES_CONFIG_PATH.name} (no label/hide/reposition "
                      f"will apply to it, only toggle-hide= if set explicitly)")
             content = body[node.tag_end:node.inner_end]
-            handle_matched(node.cls, type_key, node.attrs_str, content, node.start, node.end)
-            # a matched gloss div is opaque — don't recurse into it
+            force_hidden = (
+                type_key == "notes" and last_hidden and not TOGGLE_HIDE_RE.search(node.attrs_str)
+            )
+            last_hidden = handle_matched(
+                node.cls, type_key, node.attrs_str, content, node.start, node.end, force_hidden=force_hidden
+            )
+            # a matched gloss/vada div is opaque — don't recurse into it
 
     visit(tree, 0, len(body))
     body = apply_splices(body, splices)
     reordered_html = "\n\n".join(
-        render_commentary_div(GLOSS_CLASS, type_key, attrs, content)
+        render_commentary_div(commentary_class(type_key), type_key, attrs, content, label_overrides)[0]
         for type_key in REPOSITION_ORDER
         for attrs, content in by_type.get(type_key, [])
     )
@@ -1178,7 +1260,7 @@ def insert_reordered_sections(body: str, reordered: str) -> str:
 
 def render_topnav(current_rel_file: str, up_target_rel_file: str | None, up_label: str | None) -> str:
     home_link = rel_link(current_rel_file, "index.md")
-    parts = [f'[मुखपृष्ठम्]({home_link})']
+    parts = [f"[{site_label('home_button_label', 'मुखपृष्ठम्')}]({home_link})"]
     if up_target_rel_file:
         up_link = rel_link(current_rel_file, up_target_rel_file)
         parts.append(f'[⬆ {up_label}]({up_link})')
@@ -1190,40 +1272,40 @@ def render_topnav(current_rel_file: str, up_target_rel_file: str | None, up_labe
 # Output helpers
 # ---------------------------------------------------------------------------
 
-RESOURCES_SRC = ROOT / "resources"
-RESOURCES_OUT = DOCS / "resources"
+ASSETS_SRC = ROOT / "assets"
+ASSETS_OUT = DOCS / "assets"
 
 
 def clean_output():
     for section in SECTIONS:
         if section.out_dir.exists():
             shutil.rmtree(section.out_dir)
-    if RESOURCES_OUT.exists():
-        shutil.rmtree(RESOURCES_OUT)
+    if ASSETS_OUT.exists():
+        shutil.rmtree(ASSETS_OUT)
     index_md = DOCS / "index.md"
     if index_md.exists():
         index_md.unlink()
     DOCS.mkdir(parents=True, exist_ok=True)
 
 
-def copy_resources() -> int:
-    """Mirrors `resources/` (repo root — audio/*.mp3 today, anything else
-    later) into `docs/resources/`, so MkDocs serves it as static files.
+def copy_assets() -> int:
+    """Mirrors `assets/` (repo root — audio/*.mp3 today, anything else
+    later) into `docs/assets/`, so MkDocs serves it as static files.
     Unlike everything else this script writes, these files are never
     parsed as Markdown or linked from nav/home cards on their own — they
     only exist to be linked (or embedded, e.g. `<audio src=...>`) FROM a
     regular page, with a plain relative path (`rel_link` works fine for
-    this — resources aren't clean-URL-rewritten the way *.md pages are,
-    so no special-casing is needed there). Dotfiles (.DS_Store, .gitkeep,
+    this — assets aren't clean-URL-rewritten the way *.md pages are, so
+    no special-casing is needed there). Dotfiles (.DS_Store, .gitkeep,
     ...) are skipped. Returns the number of files copied."""
-    if not RESOURCES_SRC.exists():
+    if not ASSETS_SRC.exists():
         return 0
 
     def ignore_dotfiles(_dir: str, names: list[str]) -> list[str]:
         return [n for n in names if n.startswith(".")]
 
-    shutil.copytree(RESOURCES_SRC, RESOURCES_OUT, ignore=ignore_dotfiles)
-    return sum(1 for p in RESOURCES_OUT.rglob("*") if p.is_file())
+    shutil.copytree(ASSETS_SRC, ASSETS_OUT, ignore=ignore_dotfiles)
+    return sum(1 for p in ASSETS_OUT.rglob("*") if p.is_file())
 
 
 def write(path: Path, content: str):
@@ -1335,7 +1417,7 @@ def build_text_index_page(text: Text) -> str:
     up_target = f"{text.section.dir}/index.md"
     lines = [render_topnav(rel_file, up_target, text.section.h1_label), f"# {text.title}", ""]
     if text.author:
-        lines += [f"**कर्ता:** {text.author}", ""]
+        lines += [f"**{site_label('author_label', 'कर्ता:')}** {text.author}", ""]
     chapters_label = str(text.meta.get("chapters", "")).strip() or "अध्यायाः / भागाः"
     lines.append(f"## {chapters_label}")
     lines.append("")
@@ -1350,10 +1432,12 @@ SECTION_HEADING_RE = re.compile(r"^\s*#\s+(.+)$", re.MULTILINE)
 
 def section_label(fm: dict, body: str, fallback_stem: str) -> str:
     """Best-effort human-readable label for a section, used in back-links:
-    prefer an explicit karika_num, then the section's own '# heading',
-    then fall back to its filename."""
-    if fm.get("karika_num"):
-        return str(fm["karika_num"])
+    prefer an explicit `ref:` frontmatter string, then the section's own
+    '# heading', then fall back to its filename. (Formerly shloka_num:/
+    karika_num: — replaced by the single `ref:` string; those old keys
+    are no longer read.)"""
+    if fm.get("ref"):
+        return str(fm["ref"])
     m = SECTION_HEADING_RE.search(body)
     if m:
         return m.group(1).strip()
@@ -1363,83 +1447,14 @@ def section_label(fm: dict, body: str, fallback_stem: str) -> str:
 TOPIC_LINK_TMPL = "- [{title}]({link})"
 
 
-def render_shastra_chapter(chapter: Chapter, topics: dict[str, RefPage]) -> str:
-    seen_topics: list[str] = []
-    body_parts = []
-    for i, section in enumerate(chapter.sections):
-        raw = section.read_text(encoding="utf-8")
-        fm, body = split_frontmatter(raw)
-        label = section_label(fm, body, section.stem)
-        for t in as_list(fm.get("topics")) or as_list(fm.get("topic")):
-            if fm.get("topic") and not fm.get("topics"):
-                warn(f"{section} uses 'topic:' instead of 'topics:' — please rename it (treating it as 'topics:' for now)")
-            if t not in topics:
-                warn(f"{section} references unknown topic '{t}' (no matching topics/*.md title)")
-                continue
-            if t not in seen_topics:
-                seen_topics.append(t)
-            anchor = f"sec{i+1}"
-            topics[t].references.append(Reference(t, chapter, anchor, label))
-        anchor = f"sec{i+1}"
-        body, reordered = process_content_sections(body, chapter.default_class, source_for_warning=section)
-        # shastra sections aren't shloka-numbered chapter-wide the way kavya
-        # ones are, but they can still carry `<div class="shloka">` blocks
-        # (e.g. shastra-karika texts, after the migration) — resolve
-        # data-type via the chapter's default_shloka_type the same way kavya does.
-        fm_chandas = str(fm.get("chandas", "")).strip()
-        body, _shlokas, _n = extract_shlokas(body, fm_chandas, as_list(fm.get("alankara")), chapter.default_shloka_type,
-                                              source_for_warning=section)
-        section_content = f'<div id="{anchor}"></div>\n\n{insert_reordered_sections(body, reordered)}'
-        body_parts.append(section_content)
-
-    header = []
-    if seen_topics:
-        header.append("## सम्बद्धाः विषयाः")
-        header.append("")
-        for t in seen_topics:
-            link = rel_link(chapter.rel_out_file, topics[t].rel_out_file)
-            header.append(TOPIC_LINK_TMPL.format(title=t, link=link))
-        header.append("")
-        header.append("---")
-        header.append("")
-
-    up_target = f"{chapter.text.rel_out_dir}/index.md"
-    topnav = render_topnav(chapter.rel_out_file, up_target, chapter.text.title)
-    title_line = f"# {chapter.text.title} — {chapter.nav_label}"
-    return "\n".join([topnav, title_line, ""] + header + body_parts) + "\n"
-
-
-def render_kavya_chapter(
-    chapter: Chapter, chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
-) -> tuple[str, list[Shloka]]:
-    """Returns (rendered_markdown, all_shlokas_in_anchor_order). The same
-    `all_shlokas` list (1-indexed => anchor "s{i}") is used both for the
-    Shloka Table on this page and for recording back-references on the
-    corresponding chandas/alankara pages, so anchors always line up."""
-    body_parts = []
-    all_shlokas: list[Shloka] = []
-    counter = 0
-    for section in chapter.sections:
-        raw = section.read_text(encoding="utf-8")
-        fm, body = split_frontmatter(raw)
-        fm_chandas = str(fm.get("chandas", "")).strip()
-        if not fm_chandas and fm.get("meter"):
-            warn(f"{section} uses 'meter:' instead of 'chandas:' — please rename it (treating it as 'chandas:' for now)")
-            fm_chandas = str(fm.get("meter", "")).strip()
-        fm_alankaras = as_list(fm.get("alankara"))
-        body, reordered = process_content_sections(body, chapter.default_class, source_for_warning=section)
-        new_body, shlokas, counter = extract_shlokas(
-            body, fm_chandas, fm_alankaras, chapter.default_shloka_type, counter, source_for_warning=section
-        )
-        for sh in shlokas:
-            if sh.chandas and sh.chandas not in chandas:
-                warn(f"{section} references unknown meter '{sh.chandas}' (no matching <!-- chandas-name --> row in the chandas glossary)")
-            for a in sh.alankaras:
-                if a not in alankaras:
-                    warn(f"{section} references unknown alankara '{a}' (no matching <!-- alankara-name --> row in the alankara glossary)")
-        all_shlokas.extend(shlokas)
-        body_parts.append(insert_reordered_sections(new_body, reordered))
-
+def build_shloka_table(
+    chapter: Chapter, all_shlokas: list[Shloka], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
+) -> list[str]:
+    """Renders the श्लोकसूची table shared by both kavya and shastra
+    chapter pages — one row per shloka in `all_shlokas` (1-indexed =>
+    anchor "#s{i}", matching extract_shlokas' numbering), linking its
+    meter/alankaras to their glossary pages where recognized. Returns []
+    if there are no shlokas at all (nothing to show)."""
     def link_chandas(m: str) -> str:
         if not m:
             return "—"
@@ -1458,28 +1473,129 @@ def render_kavya_chapter(
                 out.append(a)
         return ", ".join(out)
 
-    table_lines = []
-    if all_shlokas:
-        table_lines.append("## श्लोकसूची")
-        table_lines.append("")
-        table_lines.append("| श्लोकः | छन्दः | अलङ्काराः |")
-        table_lines.append("| --- | --- | --- |")
-        for i, sh in enumerate(all_shlokas, start=1):
-            table_lines.append(
-                f"| [{sh.preview}](#s{i}) | {link_chandas(sh.chandas)} | {link_alankaras(sh.alankaras)} |"
-            )
-        table_lines.append("")
-        table_lines.append("---")
-        table_lines.append("")
+    if not all_shlokas:
+        return []
+    table_lines = [f"## {site_label('shloka_list_heading', 'श्लोकसूची')}", "", "| श्लोकः | छन्दः | अलङ्काराः |", "| --- | --- | --- |"]
+    for i, sh in enumerate(all_shlokas, start=1):
+        table_lines.append(
+            f"| [{sh.preview}](#s{i}) | {link_chandas(sh.chandas)} | {link_alankaras(sh.alankaras)} |"
+        )
+    table_lines += ["", "---", ""]
+    return table_lines
+
+
+def render_shastra_chapter(
+    chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
+) -> tuple[str, list[Shloka]]:
+    """Returns (rendered_markdown, all_shlokas_in_anchor_order). Shastra
+    chapters get the same श्लोकसूची table as kavya ones (see
+    build_shloka_table) whenever the chapter has any shlokas at all —
+    shown after the सम्बद्धाः विषयाः back-links, at the end of the page."""
+    seen_topics: list[str] = []
+    body_parts = []
+    all_shlokas: list[Shloka] = []
+    shloka_counter = 0
+    for i, section in enumerate(chapter.sections):
+        raw = section.read_text(encoding="utf-8")
+        fm, body = split_frontmatter(raw)
+        label = section_label(fm, body, section.stem)
+        for t in as_list(fm.get("topics")):
+            if t not in topics:
+                warn(f"{section} references unknown topic '{t}' (no matching topics/*.md title)")
+                continue
+            if t not in seen_topics:
+                seen_topics.append(t)
+            anchor = f"sec{i+1}"
+            topics[t].references.append(Reference(t, chapter, anchor, label))
+        anchor = f"sec{i+1}"
+        body, reordered = process_content_sections(
+            body, chapter.default_class, source_for_warning=section, label_overrides=chapter.text.gloss_labels
+        )
+        # shastra sections aren't laid out with a Shloka Table the way
+        # kavya ones are, but they can still carry `<div class="shloka">`
+        # blocks (e.g. shastra-karika/shastra-vada texts) — resolve
+        # data-type via the chapter's default_shloka_type the same way
+        # kavya does, and number them contiguously across the chapter so
+        # each gets a unique #s{n} anchor for chandas/alankara back-refs.
+        fm_chandas = str(fm.get("chandas", "")).strip()
+        body, shlokas, shloka_counter = extract_shlokas(
+            body, fm_chandas, as_list(fm.get("alankara")), chapter.default_shloka_type,
+            shloka_counter, source_for_warning=section,
+        )
+        for sh in shlokas:
+            if sh.chandas and sh.chandas not in chandas:
+                warn(f"{section} references unknown meter '{sh.chandas}' (no matching <!-- chandas-name --> row in the chandas glossary)")
+            for a in sh.alankaras:
+                if a not in alankaras:
+                    warn(f"{section} references unknown alankara '{a}' (no matching <!-- alankara-name --> row in the alankara glossary)")
+        all_shlokas.extend(shlokas)
+        section_content = f'<div id="{anchor}"></div>\n\n{insert_reordered_sections(body, reordered)}'
+        body_parts.append(section_content)
+
+    header = []
+    if seen_topics:
+        header.append(f"## {site_label('related_topics_heading', 'सम्बद्धाः विषयाः')}")
+        header.append("")
+        for t in seen_topics:
+            link = rel_link(chapter.rel_out_file, topics[t].rel_out_file)
+            header.append(TOPIC_LINK_TMPL.format(title=t, link=link))
+        header.append("")
+        header.append("---")
+        header.append("")
 
     up_target = f"{chapter.text.rel_out_dir}/index.md"
     topnav = render_topnav(chapter.rel_out_file, up_target, chapter.text.title)
     title_line = f"# {chapter.text.title} — {chapter.nav_label}"
+    table_lines = build_shloka_table(chapter, all_shlokas, chandas, alankaras)
+    content = "\n".join([topnav, title_line, ""] + header + body_parts + [""] + table_lines) + "\n"
+    return content, all_shlokas
+
+
+def render_kavya_chapter(
+    chapter: Chapter, chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
+) -> tuple[str, list[Shloka]]:
+    """Returns (rendered_markdown, all_shlokas_in_anchor_order). The same
+    `all_shlokas` list (1-indexed => anchor "s{i}") is used both for the
+    Shloka Table on this page and for recording back-references on the
+    corresponding chandas/alankara pages, so anchors always line up."""
+    body_parts = []
+    all_shlokas: list[Shloka] = []
+    counter = 0
+    for section in chapter.sections:
+        raw = section.read_text(encoding="utf-8")
+        fm, body = split_frontmatter(raw)
+        fm_chandas = str(fm.get("chandas", "")).strip()
+        fm_alankaras = as_list(fm.get("alankara"))
+        body, reordered = process_content_sections(
+            body, chapter.default_class, source_for_warning=section, label_overrides=chapter.text.gloss_labels
+        )
+        new_body, shlokas, counter = extract_shlokas(
+            body, fm_chandas, fm_alankaras, chapter.default_shloka_type, counter, source_for_warning=section
+        )
+        for sh in shlokas:
+            if sh.chandas and sh.chandas not in chandas:
+                warn(f"{section} references unknown meter '{sh.chandas}' (no matching <!-- chandas-name --> row in the chandas glossary)")
+            for a in sh.alankaras:
+                if a not in alankaras:
+                    warn(f"{section} references unknown alankara '{a}' (no matching <!-- alankara-name --> row in the alankara glossary)")
+        all_shlokas.extend(shlokas)
+        body_parts.append(insert_reordered_sections(new_body, reordered))
+
+    up_target = f"{chapter.text.rel_out_dir}/index.md"
+    topnav = render_topnav(chapter.rel_out_file, up_target, chapter.text.title)
+    title_line = f"# {chapter.text.title} — {chapter.nav_label}"
+    table_lines = build_shloka_table(chapter, all_shlokas, chandas, alankaras)
     content = "\n".join([topnav, title_line, ""] + body_parts + [""] + table_lines) + "\n"
     return content, all_shlokas
 
 
-def record_kavya_references(chapter: Chapter, chandas: dict, alankaras: dict, shlokas_with_index: list[tuple[int, Shloka]]):
+def record_shloka_references(chapter: Chapter, chandas: dict, alankaras: dict, shlokas_with_index: list[tuple[int, Shloka]]):
+    """Registers each shloka's data-chandas=/data-alankara= (or its
+    section's chandas:/alankara: frontmatter fallback) against the
+    matching chandas/alankara glossary entry, so that entry's own page
+    lists this chapter under सन्दर्भाः. Shared by both kavya and shastra
+    chapters — a shastra shloka (e.g. in a shastra-karika/shastra-vada
+    text) can cite a meter/alankara exactly like a kavya one."""
     for i, sh in shlokas_with_index:
         anchor = f"s{i}"
         if sh.chandas and sh.chandas in chandas:
@@ -1509,7 +1625,7 @@ def render_ref_page(page: RefPage) -> str:
     parts.append(body)
     if page.references:
         parts.append("")
-        parts.append("## सन्दर्भाः")
+        parts.append(f"## {site_label('references_heading', 'सन्दर्भाः')}")
         parts.append("")
         for ref in page.references:
             label = f"{ref.chapter.text.title} — {ref.chapter.nav_label}"
@@ -1531,7 +1647,7 @@ def build_home_page(
     sections_with_texts: list[tuple[SectionConfig, list[Text]]],
     topic_nav_entries: list,
 ) -> str:
-    home_title = str(SITE_CONFIG.get("labels", {}).get("home_title", "")).strip() or "मुखपृष्ठम्"
+    home_title = site_label("home_title", "मुखपृष्ठम्")
     lines = [f"# {home_title}", "", '<div class="sv-home-cards" markdown="1">', ""]
 
     for section, texts in sections_with_texts:
@@ -1645,12 +1761,12 @@ def build_nav(
     topic_nav_entries: list,
 ) -> list:
     def text_nav(t: Text):
-        entry = [{"परिचयः": f"{t.rel_out_dir}/index.md"}]
+        entry = [{site_label("intro_nav_label", "परिचयः"): f"{t.rel_out_dir}/index.md"}]
         for ch in t.chapters:
             entry.append({ch.nav_label: ch.rel_out_file})
         return {t.title: entry}
 
-    nav = [{"मुखपृष्ठम्": "index.md"}]
+    nav = [{site_label("home_nav_label", "मुखपृष्ठम्"): "index.md"}]
     for section, texts in sections_with_texts:
         # Give the section an explicit landing page as its own first
         # entry — without one, MkDocs makes any nav group link to the
@@ -1681,7 +1797,7 @@ def main():
         sys.exit(1)
 
     clean_output()
-    n_resources = copy_resources()
+    n_assets = copy_assets()
 
     topics: dict[str, RefPage] = {}
     chandas: dict[str, TableEntry] = {}
@@ -1745,20 +1861,20 @@ def main():
         for t in texts:
             for ch in t.chapters:
                 if t.type in SHASTRA_TEXT_TYPES:
-                    content = render_shastra_chapter(ch, topics)
+                    content, all_shlokas = render_shastra_chapter(ch, topics, chandas, alankaras)
                     write_md(ch.out_file, content)
+                    record_shloka_references(ch, chandas, alankaras, list(enumerate(all_shlokas, start=1)))
                 elif t.type in KAVYA_PROSE_TYPES | KAVYA_VERSE_TYPES:
                     content, all_shlokas = render_kavya_chapter(ch, chandas, alankaras)
                     write_md(ch.out_file, content)
-                    indexed = list(enumerate(all_shlokas, start=1))
-                    record_kavya_references(ch, chandas, alankaras, indexed)
+                    record_shloka_references(ch, chandas, alankaras, list(enumerate(all_shlokas, start=1)))
                 else:
                     # unrecognized type already warned about above — treat
                     # it like a kavya-verse text (no topic back-links) so
                     # the build still completes.
                     content, all_shlokas = render_kavya_chapter(ch, chandas, alankaras)
                     write_md(ch.out_file, content)
-                    record_kavya_references(ch, chandas, alankaras, list(enumerate(all_shlokas, start=1)))
+                    record_shloka_references(ch, chandas, alankaras, list(enumerate(all_shlokas, start=1)))
             write_md(t.out_dir / "index.md", build_text_index_page(t))
 
         write_md(DOCS / f"{section.dir}/index.md", build_domain_index_page(section, texts, topic_nav_entries))
@@ -1805,7 +1921,7 @@ def main():
     n_texts = sum(len(texts) for _, texts in sections_with_texts)
     print(f"\nDone. {n_texts} text(s) across {len(SECTIONS)} section(s), "
           f"{len(topics)} topic(s), {len(chandas)} meter(s), {len(alankaras)} alankara(s), "
-          f"{n_resources} resource file(s).")
+          f"{n_assets} asset file(s).")
     if WARNINGS:
         print(f"\n{len(WARNINGS)} warning(s) were printed above — please review.", file=sys.stderr)
 

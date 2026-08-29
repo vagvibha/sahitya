@@ -56,6 +56,7 @@
   margin: 0 0 0 1.5rem;
   line-height: 1.9;
   white-space: pre-line;
+  font-weight: normal; /* base .shloka rule below is bold; nataka should read almost inline, not bold */
 }
 
 /* dialog (plain spoken prose in a kavya-play, when tagged as a shloka
@@ -88,8 +89,12 @@
 /* --- vada: claim / refute (dialectical exposition) — its own class, not
    folded into .gloss, since this is PRIMARY argumentative content in a
    शास्त्र-वाद text (the दialectic itself), not secondary material about
-   the text the way a gloss is — always visible, never repositioned, no
-   entry in gloss_types.yaml. --------------------------------------- */
+   the text the way a gloss is — always visible and never repositioned
+   by default. Configured in gloss_types.yaml (class: vada) exactly like
+   a gloss data-type: its "<u>label</u> – " prefix is rendered by Python
+   (render_commentary_div), same mechanism as .gloss, so there's no
+   ::before label here — only the colored callout-box styling stays
+   CSS-only. --------------------------------------------------------- */
 .md-typeset .vada {
   border-radius: 0.2rem;
   padding: 0.9rem 1.2rem;
@@ -107,22 +112,9 @@
   border-left: 4px solid #f44336;
 }
 
-.md-typeset .vada[data-type="claim"]::before {
-  content: "पक्षः";
-  display: block;
+.md-typeset .vada u {
   font-weight: 600;
-  font-size: 0.8rem;
   opacity: 0.7;
-  margin-bottom: 0.3rem;
-}
-
-.md-typeset .vada[data-type="refute"]::before {
-  content: "निरासः";
-  display: block;
-  font-weight: 600;
-  font-size: 0.8rem;
-  opacity: 0.7;
-  margin-bottom: 0.3rem;
 }
 
 /* --- chandas / alankara glossary detail-page headers (renamed from
@@ -188,9 +180,40 @@
 
 /* --- notes and every reposition:true / hidden_by_default:true gloss
    data-type above are hidden by default and only shown once the toggle
-   button is clicked (see notes-toggle.js, which adds .sv-show-notes to
-   <body>). .shloka is deliberately never part of this — it should
-   always stay visible. --------------------------------------------------- */
+   button is clicked. .shloka is deliberately never part of this — it
+   should always stay visible.
+
+   Two independent states, each its own class (set at build time by
+   generate_indices.py from gloss_types.yaml's hideable/hidden_by_default
+   — see that file for the full convention):
+     .sv-toggleable      - this div is a member of the global Show/Hide
+                            group at all (drives whether the button
+                            appears, and whether clicking it affects this
+                            div — completely independent of whether it
+                            starts hidden or visible).
+     .sv-hidden-default   - this div STARTS hidden on page load (purely
+                            initial state; never appears without
+                            .sv-toggleable alongside it).
+
+   notes-toggle.js toggles <body> between two classes once clicked —
+   .sv-force-show forces EVERY .sv-toggleable div visible (even the
+   ones that don't have .sv-hidden-default, i.e. that started visible);
+   .sv-force-hide forces EVERY .sv-toggleable div hidden (even the ones
+   that started visible) — the button is a genuine show-all/hide-all for
+   the whole toggle group, not just a "reveal the hidden ones" switch.
+   Neither class is present until the button is clicked once — before
+   that, each div just shows/hides per its own .sv-hidden-default. ------ */
+.md-typeset .sv-toggleable.sv-hidden-default {
+  display: none;
+}
+
+body.sv-force-show .md-typeset .sv-toggleable {
+  display: block;
+}
+
+body.sv-force-hide .md-typeset .sv-toggleable {
+  display: none;
+}
 /* notes are annotations ATTACHED to whatever gloss/shloka came right
    before them, not independent standalone asides — and several can
    follow the same preceding element in a row (repositioned together, in
@@ -207,14 +230,6 @@
 
 .md-typeset .gloss[data-type="notes"] + .gloss[data-type="notes"] {
   margin-top: 0;
-}
-
-.md-typeset .sv-hideable {
-  display: none;
-}
-
-body.sv-show-notes .md-typeset .sv-hideable {
-  display: block;
 }
 
 /* --- floating notes toggle button --------------------------------------- */

@@ -1,17 +1,23 @@
 # gloss_types.yaml
 # ================
-# Declares the data-type="..." values recognized on <div class="gloss">
-# blocks — anything that can be individually labeled, hidden by default
-# (via the notes-toggle button), and/or reordered into a fixed sequence.
+# Declares the data-type="..." values recognized on commentary-style divs
+# — anything that can be individually labeled, hidden by default (via the
+# notes-toggle button), and/or reordered into a fixed sequence.
 #
-# ALL of these share the same div class ("gloss"): what varies between
+# Almost all of these share the div class "gloss": what varies between
 # tika/padartha/vritti/... is purely which data-type="..." value is used
-# and this file's config for it — not a different class name (was
-# commentary_sections.yaml, keyed by class, before this consolidation;
-# see scripts/migrate_gloss_classes.py for the one-time content
-# migration). "commentary" (a named commentator's remark) and "tika"
-# served the exact same purpose, so they were merged into one — just use
-# data-type="tika" for both; there's no separate "commentary" data-type.
+# and this file's config for it, not a different class name. "commentary"
+# (a named commentator's remark) and "tika" served the exact same
+# purpose, so they were merged into one — just use data-type="tika" for
+# both; there's no separate "commentary" data-type.
+#
+# vada (claim/refute) is the one exception that uses a different div
+# class ("vada" — see `class:` below) — it's PRIMARY argumentative
+# content in a शास्त्र-वाद text, not secondary material about the text the
+# way a gloss is, so its CSS styling (colored callout box) stays distinct
+# from a plain gloss. But it's configured through this same file, the
+# same as everything else — label/label_from_attr, hideable,
+# hidden_by_default, reposition all apply to it identically.
 #
 # Structural content is NOT configured here — it's handled directly by
 # the script and always stays exactly as authored:
@@ -19,30 +25,65 @@
 #   - dialog-block — plain prose narration/dialogue in a kavya-play
 #   - action — an inline stage-direction span (not a block, no label/
 #     hide/reposition concept applies)
-#   - vada (data-type="claim"/"refute") — dialectical exposition; this is
-#     PRIMARY argumentative content in a शास्त्र-वाद text, not secondary
-#     material about the text the way a gloss is, so it's deliberately
-#     its own class rather than folded in here — always visible, never
-#     repositioned, its "पक्षः"/"निरासः" labels are plain CSS (see
-#     .vada::before in custom.css), not driven by this file.
 #
 # Fields per entry:
 #   data_type           - the data-type="..." value to match
-#   label               - fixed display label (rendered as "<u>label</u> – content")
+#   class               - which div class this data-type is written under:
+#                         "gloss" (default, omit this field) or "vada".
+#   label               - fixed display label (rendered as "<u>label</u> – content").
+#                         Can be overridden per-book (not per-chapter) via
+#                         `gloss_labels:` in that text's meta.yaml, e.g.:
+#                             gloss_labels:
+#                               claim: "पूर्वपक्षः"
+#                               refute: "सिद्धान्तः"
+#                         — same key names as data_type here. Only ever
+#                         replaces a fixed `label`, never a
+#                         `label_from_attr` (that's inherently per-instance
+#                         already, e.g. tika's data-name).
 #   label_from_attr     - OR: read the label from this HTML attribute on the
 #                         div instead of a fixed string (e.g. tika is named
 #                         after its author via data-name)
 #                         Omit both `label` and `label_from_attr` for a
 #                         type that should never get a "<u>...</u> – "
 #                         prefix (e.g. vritti — just plain hideable text).
-#   hidden_by_default   - true: every instance of this data-type is hidden
-#                         until the notes-toggle button is clicked, with
-#                         no per-instance attribute needed.
-#                         false: visible by default, UNLESS a specific
-#                         instance adds toggle-hide="true" itself.
-#                         Either way, a specific instance can always
-#                         override the default with toggle-hide="true"
-#                         or toggle-hide="false".
+#   hideable            - true: this data-type is a member of the site's
+#                         global Show/Hide toggle group — this alone is
+#                         what makes the Show/Hide button appear on a
+#                         page (the button shows iff >=1 div on that page
+#                         is a toggle-group member, by type or by
+#                         instance — completely independent of whatever
+#                         hidden_by_default says for any of them, see
+#                         below). Clicking the button shows/hides EVERY
+#                         toggle-group member on the page together, as
+#                         one group — a div that's hideable: true but
+#                         hidden_by_default: false (so visible on page
+#                         load) still gets hidden when the button is
+#                         clicked into its "hide" state.
+#                         false: this type is never part of the toggle
+#                         group and the button has no effect on it — it
+#                         simply always displays normally.
+#                         EITHER WAY, a specific instance can always force
+#                         its own membership with its own attribute:
+#                         toggle-hide="true" puts that ONE instance in the
+#                         group (and makes it start hidden) even if its
+#                         type says hideable: false; toggle-hide="false"
+#                         takes that ONE instance OUT of the group
+#                         entirely (always visible, ignores the button
+#                         completely) even if its type says hideable:
+#                         true / hidden_by_default: true.
+#   hidden_by_default   - true: every instance of this data-type (that
+#                         doesn't carry its own toggle-hide=) starts
+#                         hidden when the page loads.
+#                         false: starts visible when the page loads.
+#                         This ONLY controls the initial page-load
+#                         display — it has no bearing on whether the
+#                         button appears (hideable does that, see above)
+#                         and no bearing on what the button does once
+#                         clicked (every toggle-group member moves
+#                         together either way). Only takes effect on a
+#                         type that's actually hideable: true (or an
+#                         instance with its own toggle-hide=, which
+#                         overrides this entirely).
 #   reposition          - true: every occurrence in a section is extracted
 #                         from wherever it was written and reinserted
 #                         (in the ORDER THIS FILE LISTS reposition:true
@@ -59,10 +100,28 @@
 # data-type just needs to be added above "notes" to land before it — no
 # code changes needed.
 #
-# A <div class="gloss"> whose data-type isn't listed here at all can
-# still be made hideable per-instance, in place, by adding
+# notes are special: a "notes" div attaches to whatever came immediately
+# before it (shloka, gloss, vada, ...) in the source. If that preceding
+# element STARTS hidden (whether via its own hidden_by_default or an
+# explicit toggle-hide="true" on that instance) AND this note doesn't set
+# its own toggle-hide=, the note starts hidden along with it too, even if
+# "notes" hidden_by_default is false — an orphaned visible note under a
+# hidden comment reads as a mistake. (The note also becomes a toggle-group
+# member itself when this happens, hideable: false or not — otherwise
+# it could never be revealed at all.) To make a note independent of
+# whatever precedes it (its own hideable/hidden_by_default/toggle-hide
+# decides, full stop), insert an empty structural break right before it
+# in the source — any <div></div> with no recognized class in between
+# breaks the attachment, e.g.:
+#     <div class="gloss" data-type="tika" data-name="X" toggle-hide="true">...</div>
+#     <div></div>
+#     <div class="gloss" data-type="notes">this note is independent</div>
+#
+# A commentary div whose data-type isn't listed here at all can still be
+# made a toggle-group member per-instance, in place, by adding
 # toggle-hide="true" directly on that one div — no config entry required
-# for one-off cases (though it won't get a label or get repositioned).
+# for one-off cases (though it won't get a label, get repositioned, or
+# participate in the notes-attachment cascade above).
 
 types:
   - data_type: anvaya
@@ -125,5 +184,24 @@ types:
 
   - data_type: notes
     hideable: true
+    hidden_by_default: false
+    reposition: false
+
+  # --- vada (claim/refute) — see the header comment above for why this
+  # uses class: vada instead of the default "gloss". Always visible,
+  # never repositioned, by default — matches the previous hardcoded
+  # behavior. Override the label per-book (not the class/hideable/
+  # reposition fields) via gloss_labels: in that text's meta.yaml.
+  - data_type: claim
+    class: vada
+    label: "पक्षः"
+    hideable: false
+    hidden_by_default: false
+    reposition: false
+
+  - data_type: refute
+    class: vada
+    label: "निरासः"
+    hideable: false
     hidden_by_default: false
     reposition: false
