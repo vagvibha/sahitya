@@ -113,18 +113,13 @@
 
 /* --- vada: claim / refute (dialectical exposition) — its own class, not
    folded into .gloss, only because the underlying content is written as
-   <div class="vada" data-type="claim/refute">, not class="gloss" — but
-   otherwise no different: same uniform zero-margin flow, no box/
-   background/border. Configured in gloss_types.yaml (class: vada)
-   exactly like a gloss data-type; the "<u>label</u> – " prefix is
-   rendered by Python (render_commentary_div), same mechanism as
-   .gloss — that label prefix is what distinguishes claim from refute,
-   not any styling here. --------------------------------------------- */
-.md-typeset .vada {
-  margin: 0;
-  line-height: 1.7;
-}
-
+   <div class="vada" data-type="claim/refute">, not class="gloss". No
+   visual properties of its own at all — its look comes entirely from
+   whichever .sv-style-* class its css_style: (gloss_types.yaml) resolves
+   to, exactly like .gloss below; this rule only carries what every vada
+   div needs regardless of style (the uniform-vertical-rhythm <p> fix,
+   and the "<u>label</u> – " prefix look, which the Python side generates
+   the same way for .gloss too). --------------------------------------- */
 .md-typeset .vada p {
   margin: 0; /* see the "Uniform vertical rhythm" note above .shloka */
 }
@@ -152,41 +147,57 @@
 /* --- gloss: the single class for every commentary/annotation-type
    block (anvaya, padartha, vyutpatti, tika, alankara, bhavartha,
    vyakarana, kosha, udaharana, vritti, notes — see gloss_types.yaml for
-   which data-type= values are recognized and how each is configured;
-   was one class per type before consolidation, see site update notes).
-   This base rule is the shared "understated aside" look — the
-   <u>Label</u> prefix itself is added by the generator, this is just
-   spacing/color. Only data-types that need something genuinely
-   different get their own override below; most don't. ------------------ */
-.md-typeset .gloss {
-  margin: 0 0 0 1rem; /* see the "Uniform vertical rhythm" note above .shloka — vertical is 0, the 1rem left indent stays (that's positioning, part of how this reads as an aside, not spacing-as-separator) */
+   which data-type= values are recognized). Like .vada above, this rule
+   carries NO visual properties of its own — indent, italic, color,
+   font-size all come from whichever .sv-style-* class below applies
+   (see that data-type's css_style: in gloss_types.yaml). Only what every
+   gloss div needs regardless of which style it ends up with. ---------- */
+.md-typeset .gloss p {
+  margin: 0; /* see the "Uniform vertical rhythm" note above .shloka. Base rule, not per-data-type: EVERY gloss data-type gets this same markdown="1"-wrapped <p>. */
+}
+
+/* --- .sv-style-* — the fixed, small set of visual treatments named in
+   gloss_types.yaml's supported_css_styles:. This is the ONLY place any
+   of these four names appears in the whole system — generate_indices.py
+   never hardcodes what "basic_gloss" or "flowing_text" mean, it only
+   validates a css_style: value is one of these names and passes it
+   through as a class. Renaming, retuning, or adding a treatment here
+   never requires touching the Python side at all — only a matching
+   supported_css_styles: entry if it's a genuinely new name. Applies
+   equally to a class="gloss" or class="vada" div — deliberately keyed
+   on the style class alone, not `.gloss.sv-style-...`/`.vada.sv-style-...`,
+   so it's truly one definition regardless of which div class carries it. */
+.sv-style-basic_gloss {
+  margin: 0 0 0 1rem;
   line-height: 1.7;
   color: var(--md-default-fg-color--light);
 }
 
-.md-typeset .gloss p {
-  margin: 0; /* see the "Uniform vertical rhythm" note above .shloka. Base rule, not per-data-type: EVERY gloss data-type (tika, padartha, anvaya, bhavartha, vyakarana, vyutpatti, kosha, alankara, udaharana, vritti, notes, ...) gets this same markdown="1"-wrapped <p>, not just the few that happened to get called out explicitly. */
-}
-
-.md-typeset .gloss[data-type="udaharana"] {
+.sv-style-standout_italic {
+  margin: 0 0 0 1rem;
+  line-height: 1.7;
+  color: var(--md-default-fg-color--light);
   font-style: italic;
-  margin: 0 0 0 1.8rem;
 }
 
-/* vritti (शास्त्र prose commentary directly under a karika) — not muted
-   like the others above, since it's primary reading-flow prose, not an
-   aside (see gloss_types.yaml: reposition: false, stays exactly where
-   authored). */
-.md-typeset .gloss[data-type="vritti"] {
+.sv-style-flowing_text {
   margin: 0;
   line-height: 1.8;
   color: inherit;
 }
 
-/* --- notes and every reposition:true / hidden_by_default:true gloss
-   data-type above are hidden by default and only shown once the toggle
-   button is clicked. .shloka is deliberately never part of this — it
-   should always stay visible.
+.sv-style-fine_print {
+  margin: 0 0 0 1.2rem;
+  line-height: 1.7;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+/* --- notes and every hidden_by_default:true gloss data-type above are
+   hidden by default and only shown once the toggle button is clicked.
+   .shloka is deliberately never part of this — it should always stay
+   visible.
 
    Two independent states, each its own class (set at build time by
    generate_indices.py from gloss_types.yaml's hideable/hidden_by_default
@@ -218,16 +229,6 @@ body.sv-force-show .md-typeset .sv-toggleable {
 
 body.sv-force-hide .md-typeset .sv-toggleable {
   display: none;
-}
-/* notes are annotations ATTACHED to whatever gloss/shloka came right
-   before them, not independent standalone asides. Same uniform
-   zero-vertical-margin flow as everything else (see the "Uniform
-   vertical rhythm" note above .shloka) — the smaller font-size/italic
-   plus the left indent are what mark this as an aside, not spacing. */
-.md-typeset .gloss[data-type="notes"] {
-  font-size: 0.75rem;
-  font-style: italic;
-  margin: 0 0 0 1.2rem;
 }
 
 /* --- floating notes toggle button --------------------------------------- */

@@ -7,6 +7,15 @@
 # a data-type can repeat as many times as an author wants, in whatever
 # order makes sense for that content.
 #
+# This file is the SITE-WIDE default set — every book gets everything
+# below automatically. A book that wants gloss types of its own — either
+# brand new ones, or a full override of one of these — adds a
+# `gloss_types:` list (same schema as `types:` below) to that book's own
+# meta.yaml; see Text.__init__ in generate_indices.py. Only add a type
+# here, to this file, if it's genuinely meant to be available to every
+# book — a one-off for a single book belongs in that book's own
+# meta.yaml instead, not here.
+#
 # Almost all of these share the div class "gloss": what varies between
 # tika/padartha/vritti/... is purely which data-type="..." value is used
 # and this file's config for it, not a different class name. "commentary"
@@ -18,20 +27,49 @@
 # class ("vada" — see `class:` below) — it's PRIMARY argumentative
 # content in a शास्त्र-वाद text, not secondary material about the text the
 # way a gloss is. But it's configured through this same file, the same
-# as everything else — label/label_from_attr, hideable, hidden_by_default
-# all apply to it identically.
+# as everything else — label/label_from_attr, hideable, hidden_by_default,
+# css_style all apply to it identically.
 #
 # Structural content is NOT configured here — it's handled directly by
 # the script and always stays exactly as authored:
 #   - shloka (data-type="karika"/"nataka"/"dialog"/...) — the root verse
 #   - dialog-block — plain prose narration/dialogue in a kavya-play
 #   - action — an inline stage-direction span (not a block, no label/
-#     hide concept applies)
+#     hide/style concept applies)
 #
+# --- style is fully decoupled from meaning here — see css_style below.
+# The code has NO idea what "vritti" or "notes" are supposed to look
+# like; it only ever checks that a css_style: value is one of
+# supported_css_styles: (below) and passes that string straight through
+# as a CSS class (docs/stylesheets/custom.css owns every actual visual
+# property — indent, italic, color, font-size — for each one). Adding a
+# brand new gloss type that should look exactly like an existing one is
+# just pointing css_style: at the same name; it never requires touching
+# custom.css or generate_indices.py at all.
+#
+# supported_css_styles: is the one truly fixed, code-independent part of
+# this file — the names below are the ONLY valid css_style: values,
+# because each one corresponds to an actual .sv-style-<name> rule in
+# custom.css. Adding a genuinely new visual treatment (not just reusing
+# one of these) means adding both a name here AND a matching CSS rule —
+# that's the one case that still needs a code change, and it's a change
+# to the CSS file, not to any logic in generate_indices.py.
+supported_css_styles:
+  - basic_gloss      # indented aside, muted color, normal weight/style — the default "secondary material" look
+  - standout_italic   # basic_gloss, but italic — for content that should read as marked/distinguished prose
+  - flowing_text      # no indent, full (not muted) color — primary reading-flow content, not an aside
+  - fine_print        # smaller, italic, indented — a quiet, easy-to-skim annotation
+
 # Fields per entry:
 #   data_type           - the data-type="..." value to match
 #   class               - which div class this data-type is written under:
 #                         "gloss" (default, omit this field) or "vada".
+#   css_style           - which of supported_css_styles: (above) this
+#                         renders as. Required — an entry with no
+#                         css_style, or one that names something not in
+#                         supported_css_styles:, still works (labeled,
+#                         hideable, etc. all still apply), it just won't
+#                         have any distinguishing visual treatment.
 #   label               - fixed display label (rendered as "<u>label</u> – content").
 #                         Can be overridden per-book (not per-chapter) via
 #                         `gloss_labels:` in that text's meta.yaml, e.g.:
@@ -87,77 +125,92 @@
 #                         instance with its own toggle-hide=, which
 #                         overrides this entirely).
 #
-# A commentary div whose data-type isn't listed here at all can still be
-# made a toggle-group member per-instance, in place, by adding
-# toggle-hide="true" directly on that one div — no config entry required
-# for one-off cases (though it won't get a label).
+# A commentary div whose data-type isn't listed here (or in a book's own
+# gloss_types:) at all can still be made a toggle-group member
+# per-instance, in place, by adding toggle-hide="true" directly on that
+# one div — no config entry required for one-off cases (though it won't
+# get a label or any css_style).
 
 types:
   - data_type: anvaya
+    css_style: basic_gloss
     label: "अन्वयः"
     hideable: true
     hidden_by_default: false
 
   - data_type: padartha
+    css_style: basic_gloss
     label: "पदार्थः"
     hideable: true
     hidden_by_default: false
 
   - data_type: vyutpatti
+    css_style: basic_gloss
     label: "व्युत्पत्तिः"
     hideable: true
     hidden_by_default: false
 
   - data_type: tika
+    css_style: basic_gloss
     label_from_attr: data-name
     hideable: true
     hidden_by_default: false
 
   - data_type: alankara
+    css_style: basic_gloss
     label: "अलङ्कारः"
     hideable: true
     hidden_by_default: false
 
   - data_type: bhavartha
+    css_style: basic_gloss
     label: "भावार्थः"
     hideable: true
     hidden_by_default: false
 
   - data_type: vyakarana
+    css_style: basic_gloss
     label: "व्याकरणः"
     hideable: true
     hidden_by_default: false
 
   - data_type: kosha
+    css_style: basic_gloss
     label: "कोशः"
     hideable: true
     hidden_by_default: false
 
   - data_type: udaharana
+    css_style: standout_italic
     hideable: true
     hidden_by_default: false
 
   - data_type: vritti
+    css_style: flowing_text
     hideable: false
     hidden_by_default: false
 
   - data_type: notes
+    css_style: fine_print
     hideable: true
     hidden_by_default: true
 
   # --- vada (claim/refute) — see the header comment above for why this
-  # uses class: vada instead of the default "gloss". Always visible by
-  # default — matches the previous hardcoded behavior. Override the
-  # label per-book (not the class/hideable fields) via gloss_labels: in
-  # that text's meta.yaml.
+  # uses class: vada instead of the default "gloss". flowing_text since
+  # this is primary argumentative content, not a muted aside — matches
+  # the previous hardcoded (pre-css_style) vada look. Override the label
+  # per-book (not the class/hideable/css_style fields) via gloss_labels:
+  # in that text's meta.yaml.
   - data_type: claim
     class: vada
+    css_style: flowing_text
     label: "पक्षः"
     hideable: false
     hidden_by_default: false
 
   - data_type: refute
     class: vada
+    css_style: flowing_text
     label: "निरासः"
     hideable: false
     hidden_by_default: false

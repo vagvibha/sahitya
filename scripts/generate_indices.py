@@ -447,16 +447,48 @@ class Text:
         self.author = str(meta.get("author", "")).strip()
         self.default_shloka_type = str(meta.get("default_shloka_type", "")).strip()
         self.default_class = str(meta.get("default_class", "")).strip()
-        # per-book (never per-chapter) override of a gloss/vada data-type's
-        # fixed label — e.g. some books call claim/refute something other
-        # than the site-wide पक्षः/निरासः default. Keys are data_type
-        # values from gloss_types.yaml; only ever replaces a fixed
-        # `label`, never a `label_from_attr`. See gloss_types.yaml.
+        # This book's own gloss data-types — either brand new ones scoped
+        # only to this book, or full overrides of a site-wide
+        # gloss_types.yaml entry (same schema as that file's `types:`
+        # list; a book's own entry always wins entirely over the
+        # site-wide one on a data_type collision, not a field-by-field
+        # merge). To share a custom type across MULTIPLE books instead of
+        # repeating it in each one's meta.yaml, add it to the site-wide
+        # gloss_types.yaml directly — that's already global to every book.
+        raw_custom_types = meta.get("gloss_types") or []
+        book_types: dict[str, dict] = {}
+        if isinstance(raw_custom_types, list):
+            for entry in raw_custom_types:
+                if not isinstance(entry, dict):
+                    continue
+                data_type = str(entry.get("data_type", "")).strip().lower()
+                if not data_type:
+                    continue
+                validate_gloss_type_entry(entry, data_type, SUPPORTED_CSS_STYLES, f"{directory}/meta.yaml")
+                book_types[data_type] = entry
+        # this book's fully-resolved data_type -> config lookup: every
+        # site-wide default, with this book's own additions/overrides
+        # layered on top. Everything downstream (process_content_sections,
+        # extract_shlokas' default_shloka_type resolution, ...) reads
+        # THIS, never the module-level GLOSS_TYPES_BY_KEY directly.
+        self.effective_gloss_types: dict[str, dict] = {**GLOSS_TYPES_BY_KEY, **book_types}
+        # gloss_labels: is the lighter-weight sibling of gloss_types:
+        # above — only ever overrides the `label` field of an otherwise
+        # unchanged (site-wide or this book's own) type, e.g. some books
+        # call claim/refute something other than the site-wide पक्षः/
+        # निरासः default. Applied AFTER gloss_types: above, so it always
+        # wins even over this book's own custom entry's label.
         raw_labels = meta.get("gloss_labels") or {}
-        self.gloss_labels: dict[str, str] = (
-            {str(k).strip().lower(): str(v).strip() for k, v in raw_labels.items()}
-            if isinstance(raw_labels, dict) else {}
-        )
+        if isinstance(raw_labels, dict):
+            for k, v in raw_labels.items():
+                key = str(k).strip().lower()
+                if key not in self.effective_gloss_types:
+                    warn(f"{directory}/meta.yaml: gloss_labels: references unknown gloss type '{key}' "
+                         f"(not in {GLOSS_TYPES_CONFIG_PATH.name} or this book's own gloss_types:)")
+                    continue
+                # copy-on-write: never mutate a shared dict (GLOSS_TYPES_BY_KEY's
+                # values are shared across every Text that doesn't override them)
+                self.effective_gloss_types[key] = {**self.effective_gloss_types[key], "label": str(v).strip()}
         # whether a shloka's pada line breaks get put back as explicit
         # <br /> tags (see extract_shlokas / docs/stylesheets/custom.css
         # for why .shloka can't just rely on CSS white-space for this
@@ -986,53 +1018,81 @@ GLOSS_CLASS = "gloss"  # default div class for a gloss_types.yaml entry when it 
 #                       to reveal it would be pointless.
 TOGGLEABLE_CLASS = "sv-toggleable"
 HIDDEN_INITIAL_CLASS = "sv-hidden-default"
+CSS_STYLE_CLASS_PREFIX = "sv-style-"
 
 
-def load_gloss_types_config() -> dict:
+def load_gloss_types_yaml() -> tuple[dict, set[str]]:
+    """Loads the site-wide defaults from gloss_types.yaml: the `types:`
+    list (keyed by data_type) and the `supported_css_styles:` allow-list
+    (see that file's header for what this is — a fixed, code-independent
+    set of visual treatments defined in custom.css; this function and
+    everything downstream only ever validates a css_style value against
+    this list and passes the string straight through as a CSS class
+    suffix — it never needs to know what any of the names actually look
+    like)."""
     if not GLOSS_TYPES_CONFIG_PATH.exists():
-        warn(f"{GLOSS_TYPES_CONFIG_PATH} not found — no gloss data-types will be labeled/hideable")
-        return {}
+        warn(f"{GLOSS_TYPES_CONFIG_PATH} not found — no gloss data-types will be labeled/hideable/styled")
+        return {}, set()
     data = yaml.safe_load(GLOSS_TYPES_CONFIG_PATH.read_text(encoding="utf-8")) or {}
+    supported_styles = {str(s).strip() for s in data.get("supported_css_styles", []) if str(s).strip()}
     by_type: dict[str, dict] = {}
     for entry in data.get("types", []):
         data_type = str(entry.get("data_type", "")).strip().lower()
         if data_type:
+            validate_gloss_type_entry(entry, data_type, supported_styles, GLOSS_TYPES_CONFIG_PATH)
             by_type[data_type] = entry
-    return by_type
+    return by_type, supported_styles
 
 
-GLOSS_TYPES_BY_KEY = load_gloss_types_config()
+def validate_gloss_type_entry(entry: dict, data_type: str, supported_styles: set[str], source: object) -> None:
+    """One-time validation at load/merge time (site-wide gloss_types.yaml
+    AND any book's own meta.yaml gloss_types: list — see
+    Text.__init__) rather than at every point of use, so a bad entry
+    warns exactly once regardless of how many divs use that data_type."""
+    css_style = str(entry.get("css_style", "")).strip()
+    if not css_style:
+        warn(f"{source}: gloss type '{data_type}' has no css_style: — it'll render with no distinguishing "
+             f"visual treatment at all, just the shared base look")
+    elif css_style not in supported_styles:
+        warn(f"{source}: gloss type '{data_type}' has css_style: '{css_style}', which isn't declared in "
+             f"{GLOSS_TYPES_CONFIG_PATH.name}'s supported_css_styles: (expected one of {sorted(supported_styles)}) "
+             f"— it'll render with no distinguishing visual treatment at all")
 
-# Every div class that gloss_types.yaml routes some data-type through —
-# "gloss" is always included (the default/implicit class), plus whatever
-# other class: values (e.g. "vada") appear in the config. A <div> whose
-# base class isn't in this set is left alone as structural content.
-RECOGNIZED_DIV_CLASSES = {GLOSS_CLASS} | {
-    str(cfg.get("class", GLOSS_CLASS)).strip().lower() for cfg in GLOSS_TYPES_BY_KEY.values()
-}
+
+GLOSS_TYPES_BY_KEY, SUPPORTED_CSS_STYLES = load_gloss_types_yaml()
 
 TOGGLE_HIDE_RE = re.compile(r'\btoggle-hide\s*=\s*"(true|false)"', re.IGNORECASE)
 
 
-def commentary_class(type_key: str) -> str:
-    cfg = GLOSS_TYPES_BY_KEY.get(type_key)
-    return str(cfg.get("class", GLOSS_CLASS)).strip().lower() if cfg else GLOSS_CLASS
+def recognized_div_classes(gloss_types: dict[str, dict]) -> set[str]:
+    """Every div class `gloss_types` routes some data-type through —
+    "gloss" is always included (the default/implicit class), plus
+    whatever other class: values (e.g. "vada") appear in it. A <div>
+    whose base class isn't in this set is left alone as structural
+    content."""
+    return {GLOSS_CLASS} | {str(cfg.get("class", GLOSS_CLASS)).strip().lower() for cfg in gloss_types.values()}
 
 
-def commentary_label(type_key: str, attrs: str, label_overrides: dict[str, str] | None = None) -> str:
-    cfg = GLOSS_TYPES_BY_KEY.get(type_key)
+def commentary_css_style_class(type_key: str, gloss_types: dict[str, dict]) -> str:
+    """The CSS class that actually gives this div its visual look (see
+    gloss_types.yaml's supported_css_styles: and custom.css's
+    .sv-style-* rules) — "" if this type has no valid css_style (already
+    warned about once, at load time; see validate_gloss_type_entry)."""
+    cfg = gloss_types.get(type_key)
+    css_style = str(cfg.get("css_style", "")).strip() if cfg else ""
+    return f"{CSS_STYLE_CLASS_PREFIX}{css_style}" if css_style in SUPPORTED_CSS_STYLES else ""
+
+
+def commentary_label(type_key: str, attrs: str, gloss_types: dict[str, dict]) -> str:
+    cfg = gloss_types.get(type_key)
     if not cfg:
         return ""
-    # a per-book gloss_labels: override (meta.yaml) only ever replaces a
-    # fixed `label`, never `label_from_attr` — that's already per-instance.
-    if label_overrides and type_key in label_overrides:
-        return str(label_overrides[type_key]).strip()
     if cfg.get("label_from_attr"):
         return parse_attrs(attrs).get(cfg["label_from_attr"], "").strip()
     return str(cfg.get("label", "") or "").strip()
 
 
-def commentary_toggleable(type_key: str, attrs: str) -> bool:
+def commentary_toggleable(type_key: str, attrs: str, gloss_types: dict[str, dict]) -> bool:
     """Is this instance a member of the global Show/Hide toggle group at
     all? An explicit instance-level toggle-hide="true"/"false" always
     wins — "true" opts this one instance IN (regardless of its type's own
@@ -1041,11 +1101,11 @@ def commentary_toggleable(type_key: str, attrs: str) -> bool:
     m = TOGGLE_HIDE_RE.search(attrs)
     if m:
         return m.group(1).lower() == "true"
-    cfg = GLOSS_TYPES_BY_KEY.get(type_key)
+    cfg = gloss_types.get(type_key)
     return bool(cfg and cfg.get("hideable", True))
 
 
-def commentary_hidden_initial(type_key: str, attrs: str) -> bool:
+def commentary_hidden_initial(type_key: str, attrs: str, gloss_types: dict[str, dict]) -> bool:
     """Does this instance start hidden on page load? Only meaningful for
     a div that's actually toggleable (see commentary_toggleable) — this
     function doesn't check that itself, callers gate on it. An instance's
@@ -1055,17 +1115,18 @@ def commentary_hidden_initial(type_key: str, attrs: str) -> bool:
     m = TOGGLE_HIDE_RE.search(attrs)
     if m:
         return m.group(1).lower() == "true"
-    cfg = GLOSS_TYPES_BY_KEY.get(type_key)
+    cfg = gloss_types.get(type_key)
     return bool(cfg and cfg.get("hidden_by_default"))
 
 
-def render_commentary_div(
-    cls_raw: str, type_key: str, attrs: str, content: str, label_overrides: dict[str, str] | None = None,
-) -> str:
-    label = commentary_label(type_key, attrs, label_overrides)
+def render_commentary_div(cls_raw: str, type_key: str, attrs: str, content: str, gloss_types: dict[str, dict]) -> str:
+    label = commentary_label(type_key, attrs, gloss_types)
     classes = cls_raw.strip()
-    toggleable = commentary_toggleable(type_key, attrs)
-    hidden_initial = toggleable and commentary_hidden_initial(type_key, attrs)
+    style_class = commentary_css_style_class(type_key, gloss_types)
+    if style_class:
+        classes = f"{classes} {style_class}"
+    toggleable = commentary_toggleable(type_key, attrs, gloss_types)
+    hidden_initial = toggleable and commentary_hidden_initial(type_key, attrs, gloss_types)
     if toggleable:
         classes = f"{classes} {TOGGLEABLE_CLASS}"
         if hidden_initial:
@@ -1074,12 +1135,14 @@ def render_commentary_div(
     rendered = f"<u>{label}</u> – {inner}" if label else inner
     # data-type is re-emitted (data-name and any other original attribute
     # is intentionally dropped — it was only ever needed to resolve the
-    # label above, at build time; CSS keys off data-type, not those).
+    # label above, at build time; CSS keys off the sv-style-* class
+    # above, not data-type, so data-type here is purely informational/
+    # for content authors reading the generated markdown, not load-bearing).
     type_attr = f' data-type="{type_key}"' if type_key else ""
     return f'<div class="{classes}"{type_attr}>\n\n{rendered}\n\n</div>'
 
 
-def resolve_default_class(default_class: str) -> tuple[str, str]:
+def resolve_default_class(default_class: str, gloss_types: dict[str, dict]) -> tuple[str, str]:
     """`default_class` in meta.yaml names either a gloss/vada data-type
     (e.g. "vritti") or a literal structural class (e.g. "dialog-block") —
     returns (div_class_to_synthesize, type_key), so wrap_gaps can build
@@ -1088,18 +1151,24 @@ def resolve_default_class(default_class: str) -> tuple[str, str]:
     value = default_class.strip().lower()
     if not value:
         return "", ""
-    if value in GLOSS_TYPES_BY_KEY:
+    if value in gloss_types:
         return GLOSS_CLASS, value
     return value, ""
 
 
 def process_content_sections(
-    body: str, default_class: str = "", source_for_warning: object = "",
-    label_overrides: dict[str, str] | None = None,
+    body: str, default_class: str, gloss_types: dict[str, dict], source_for_warning: object = "",
 ) -> str:
     """Returns body with every recognized div labeled/marked hideable in
     place — order in the output always matches order in the source; there
     is no reordering/repositioning of any kind.
+
+    `gloss_types` is this chapter's fully-resolved data_type -> config
+    lookup (site-wide gloss_types.yaml, overlaid with this book's own
+    meta.yaml gloss_types:/gloss_labels: — see Text.__init__ for how it's
+    built). Every data-type/hideable/label/css_style decision below goes
+    through this dict, never a module-level global — that's what makes a
+    book able to add or override gloss types that only apply to itself.
 
     `default_class`, when set, makes THAT the chapter-wide default for
     content: any run of text that isn't inside some other `<div>` (at any
@@ -1124,12 +1193,13 @@ def process_content_sections(
     """
     tree = parse_divs(body)
     splices: list[tuple[int, int, str]] = []
-    wrap_div_class, wrap_type_key = resolve_default_class(default_class)
+    wrap_div_class, wrap_type_key = resolve_default_class(default_class, gloss_types)
+    div_classes = recognized_div_classes(gloss_types)
 
     def handle_matched(
         cls_raw: str, type_key: str, attrs: str, content: str, start: int, end: int, pad: bool = False,
     ) -> None:
-        rendered = render_commentary_div(cls_raw, type_key, attrs, content, label_overrides)
+        rendered = render_commentary_div(cls_raw, type_key, attrs, content, gloss_types)
         if pad:
             # a gap-wrapped synthetic div (see wrap_gaps) swallows all
             # of the original whitespace between it and its neighbors
@@ -1172,16 +1242,17 @@ def process_content_sections(
                 # here; it still correctly bounds the gaps around it,
                 # since it's one of `nodes`.
                 continue
-            is_glosslike = node.base_cls in RECOGNIZED_DIV_CLASSES
+            is_glosslike = node.base_cls in div_classes
             type_key = parse_attrs(node.attrs_str).get("data-type", "").strip().lower() if is_glosslike else ""
             matched = is_glosslike or bool(TOGGLE_HIDE_RE.search(node.attrs_str))
             if not matched:
                 visit(node.children, node.tag_end, node.inner_end)  # structural divs (dialog-block, ...) — look inside, but leave as-is
                 continue
-            if is_glosslike and type_key and type_key not in GLOSS_TYPES_BY_KEY:
+            if is_glosslike and type_key and type_key not in gloss_types:
                 warn(f"{source_for_warning}: <div class=\"{node.base_cls}\" data-type=\"{type_key}\"> — "
-                     f"'{type_key}' isn't declared in {GLOSS_TYPES_CONFIG_PATH.name} (no label/hide "
-                     f"will apply to it, only toggle-hide= if set explicitly)")
+                     f"'{type_key}' isn't declared in {GLOSS_TYPES_CONFIG_PATH.name} or this book's own "
+                     f"meta.yaml gloss_types: (no label/hide/style will apply to it, only toggle-hide= if "
+                     f"set explicitly)")
             content = body[node.tag_end:node.inner_end]
             handle_matched(node.cls, type_key, node.attrs_str, content, node.start, node.end)
             # a matched gloss/vada div is opaque — don't recurse into it
@@ -1458,7 +1529,7 @@ def render_chapter(
                 seen_topics.append(t)
             topics[t].references.append(Reference(t, chapter, anchor, label))
         body = process_content_sections(
-            body, chapter.default_class, source_for_warning=section, label_overrides=chapter.text.gloss_labels
+            body, chapter.default_class, chapter.text.effective_gloss_types, source_for_warning=section,
         )
         fm_chandas = str(fm.get("chandas", "")).strip()
         body, shlokas, shloka_counter = extract_shlokas(
