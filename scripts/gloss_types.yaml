@@ -204,13 +204,11 @@ types:
   - data_type: claim
     class: vada
     css_style: flowing_text
-    label: "पक्षः"
     hideable: false
     hidden_by_default: false
 
   - data_type: refute
     class: vada
     css_style: flowing_text
-    label: "निरासः"
     hideable: false
     hidden_by_default: false
