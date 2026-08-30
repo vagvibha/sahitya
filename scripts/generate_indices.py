@@ -113,10 +113,6 @@ GLOSS_TYPES_CONFIG_PATH = SCRIPTS_DIR / "gloss_types.yaml"
 
 META_FILENAMES = ("meta.yaml", "meta.yml")
 
-KAVYA_PROSE_TYPES = {"kavya-play", "kavya-prose"}
-KAVYA_VERSE_TYPES = {"kavya-verse"}
-SHASTRA_TEXT_TYPES = {"shastra-karika", "shastra-vada"}
-
 WARNINGS: list[str] = []
 
 
@@ -397,18 +393,6 @@ def parse_divs(text: str) -> list[DivNode]:
     return root
 
 
-def walk_divs(nodes: list[DivNode]):
-    """Pre-order iterator over every DivNode in the forest, recursing into
-    every node's children (callers that want to STOP descending into a
-    particular node's children — e.g. once it's been matched and handled
-    — should not use this; see the hand-written recursive visits in
-    extract_shlokas / process_content_sections instead, which need that
-    control)."""
-    for node in nodes:
-        yield node
-        yield from walk_divs(node.children)
-
-
 def apply_splices(text: str, splices: list[tuple[int, int, str]]) -> str:
     """Apply a list of non-overlapping (start, end, replacement) spans to
     `text` in one pass. (end == start) means a pure insertion at that
@@ -461,7 +445,6 @@ class Text:
         self.section = section
         self.title = str(meta.get("title", slug)).strip()
         self.author = str(meta.get("author", "")).strip()
-        self.type = str(meta.get("type", "")).strip()
         self.default_shloka_type = str(meta.get("default_shloka_type", "")).strip()
         self.default_class = str(meta.get("default_class", "")).strip()
         # per-book (never per-chapter) override of a gloss/vada data-type's
@@ -976,13 +959,12 @@ def extract_shlokas(
 # scripts/gloss_types.yaml (see that file for the full convention). Most
 # of these are <div class="gloss" data-type="...">, but a data-type entry
 # can instead declare class: vada (claim/refute) — see gloss_types.yaml.
-# Sections declared with reposition: true are extracted from wherever
-# they were written and reinserted, in the config file's order, right
-# after the section's shloka (or appended at the end if there's no
-# shloka). Everything else is labeled/marked hideable in place, never
-# moved. Also tree-based, for the same reason as extract_shlokas: a
-# commentary div can legitimately sit inside a structural wrapper (e.g.
-# dialog-block), and a flat regex would mispair it.
+# Every one of these is labeled/marked hideable in place, in exactly the
+# order it was authored — content authors are responsible for the order
+# they write things in; nothing here ever moves or reorders a div. Also
+# tree-based, for the same reason as extract_shlokas: a commentary div
+# can legitimately sit inside a structural wrapper (e.g. dialog-block),
+# and a flat regex would mispair it.
 
 GLOSS_CLASS = "gloss"  # default div class for a gloss_types.yaml entry when it doesn't set class:
 
@@ -1020,14 +1002,11 @@ def load_gloss_types_config() -> dict:
 
 
 GLOSS_TYPES_BY_KEY = load_gloss_types_config()
-REPOSITION_ORDER = [t for t, cfg in GLOSS_TYPES_BY_KEY.items() if cfg.get("reposition")]
 
 # Every div class that gloss_types.yaml routes some data-type through —
 # "gloss" is always included (the default/implicit class), plus whatever
 # other class: values (e.g. "vada") appear in the config. A <div> whose
-# base class isn't in this set is left alone as structural content (and,
-# per gloss_types.yaml, also breaks notes-attachment for whatever follows
-# it — see the "notes" cascade in process_content_sections below).
+# base class isn't in this set is left alone as structural content.
 RECOGNIZED_DIV_CLASSES = {GLOSS_CLASS} | {
     str(cfg.get("class", GLOSS_CLASS)).strip().lower() for cfg in GLOSS_TYPES_BY_KEY.values()
 }
@@ -1053,52 +1032,40 @@ def commentary_label(type_key: str, attrs: str, label_overrides: dict[str, str] 
     return str(cfg.get("label", "") or "").strip()
 
 
-def commentary_toggleable(type_key: str, attrs: str, force_hidden: bool = False) -> bool:
+def commentary_toggleable(type_key: str, attrs: str) -> bool:
     """Is this instance a member of the global Show/Hide toggle group at
     all? An explicit instance-level toggle-hide="true"/"false" always
     wins — "true" opts this one instance IN (regardless of its type's own
     hideable:), "false" opts it OUT entirely (always visible, completely
-    ignoring the button — see gloss_types.yaml). `force_hidden` is the
-    notes-attachment cascade (see process_content_sections): a "notes"
-    div forced hidden by a preceding hidden element must itself become
-    toggleable, or it could never be revealed at all."""
+    ignoring the button — see gloss_types.yaml)."""
     m = TOGGLE_HIDE_RE.search(attrs)
     if m:
         return m.group(1).lower() == "true"
-    if force_hidden:
-        return True
     cfg = GLOSS_TYPES_BY_KEY.get(type_key)
     return bool(cfg and cfg.get("hideable", True))
 
 
-def commentary_hidden_initial(type_key: str, attrs: str, force_hidden: bool = False) -> bool:
+def commentary_hidden_initial(type_key: str, attrs: str) -> bool:
     """Does this instance start hidden on page load? Only meaningful for
     a div that's actually toggleable (see commentary_toggleable) — this
     function doesn't check that itself, callers gate on it. An instance's
     own toggle-hide="true"/"false" always wins (and self-selects "start
-    hidden" / "start visible" respectively); otherwise a "notes" cascade
-    force_hidden wins next; otherwise falls back to the type's own
-    hidden_by_default in gloss_types.yaml."""
+    hidden" / "start visible" respectively); otherwise falls back to the
+    type's own hidden_by_default in gloss_types.yaml."""
     m = TOGGLE_HIDE_RE.search(attrs)
     if m:
         return m.group(1).lower() == "true"
-    if force_hidden:
-        return True
     cfg = GLOSS_TYPES_BY_KEY.get(type_key)
     return bool(cfg and cfg.get("hidden_by_default"))
 
 
 def render_commentary_div(
-    cls_raw: str, type_key: str, attrs: str, content: str,
-    label_overrides: dict[str, str] | None = None, force_hidden: bool = False,
-) -> tuple[str, bool]:
-    """Returns (rendered_html, hidden_initial) — `hidden_initial` is
-    exposed so callers can track it for the notes-attachment cascade (see
-    process_content_sections)."""
+    cls_raw: str, type_key: str, attrs: str, content: str, label_overrides: dict[str, str] | None = None,
+) -> str:
     label = commentary_label(type_key, attrs, label_overrides)
     classes = cls_raw.strip()
-    toggleable = commentary_toggleable(type_key, attrs, force_hidden)
-    hidden_initial = toggleable and commentary_hidden_initial(type_key, attrs, force_hidden)
+    toggleable = commentary_toggleable(type_key, attrs)
+    hidden_initial = toggleable and commentary_hidden_initial(type_key, attrs)
     if toggleable:
         classes = f"{classes} {TOGGLEABLE_CLASS}"
         if hidden_initial:
@@ -1109,7 +1076,7 @@ def render_commentary_div(
     # is intentionally dropped — it was only ever needed to resolve the
     # label above, at build time; CSS keys off data-type, not those).
     type_attr = f' data-type="{type_key}"' if type_key else ""
-    return f'<div class="{classes}"{type_attr}>\n\n{rendered}\n\n</div>', hidden_initial
+    return f'<div class="{classes}"{type_attr}>\n\n{rendered}\n\n</div>'
 
 
 def resolve_default_class(default_class: str) -> tuple[str, str]:
@@ -1129,16 +1096,18 @@ def resolve_default_class(default_class: str) -> tuple[str, str]:
 def process_content_sections(
     body: str, default_class: str = "", source_for_warning: object = "",
     label_overrides: dict[str, str] | None = None,
-) -> tuple[str, str]:
-    """Returns (body_with_repositioned_sections_removed, reordered_html).
+) -> str:
+    """Returns body with every recognized div labeled/marked hideable in
+    place — order in the output always matches order in the source; there
+    is no reordering/repositioning of any kind.
 
     `default_class`, when set, makes THAT the chapter-wide default for
     content: any run of text that isn't inside some other `<div>` (at any
     nesting level) is treated exactly as if the author had written that
-    div themselves — same hidden/reposition/label handling as an explicit
-    div of that type, with no difference in outcome. This is what makes
-    e.g. `default_class: vritti` mean "the whole chapter is वृत्ति prose
-    by default; only explicitly-tagged blocks (shloka/karika, other gloss
+    div themselves — same hidden/label handling as an explicit div of
+    that type, with no difference in outcome. This is what makes e.g.
+    `default_class: vritti` mean "the whole chapter is वृत्ति prose by
+    default; only explicitly-tagged blocks (shloka/karika, other gloss
     data-types, ...) are anything else" — matching how these texts
     actually alternate root-verse and prose, without needing a
     `<div class="gloss" data-type="vritti">` wrapped around every single
@@ -1155,28 +1124,12 @@ def process_content_sections(
     """
     tree = parse_divs(body)
     splices: list[tuple[int, int, str]] = []
-    by_type: dict[str, list[tuple[str, str]]] = {}
     wrap_div_class, wrap_type_key = resolve_default_class(default_class)
 
     def handle_matched(
-        cls_raw: str, type_key: str, attrs: str, content: str, start: int, end: int,
-        pad: bool = False, force_hidden: bool = False,
-    ) -> bool:
-        """Returns whether this div started hidden — used by visit() to
-        feed the notes-attachment cascade (see gloss_types.yaml)."""
-        cfg = GLOSS_TYPES_BY_KEY.get(type_key)
-        if cfg and cfg.get("reposition"):
-            by_type.setdefault(type_key, []).append((attrs, content))
-            splices.append((start, end, ""))
-            # still resolve initial hidden-ness for cascade-tracking
-            # purposes even though this div is rendered later, at its new
-            # position, by the REPOSITION_ORDER pass below (which calls
-            # commentary_hidden_initial identically) — reposition:true
-            # types are never "notes" themselves, so this never affects
-            # their own rendering, only what a sibling "notes" div sees.
-            toggleable = commentary_toggleable(type_key, attrs, force_hidden)
-            return toggleable and commentary_hidden_initial(type_key, attrs, force_hidden)
-        rendered, hidden = render_commentary_div(cls_raw, type_key, attrs, content, label_overrides, force_hidden)
+        cls_raw: str, type_key: str, attrs: str, content: str, start: int, end: int, pad: bool = False,
+    ) -> None:
+        rendered = render_commentary_div(cls_raw, type_key, attrs, content, label_overrides)
         if pad:
             # a gap-wrapped synthetic div (see wrap_gaps) swallows all
             # of the original whitespace between it and its neighbors
@@ -1187,15 +1140,13 @@ def process_content_sections(
             # block-level HTML.
             rendered = f"\n\n{rendered}\n\n"
         splices.append((start, end, rendered))
-        return hidden
 
     def wrap_gaps(start: int, end: int, nodes: list[DivNode]) -> None:
         """Any non-whitespace text directly inside [start, end) that
         ISN'T covered by one of `nodes` (this level's div children,
         already known to be non-overlapping and in order) gets treated as
         a synthetic default_class div, run through the exact same
-        handling as a real one (including reposition, if default_class
-        happens to name a reposition: true gloss data-type)."""
+        handling as a real one."""
         if not wrap_div_class:
             return
         cursor = start
@@ -1208,7 +1159,6 @@ def process_content_sections(
 
     def visit(nodes: list[DivNode], parent_start: int, parent_end: int):
         wrap_gaps(parent_start, parent_end, nodes)
-        last_hidden = False  # notes-attachment cascade — see gloss_types.yaml
         for node in nodes:
             if node.base_cls == "shloka":
                 # shloka is its own leaf unit, handled entirely and
@@ -1220,59 +1170,24 @@ def process_content_sections(
                 # own — every character of it would otherwise look like
                 # "naked" text to wrap_gaps). Left completely untouched
                 # here; it still correctly bounds the gaps around it,
-                # since it's one of `nodes`. A shloka is never hidden, so
-                # it always resets the notes-attachment chain.
-                last_hidden = False
+                # since it's one of `nodes`.
                 continue
             is_glosslike = node.base_cls in RECOGNIZED_DIV_CLASSES
             type_key = parse_attrs(node.attrs_str).get("data-type", "").strip().lower() if is_glosslike else ""
             matched = is_glosslike or bool(TOGGLE_HIDE_RE.search(node.attrs_str))
             if not matched:
                 visit(node.children, node.tag_end, node.inner_end)  # structural divs (dialog-block, ...) — look inside, but leave as-is
-                # an unrecognized structural div — including a bare
-                # <div></div> with no class at all — breaks the
-                # notes-attachment chain (see gloss_types.yaml: this is
-                # the "dummy div" convention for detaching a note from
-                # whatever precedes it).
-                last_hidden = False
                 continue
             if is_glosslike and type_key and type_key not in GLOSS_TYPES_BY_KEY:
                 warn(f"{source_for_warning}: <div class=\"{node.base_cls}\" data-type=\"{type_key}\"> — "
-                     f"'{type_key}' isn't declared in {GLOSS_TYPES_CONFIG_PATH.name} (no label/hide/reposition "
+                     f"'{type_key}' isn't declared in {GLOSS_TYPES_CONFIG_PATH.name} (no label/hide "
                      f"will apply to it, only toggle-hide= if set explicitly)")
             content = body[node.tag_end:node.inner_end]
-            force_hidden = (
-                type_key == "notes" and last_hidden and not TOGGLE_HIDE_RE.search(node.attrs_str)
-            )
-            last_hidden = handle_matched(
-                node.cls, type_key, node.attrs_str, content, node.start, node.end, force_hidden=force_hidden
-            )
+            handle_matched(node.cls, type_key, node.attrs_str, content, node.start, node.end)
             # a matched gloss/vada div is opaque — don't recurse into it
 
     visit(tree, 0, len(body))
-    body = apply_splices(body, splices)
-    reordered_html = "\n\n".join(
-        render_commentary_div(commentary_class(type_key), type_key, attrs, content, label_overrides)[0]
-        for type_key in REPOSITION_ORDER
-        for attrs, content in by_type.get(type_key, [])
-    )
-    return body, reordered_html
-
-
-def insert_reordered_sections(body: str, reordered: str) -> str:
-    """Splices `reordered` right after the section's (last) shloka, or
-    appends it at the end of the section if there's no shloka at all
-    (e.g. shastra sections, or a kavya-play section with none of these
-    commentary blocks). Uses the same tree parser so it finds the true
-    last shloka regardless of nesting."""
-    if not reordered:
-        return body.strip()
-    tree = parse_divs(body)
-    shloka_ends = [n.end for n in walk_divs(tree) if n.base_cls == "shloka"]
-    if shloka_ends:
-        cut = max(shloka_ends)
-        return f"{body[:cut].strip()}\n\n{reordered}\n\n{body[cut:].strip()}".strip()
-    return f"{body.strip()}\n\n{reordered}".strip()
+    return apply_splices(body, splices)
 
 
 # ---------------------------------------------------------------------------
@@ -1511,13 +1426,21 @@ def build_shloka_table(
     return table_lines
 
 
-def render_shastra_chapter(
+def render_chapter(
     chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
 ) -> tuple[str, list[Shloka]]:
-    """Returns (rendered_markdown, all_shlokas_in_anchor_order). Shastra
-    chapters get the same श्लोकसूची table as kavya ones (see
-    build_shloka_table) whenever the chapter has any shlokas at all —
-    shown after the सम्बद्धाः विषयाः back-links, at the end of the page."""
+    """Returns (rendered_markdown, all_shlokas_in_anchor_order). One
+    render path for every chapter, regardless of what kind of text it's
+    part of (no more shastra-vs-kavya split driven by a text `type:` —
+    see site update notes for why that distinction never actually needed
+    to be a text-level classification): every section gets a
+    `<div id="sec{i}">` anchor, every section's `topics:` frontmatter (if
+    any) contributes a सम्बद्धाः विषयाः back-link block up top, shlokas are
+    numbered contiguously chapter-wide, and a श्लोकसूची table (see
+    build_shloka_table) is appended whenever the chapter has any shlokas
+    at all. A chapter with no `topics:` anywhere in its sections simply
+    gets no सम्बद्धाः विषयाः block — this function doesn't need to know in
+    advance which kind of text it's rendering."""
     seen_topics: list[str] = []
     body_parts = []
     all_shlokas: list[Shloka] = []
@@ -1526,24 +1449,17 @@ def render_shastra_chapter(
         raw = section.read_text(encoding="utf-8")
         fm, body = split_frontmatter(raw)
         label = section_label(fm, body, section.stem)
+        anchor = f"sec{i+1}"
         for t in as_list(fm.get("topics")):
             if t not in topics:
                 warn(f"{section} references unknown topic '{t}' (no matching topics/*.md title)")
                 continue
             if t not in seen_topics:
                 seen_topics.append(t)
-            anchor = f"sec{i+1}"
             topics[t].references.append(Reference(t, chapter, anchor, label))
-        anchor = f"sec{i+1}"
-        body, reordered = process_content_sections(
+        body = process_content_sections(
             body, chapter.default_class, source_for_warning=section, label_overrides=chapter.text.gloss_labels
         )
-        # shastra sections aren't laid out with a Shloka Table the way
-        # kavya ones are, but they can still carry `<div class="shloka">`
-        # blocks (e.g. shastra-karika/shastra-vada texts) — resolve
-        # data-type via the chapter's default_shloka_type the same way
-        # kavya does, and number them contiguously across the chapter so
-        # each gets a unique #s{n} anchor for chandas/alankara back-refs.
         fm_chandas = str(fm.get("chandas", "")).strip()
         body, shlokas, shloka_counter = extract_shlokas(
             body, fm_chandas, as_list(fm.get("alankara")), chapter.default_shloka_type,
@@ -1556,8 +1472,7 @@ def render_shastra_chapter(
                 if a not in alankaras:
                     warn(f"{section} references unknown alankara '{a}' (no matching <!-- alankara-name --> row in the alankara glossary)")
         all_shlokas.extend(shlokas)
-        section_content = f'<div id="{anchor}"></div>\n\n{insert_reordered_sections(body, reordered)}'
-        body_parts.append(section_content)
+        body_parts.append(f'<div id="{anchor}"></div>\n\n{body.strip()}')
 
     header = []
     if seen_topics:
@@ -1575,45 +1490,6 @@ def render_shastra_chapter(
     title_line = f"# {chapter.text.title} — {chapter.nav_label}"
     table_lines = build_shloka_table(chapter, all_shlokas, chandas, alankaras)
     content = "\n".join([topnav, title_line, ""] + header + body_parts + [""] + table_lines) + "\n"
-    return content, all_shlokas
-
-
-def render_kavya_chapter(
-    chapter: Chapter, chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
-) -> tuple[str, list[Shloka]]:
-    """Returns (rendered_markdown, all_shlokas_in_anchor_order). The same
-    `all_shlokas` list (1-indexed => anchor "s{i}") is used both for the
-    Shloka Table on this page and for recording back-references on the
-    corresponding chandas/alankara pages, so anchors always line up."""
-    body_parts = []
-    all_shlokas: list[Shloka] = []
-    counter = 0
-    for section in chapter.sections:
-        raw = section.read_text(encoding="utf-8")
-        fm, body = split_frontmatter(raw)
-        fm_chandas = str(fm.get("chandas", "")).strip()
-        fm_alankaras = as_list(fm.get("alankara"))
-        body, reordered = process_content_sections(
-            body, chapter.default_class, source_for_warning=section, label_overrides=chapter.text.gloss_labels
-        )
-        new_body, shlokas, counter = extract_shlokas(
-            body, fm_chandas, fm_alankaras, chapter.default_shloka_type, counter, source_for_warning=section,
-            maintain_linebreak=chapter.text.maintain_shloka_linebreak,
-        )
-        for sh in shlokas:
-            if sh.chandas and sh.chandas not in chandas:
-                warn(f"{section} references unknown meter '{sh.chandas}' (no matching <!-- chandas-name --> row in the chandas glossary)")
-            for a in sh.alankaras:
-                if a not in alankaras:
-                    warn(f"{section} references unknown alankara '{a}' (no matching <!-- alankara-name --> row in the alankara glossary)")
-        all_shlokas.extend(shlokas)
-        body_parts.append(insert_reordered_sections(new_body, reordered))
-
-    up_target = f"{chapter.text.rel_out_dir}/index.md"
-    topnav = render_topnav(chapter.rel_out_file, up_target, chapter.text.title)
-    title_line = f"# {chapter.text.title} — {chapter.nav_label}"
-    table_lines = build_shloka_table(chapter, all_shlokas, chandas, alankaras)
-    content = "\n".join([topnav, title_line, ""] + body_parts + [""] + table_lines) + "\n"
     return content, all_shlokas
 
 
@@ -1884,38 +1760,18 @@ def main():
     for section in SECTIONS:
         texts = discover_texts(section)
         for t in texts:
-            expected_types = (
-                (SHASTRA_TEXT_TYPES if section is TOPICS_SECTION else KAVYA_PROSE_TYPES | KAVYA_VERSE_TYPES)
-            )
-            if t.type not in expected_types:
-                warn(f"{t.dir}/meta.yaml has unrecognized type '{t.type}' (expected one of {sorted(expected_types)})")
             t.chapters = discover_chapters(t)
         sections_with_texts.append((section, texts))
 
     # --- render chapters + text index pages for every section ------------
-    # Whether a text renders "shastra-style" (topic back-links,
-    # paragraph-flow sections) or "kavya-style" (shloka table, meter/
-    # alankara linking) is driven by the text's own `type:` — not by which
-    # section it's filed under — so a future section can freely mix either
-    # kind of text.
+    # One render path for every chapter — see render_chapter()'s docstring
+    # for why this no longer depends on a text `type:` classification.
     for section, texts in sections_with_texts:
         for t in texts:
             for ch in t.chapters:
-                if t.type in SHASTRA_TEXT_TYPES:
-                    content, all_shlokas = render_shastra_chapter(ch, topics, chandas, alankaras)
-                    write_md(ch.out_file, content)
-                    record_shloka_references(ch, chandas, alankaras, list(enumerate(all_shlokas, start=1)))
-                elif t.type in KAVYA_PROSE_TYPES | KAVYA_VERSE_TYPES:
-                    content, all_shlokas = render_kavya_chapter(ch, chandas, alankaras)
-                    write_md(ch.out_file, content)
-                    record_shloka_references(ch, chandas, alankaras, list(enumerate(all_shlokas, start=1)))
-                else:
-                    # unrecognized type already warned about above — treat
-                    # it like a kavya-verse text (no topic back-links) so
-                    # the build still completes.
-                    content, all_shlokas = render_kavya_chapter(ch, chandas, alankaras)
-                    write_md(ch.out_file, content)
-                    record_shloka_references(ch, chandas, alankaras, list(enumerate(all_shlokas, start=1)))
+                content, all_shlokas = render_chapter(ch, topics, chandas, alankaras)
+                write_md(ch.out_file, content)
+                record_shloka_references(ch, chandas, alankaras, list(enumerate(all_shlokas, start=1)))
             write_md(t.out_dir / "index.md", build_text_index_page(t))
 
         write_md(DOCS / f"{section.dir}/index.md", build_domain_index_page(section, texts, topic_nav_entries))

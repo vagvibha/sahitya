@@ -62,7 +62,7 @@ default_chapter_word: "अध्यायः"
 # true: each pada lands on its own line, exactly like the source.
 # Override per-book in that text's meta.yaml (same key name) — this is
 # only the site-wide fallback when a text doesn't set its own.
-maintain_shloka_linebreak: true
+maintain_shloka_linebreak: false
 
 content_sections:
   - dir: "shastra"

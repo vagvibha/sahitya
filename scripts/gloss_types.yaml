@@ -1,8 +1,11 @@
 # gloss_types.yaml
 # ================
 # Declares the data-type="..." values recognized on commentary-style divs
-# — anything that can be individually labeled, hidden by default (via the
-# notes-toggle button), and/or reordered into a fixed sequence.
+# — anything that can be individually labeled and/or hidden by default
+# (via the notes-toggle button). Every one of these stays exactly where
+# it was authored in the source — there's no reordering of any kind, so
+# a data-type can repeat as many times as an author wants, in whatever
+# order makes sense for that content.
 #
 # Almost all of these share the div class "gloss": what varies between
 # tika/padartha/vritti/... is purely which data-type="..." value is used
@@ -14,17 +17,16 @@
 # vada (claim/refute) is the one exception that uses a different div
 # class ("vada" — see `class:` below) — it's PRIMARY argumentative
 # content in a शास्त्र-वाद text, not secondary material about the text the
-# way a gloss is, so its CSS styling (colored callout box) stays distinct
-# from a plain gloss. But it's configured through this same file, the
-# same as everything else — label/label_from_attr, hideable,
-# hidden_by_default, reposition all apply to it identically.
+# way a gloss is. But it's configured through this same file, the same
+# as everything else — label/label_from_attr, hideable, hidden_by_default
+# all apply to it identically.
 #
 # Structural content is NOT configured here — it's handled directly by
 # the script and always stays exactly as authored:
 #   - shloka (data-type="karika"/"nataka"/"dialog"/...) — the root verse
 #   - dialog-block — plain prose narration/dialogue in a kavya-play
 #   - action — an inline stage-direction span (not a block, no label/
-#     hide/reposition concept applies)
+#     hide concept applies)
 #
 # Fields per entry:
 #   data_type           - the data-type="..." value to match
@@ -84,124 +86,78 @@
 #                         type that's actually hideable: true (or an
 #                         instance with its own toggle-hide=, which
 #                         overrides this entirely).
-#   reposition          - true: every occurrence in a section is extracted
-#                         from wherever it was written and reinserted
-#                         (in the ORDER THIS FILE LISTS reposition:true
-#                         entries) right after that section's shloka (or
-#                         appended at the end of the section if there's
-#                         no shloka, e.g. in shastra/).
-#                         false: stays exactly where it was authored —
-#                         use this for anything that's part of the
-#                         natural reading flow (e.g. vritti alternating
-#                         with karika) and must never be moved.
-#
-# IMPORTANT: keep "notes" as the LAST entry below. List order among
-# reposition:true entries IS the display order, so any new repositioned
-# data-type just needs to be added above "notes" to land before it — no
-# code changes needed.
-#
-# notes are special: a "notes" div attaches to whatever came immediately
-# before it (shloka, gloss, vada, ...) in the source. If that preceding
-# element STARTS hidden (whether via its own hidden_by_default or an
-# explicit toggle-hide="true" on that instance) AND this note doesn't set
-# its own toggle-hide=, the note starts hidden along with it too, even if
-# "notes" hidden_by_default is false — an orphaned visible note under a
-# hidden comment reads as a mistake. (The note also becomes a toggle-group
-# member itself when this happens, hideable: false or not — otherwise
-# it could never be revealed at all.) To make a note independent of
-# whatever precedes it (its own hideable/hidden_by_default/toggle-hide
-# decides, full stop), insert an empty structural break right before it
-# in the source — any <div></div> with no recognized class in between
-# breaks the attachment, e.g.:
-#     <div class="gloss" data-type="tika" data-name="X" toggle-hide="true">...</div>
-#     <div></div>
-#     <div class="gloss" data-type="notes">this note is independent</div>
 #
 # A commentary div whose data-type isn't listed here at all can still be
 # made a toggle-group member per-instance, in place, by adding
 # toggle-hide="true" directly on that one div — no config entry required
-# for one-off cases (though it won't get a label, get repositioned, or
-# participate in the notes-attachment cascade above).
+# for one-off cases (though it won't get a label).
 
 types:
   - data_type: anvaya
     label: "अन्वयः"
     hideable: true
     hidden_by_default: false
-    reposition: true
 
   - data_type: padartha
     label: "पदार्थः"
     hideable: true
     hidden_by_default: false
-    reposition: true
 
   - data_type: vyutpatti
     label: "व्युत्पत्तिः"
     hideable: true
     hidden_by_default: false
-    reposition: true
 
   - data_type: tika
     label_from_attr: data-name
     hideable: true
     hidden_by_default: false
-    reposition: true
 
   - data_type: alankara
     label: "अलङ्कारः"
     hideable: true
     hidden_by_default: false
-    reposition: true
 
   - data_type: bhavartha
     label: "भावार्थः"
     hideable: true
     hidden_by_default: false
-    reposition: true
 
   - data_type: vyakarana
     label: "व्याकरणः"
     hideable: true
     hidden_by_default: false
-    reposition: true
 
   - data_type: kosha
     label: "कोशः"
     hideable: true
     hidden_by_default: false
-    reposition: true
 
   - data_type: udaharana
     hideable: true
     hidden_by_default: false
-    reposition: false
 
   - data_type: vritti
     hideable: false
     hidden_by_default: false
-    reposition: false
 
   - data_type: notes
     hideable: true
     hidden_by_default: true
-    reposition: false
 
   # --- vada (claim/refute) — see the header comment above for why this
-  # uses class: vada instead of the default "gloss". Always visible,
-  # never repositioned, by default — matches the previous hardcoded
-  # behavior. Override the label per-book (not the class/hideable/
-  # reposition fields) via gloss_labels: in that text's meta.yaml.
+  # uses class: vada instead of the default "gloss". Always visible by
+  # default — matches the previous hardcoded behavior. Override the
+  # label per-book (not the class/hideable fields) via gloss_labels: in
+  # that text's meta.yaml.
   - data_type: claim
     class: vada
     label: "पक्षः"
     hideable: false
     hidden_by_default: false
-    reposition: false
 
   - data_type: refute
     class: vada
     label: "निरासः"
     hideable: false
     hidden_by_default: false
-    reposition: false
