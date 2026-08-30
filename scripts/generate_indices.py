@@ -474,6 +474,16 @@ class Text:
             {str(k).strip().lower(): str(v).strip() for k, v in raw_labels.items()}
             if isinstance(raw_labels, dict) else {}
         )
+        # whether a shloka's pada line breaks get put back as explicit
+        # <br /> tags (see extract_shlokas / docs/stylesheets/custom.css
+        # for why .shloka can't just rely on CSS white-space for this
+        # anymore). This text's own meta.yaml wins if it sets the key at
+        # all (True OR False); otherwise falls back to the site-wide
+        # default in site_config.yaml.
+        self.maintain_shloka_linebreak: bool = bool(
+            meta["maintain_shloka_linebreak"] if "maintain_shloka_linebreak" in meta
+            else SITE_CONFIG.get("maintain_shloka_linebreak", False)
+        )
         self.chapters: list["Chapter"] = []
 
     @property
@@ -876,9 +886,21 @@ class Shloka:
         self.highlight = highlight
 
 
+def inject_shloka_linebreaks(inner: str) -> str:
+    """Puts each pada back on its own visual line via explicit <br />
+    tags — needed because .shloka uses white-space: normal (not
+    pre-line: see docs/stylesheets/custom.css for the rendering bug that
+    caused), so a plain source newline would otherwise collapse to a
+    single space like any other markdown text. Only called when
+    maintain_shloka_linebreak is on for this text (site_config.yaml,
+    overridable per-book in that text's meta.yaml)."""
+    lines = [ln.strip() for ln in inner.strip("\n").split("\n") if ln.strip()]
+    return "<br />\n".join(lines)
+
+
 def extract_shlokas(
     body: str, fm_chandas: str, fm_alankaras: list[str], default_shloka_type: str, start_index: int = 0,
-    source_for_warning: object = "",
+    source_for_warning: object = "", maintain_linebreak: bool = False,
 ) -> tuple[str, list[Shloka], int]:
     """Find every <div class="shloka"> in `body` at any nesting depth,
     inject an id="..." attribute for the Shloka Table to link to (see
@@ -887,8 +909,10 @@ def extract_shlokas(
     ones that didn't specify their own (from `default_shloka_type` — see
     Chapter.default_shloka_type; this ONLY ever touches an already-explicit
     <div class="shloka">, never naked text — see process_content_sections'
-    `default_class` for that), and return (modified_body, [Shloka, ...],
-    next_index).
+    `default_class` for that), and — if `maintain_linebreak` is on for
+    this text — replace the shloka's own source line breaks with
+    explicit <br /> tags (see inject_shloka_linebreaks). Returns
+    (modified_body, [Shloka, ...], next_index).
 
     `start_index` lets callers number shlokas contiguously across every
     section in a chapter (ids must be chapter-unique, since all sections
@@ -924,6 +948,9 @@ def extract_shlokas(
             inner = body[node.tag_end:node.inner_end]
             anchor = f"s{counter}"
             shlokas.append(Shloka(chandas, alankaras, preview_text(inner), data_type, highlight))
+
+            if maintain_linebreak:
+                splices.append((node.tag_end, node.inner_end, inject_shloka_linebreaks(inner)))
 
             # id= goes directly on the shloka div, NOT a separate
             # <a id="..."></a> tag on its own line before it: a lone <a>
@@ -1520,7 +1547,7 @@ def render_shastra_chapter(
         fm_chandas = str(fm.get("chandas", "")).strip()
         body, shlokas, shloka_counter = extract_shlokas(
             body, fm_chandas, as_list(fm.get("alankara")), chapter.default_shloka_type,
-            shloka_counter, source_for_warning=section,
+            shloka_counter, source_for_warning=section, maintain_linebreak=chapter.text.maintain_shloka_linebreak,
         )
         for sh in shlokas:
             if sh.chandas and sh.chandas not in chandas:
@@ -1570,7 +1597,8 @@ def render_kavya_chapter(
             body, chapter.default_class, source_for_warning=section, label_overrides=chapter.text.gloss_labels
         )
         new_body, shlokas, counter = extract_shlokas(
-            body, fm_chandas, fm_alankaras, chapter.default_shloka_type, counter, source_for_warning=section
+            body, fm_chandas, fm_alankaras, chapter.default_shloka_type, counter, source_for_warning=section,
+            maintain_linebreak=chapter.text.maintain_shloka_linebreak,
         )
         for sh in shlokas:
             if sh.chandas and sh.chandas not in chandas:
@@ -1691,7 +1719,7 @@ docs_dir: docs
 
 theme:
   name: material
-  language: en
+  language: {language}
   features:
     # navigation.tabs is deliberately OFF: the top bar is just the two
     # buttons rendered by render_topnav() (Home / Up-to-TOC) on every
@@ -1742,11 +1770,24 @@ validation:
 
 
 def build_mkdocs_static() -> str:
-    """site_name/palette come from scripts/site_config.yaml (falls back to
-    sensible defaults if that file is missing or a key is absent)."""
+    """site_name/palette/language come from scripts/site_config.yaml (falls
+    back to sensible defaults if that file is missing or a key is absent).
+    `language:` is Material's OWN built-in UI-string translation
+    mechanism (search box, footer, edit-this-page, the "Table of
+    contents" sidebar heading, etc. — see
+    https://squidfunk.github.io/mkdocs-material/setup/changing-the-language/
+    for the full list of ~70 supported codes). This is separate from —
+    and additional to — the site's own content-specific labels_ block
+    above (home_title, references_heading, ...), which only covers
+    strings THIS SCRIPT generates, not Material's own chrome. Material
+    ships an official Sanskrit pack ("sa") that already covers every one
+    of its strings, including "toc": "सामग्रीसारणी" for the sidebar
+    heading — a much better fit for this site than leaving Material's
+    chrome in English while the content itself is Devanagari throughout."""
     theme_cfg = SITE_CONFIG.get("theme", {}) or {}
     return MKDOCS_STATIC_TMPL.format(
         site_name=SITE_CONFIG.get("site_name") or "साहित्यशास्त्रम्",
+        language=theme_cfg.get("language") or "en",
         primary=theme_cfg.get("primary") or "deep orange",
         accent=theme_cfg.get("accent") or "amber",
     )

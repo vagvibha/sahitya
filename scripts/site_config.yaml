@@ -17,6 +17,17 @@ site_name: "साहित्यशास्त्रम्"
 theme:
   primary: "deep orange"
   accent: "amber"
+  # MkDocs Material's OWN built-in UI-string translation — search box,
+  # footer, edit-this-page, the "Table of contents" sidebar heading,
+  # etc. Full list of ~70 supported codes:
+  # https://squidfunk.github.io/mkdocs-material/setup/changing-the-language/
+  # "sa" (Sanskrit) is Material's own official pack — it already
+  # translates every one of those strings, including the "Table of
+  # contents" heading itself ("सामग्रीसारणी"). This is separate from,
+  # and in addition to, the labels: block below (which only covers
+  # strings generate_indices.py itself writes into page content, not
+  # Material's surrounding theme chrome).
+  language: "sa"
 
 labels:
   home_title: "साहित्यशास्त्रम्"
@@ -39,6 +50,19 @@ labels:
 # below (default_chapter_word); this is only the last-resort fallback if
 # a section entry omits it too.
 default_chapter_word: "अध्यायः"
+
+# Site-wide default for whether a shloka's pada line breaks are rendered
+# as explicit <br /> tags. .shloka uses white-space: normal (see
+# docs/stylesheets/custom.css for why — pre-line had a real rendering
+# bug), so a plain newline within a shloka's source text collapses to a
+# space unless generate_indices.py puts an explicit line break back in.
+# false (the default if this key is absent, matching the request that
+# introduced it): don't inject any — a shloka renders as running text,
+# only line-wrapped by the browser same as any paragraph.
+# true: each pada lands on its own line, exactly like the source.
+# Override per-book in that text's meta.yaml (same key name) — this is
+# only the site-wide fallback when a text doesn't set its own.
+maintain_shloka_linebreak: true
 
 content_sections:
   - dir: "shastra"

@@ -184,7 +184,7 @@ types:
 
   - data_type: notes
     hideable: true
-    hidden_by_default: false
+    hidden_by_default: true
     reposition: false
 
   # --- vada (claim/refute) — see the header comment above for why this

@@ -299,6 +299,7 @@ order: 1
 </tbody>
 </table>
 
+<!--
 ## \[कार्यं प्रवर्तते...\]
 
 <table>
@@ -312,7 +313,7 @@ order: 1
 </thead>
 <tbody>
   <tr>
-    <td>भुजङ्गप्रयातम्</td> <!-- chandas-name -->
+    <td>भुजङ्गप्रयातम्</td> < !-- chandas-name -- >
     <td>
       १२
     </td>
@@ -323,7 +324,7 @@ order: 1
     </td>
   </tr>
   <tr>
-    <td>पुष्पिताग्रा</td> <!-- chandas-name -->
+    <td>पुष्पिताग्रा</td> < !-- chandas-name -- >
     <td>
       १२+१३<br>
       १२+१३
@@ -335,7 +336,7 @@ order: 1
     <td></td>
   </tr>
   <tr>
-    <td>मञ्जुभाषिणी</td> <!-- chandas-name -->
+    <td>मञ्जुभाषिणी</td> < !-- chandas-name -- >
     <td>
       १५
     </td>
@@ -345,7 +346,7 @@ order: 1
     <td></td>
   </tr>
   <tr>
-    <td>हरिणी</td> <!-- chandas-name -->
+    <td>हरिणी</td> < !-- chandas-name -- >
     <td>
       १७
     </td>
@@ -355,7 +356,7 @@ order: 1
     <td></td>
   </tr>
   <tr>
-    <td>प्रहर्षिणी</td> <!-- chandas-name -->
+    <td>प्रहर्षिणी</td> < !-- chandas-name -- >
     <td>
       १३
     </td>
@@ -365,7 +366,7 @@ order: 1
     <td></td>
   </tr>
   <tr>
-    <td>शालिनी</td> <!-- chandas-name -->
+    <td>शालिनी</td> < !-- chandas-name -- >
     <td>
       ११
     </td>
@@ -382,7 +383,7 @@ order: 1
     <td></td>
   </tr>
   <tr>
-    <td>रथोद्धता</td> <!-- chandas-name -->
+    <td>रथोद्धता</td> < !-- chandas-name -- >
     <td>
       ११
     </td>
@@ -393,6 +394,8 @@ order: 1
   </tr>
 </tbody>
 </table>
+
+-->
 
 ## गणव्यवस्था
 

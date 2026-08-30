@@ -18,38 +18,50 @@
   font-family: var(--sv-devanagari-serif);
 }
 
-/* --- shloka / verse blocks --------------------------------------------
-   Unified base style for every <div class="shloka" data-type="...">,
-   whatever its data-type (previously separate .shloka/.karika/
-   .shloka-play classes — see site update notes). Compact by default: many
-   need to be visible on screen at once, so just bold, no box.
-
-   Vertical margin between consecutive shloka blocks is deliberately 0:
-   with margin:0, the leftover leading above/below each line (from
-   line-height) is what creates ALL vertical spacing here, so the gap
-   between two shlokas ends up visually identical to the gap between two
-   wrapped lines within one shloka — the whole thing reads as one
-   continuous, evenly-spaced flow of verse rather than "lines" vs.
-   "blocks" having two different rhythms. Each data-type below only
-   overrides what's different (mainly line-height, which still governs
-   the shared spacing); none of them re-introduce a block margin. */
+/* --- Uniform vertical rhythm, site-wide -----------------------------
+   Every block-level content type this site renders — shloka (any
+   data-type), gloss (any data-type), vada, dialog-block — has ZERO
+   vertical margin, deliberately, all the same way .shloka does. With
+   margin:0 everywhere, the only thing producing vertical space between
+   two adjacent blocks is ordinary line-height leading — the exact same
+   rhythm as the gap between two wrapped lines within a single block.
+   The effect: the gap between a dialog-block and the shloka after it,
+   between that shloka and a notes div, between two notes in a row,
+   between two paragraphs within one vritti — all of it reads as one
+   continuous, evenly-spaced flow, with no extra "block boundary" gap
+   anywhere. Distinguishing one type of content from another is left
+   entirely to font/weight/style/color/indentation (each type's own
+   rule below), never to spacing.
+   The ONE deliberate exception is .shloka[highlight="true"] — a
+   bordered/padded callout box, which needs real breathing room around
+   it precisely because it's meant to visually interrupt the normal
+   flow, not blend into it. See that rule further down.
+   Every div here is rendered with markdown="1" (all of them), which
+   wraps its text content in a <p> — even a single line with no blank
+   lines. That inner <p> carries its own margin independently of the
+   outer div's margin (the browser's UA default is ~1em top+bottom) —
+   zeroing the div's own margin isn't enough by itself unless the inner
+   <p> is zeroed too. Every rule below does both. */
+/* white-space is deliberately NOT pre-line: that CSS value treats a
+   trailing newline in the source (which our shloka content almost
+   always has — it's written on its own line before the closing </div>)
+   as a real, rendered blank line, which is exactly what was causing the
+   "still-huge shloka gap" bug — a 2-line shloka's div would render at
+   DOUBLE its <p>'s actual text height, entirely independent of margin/
+   padding (both already 0). Plain "normal" collapses all source
+   whitespace, including the pada line breaks within the verse itself —
+   those are put back explicitly, as real <br /> tags, by
+   generate_indices.py's extract_shlokas() when maintain_shloka_linebreak
+   is on for this text (site_config.yaml, overridable per-book in that
+   text's meta.yaml — see gloss_types.yaml's sibling doc for the general
+   site_config.yaml/meta.yaml override pattern). */
 .md-typeset .shloka {
   font-weight: 600;
   margin: 0;
   line-height: 1.7;
-  white-space: pre-line;
+  white-space: normal;
 }
 
-/* Every div rendered with markdown="1" (all of these) gets its text
-   content wrapped in a <p> by the markdown processor — even a single
-   line with no blank lines in it. That <p> carries its own margin (the
-   browser's UA default is ~1em top+bottom — visually "two blank lines"),
-   completely independent of the OUTER div's own margin above. Zeroing
-   the div's margin (as .shloka does) is therefore not enough by itself;
-   the inner <p> has to be zeroed too, or its default margin still shows
-   up as a large gap above/below the div. This is what was actually
-   causing the large shloka-to-shloka / shloka-to-surrounding-text gaps
-   the CSS comments above claimed shouldn't exist. */
 .md-typeset .shloka p {
   margin: 0;
 }
@@ -69,7 +81,6 @@
   display: block;
   margin: 0 0 0 1.5rem;
   line-height: 1.9;
-  white-space: pre-line;
   font-weight: normal; /* base .shloka rule below is bold; nataka should read almost inline, not bold */
 }
 
@@ -101,29 +112,21 @@
 }
 
 /* --- vada: claim / refute (dialectical exposition) — its own class, not
-   folded into .gloss, since this is PRIMARY argumentative content in a
-   शास्त्र-वाद text (the दialectic itself), not secondary material about
-   the text the way a gloss is — always visible and never repositioned
-   by default. Configured in gloss_types.yaml (class: vada) exactly like
-   a gloss data-type: its "<u>label</u> – " prefix is rendered by Python
-   (render_commentary_div), same mechanism as .gloss, so there's no
-   ::before label here — only the colored callout-box styling stays
-   CSS-only. --------------------------------------------------------- */
+   folded into .gloss, only because the underlying content is written as
+   <div class="vada" data-type="claim/refute">, not class="gloss" — but
+   otherwise no different: same uniform zero-margin flow, no box/
+   background/border. Configured in gloss_types.yaml (class: vada)
+   exactly like a gloss data-type; the "<u>label</u> – " prefix is
+   rendered by Python (render_commentary_div), same mechanism as
+   .gloss — that label prefix is what distinguishes claim from refute,
+   not any styling here. --------------------------------------------- */
 .md-typeset .vada {
-  border-radius: 0.2rem;
-  padding: 0.9rem 1.2rem;
-  margin: 1rem 0;
-  line-height: 1.8;
+  margin: 0;
+  line-height: 1.7;
 }
 
-.md-typeset .vada[data-type="claim"] {
-  background: rgba(33, 150, 243, 0.08);
-  border-left: 4px solid #2196f3;
-}
-
-.md-typeset .vada[data-type="refute"] {
-  background: rgba(244, 67, 54, 0.08);
-  border-left: 4px solid #f44336;
+.md-typeset .vada p {
+  margin: 0; /* see the "Uniform vertical rhythm" note above .shloka */
 }
 
 .md-typeset .vada u {
@@ -131,30 +134,14 @@
   opacity: 0.7;
 }
 
-/* --- chandas / alankara glossary detail-page headers (renamed from
-   .chandas/.alankara to free up .alankara for the new per-shloka
-   commentary section below, which is a different meaning entirely) ---- */
-.md-typeset .chandasdf,
-.md-typeset .alankaradf {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin: 1rem 0 0.5rem;
-}
-
-.md-typeset .lakshana {
-  font-style: italic;
-  margin: 0.5rem 0;
-}
-
-.md-typeset .udaharana {
-  font-style: italic;
-  margin: 0.6rem 0 0.6rem 1.8rem;
-}
-
 /* --- kavya prose / play ------------------------------------------------ */
 .md-typeset .dialog-block {
-  margin: 1.2rem 0;
+  margin: 0; /* see the "Uniform vertical rhythm" note above .shloka */
   line-height: 1.9;
+}
+
+.md-typeset .dialog-block p {
+  margin: 0; /* see the "Uniform vertical rhythm" note above .shloka */
 }
 
 .md-typeset .action {
@@ -172,18 +159,18 @@
    spacing/color. Only data-types that need something genuinely
    different get their own override below; most don't. ------------------ */
 .md-typeset .gloss {
-  margin: 0.5rem 0 0.5rem 1rem;
+  margin: 0 0 0 1rem; /* see the "Uniform vertical rhythm" note above .shloka — vertical is 0, the 1rem left indent stays (that's positioning, part of how this reads as an aside, not spacing-as-separator) */
   line-height: 1.7;
   color: var(--md-default-fg-color--light);
 }
 
-.md-typeset .gloss[data-type="udaharana"] {
-  font-style: italic;
-  margin: 0.6rem 0 0.6rem 1.8rem;
+.md-typeset .gloss p {
+  margin: 0; /* see the "Uniform vertical rhythm" note above .shloka. Base rule, not per-data-type: EVERY gloss data-type (tika, padartha, anvaya, bhavartha, vyakarana, vyutpatti, kosha, alankara, udaharana, vritti, notes, ...) gets this same markdown="1"-wrapped <p>, not just the few that happened to get called out explicitly. */
 }
 
-.md-typeset .gloss[data-type="udaharana"] p {
-  margin: 0; /* see .md-typeset .shloka p above — same inner-<p>-margin issue */
+.md-typeset .gloss[data-type="udaharana"] {
+  font-style: italic;
+  margin: 0 0 0 1.8rem;
 }
 
 /* vritti (शास्त्र prose commentary directly under a karika) — not muted
@@ -191,17 +178,9 @@
    aside (see gloss_types.yaml: reposition: false, stays exactly where
    authored). */
 .md-typeset .gloss[data-type="vritti"] {
-  margin: 0.6rem 0;
+  margin: 0;
   line-height: 1.8;
   color: inherit;
-}
-
-.md-typeset .gloss[data-type="vritti"] p {
-  margin: 0; /* see .md-typeset .shloka p above — same inner-<p>-margin issue */
-}
-
-.md-typeset .gloss[data-type="vritti"] p + p {
-  margin-top: 0.6rem; /* vritti can genuinely span multiple paragraphs — restore SOME separation between them, just not against the div's own edges */
 }
 
 /* --- notes and every reposition:true / hidden_by_default:true gloss
@@ -241,29 +220,14 @@ body.sv-force-hide .md-typeset .sv-toggleable {
   display: none;
 }
 /* notes are annotations ATTACHED to whatever gloss/shloka came right
-   before them, not independent standalone asides — and several can
-   follow the same preceding element in a row (repositioned together, in
-   gloss_types.yaml's order). Small top margin so it hugs the thing it's
-   annotating rather than floating as its own block; consecutive notes
-   (a second, third, ... note following another note) hug each other
-   even tighter, reading as one attached list rather than separate
-   asides each with their own spacing. */
+   before them, not independent standalone asides. Same uniform
+   zero-vertical-margin flow as everything else (see the "Uniform
+   vertical rhythm" note above .shloka) — the smaller font-size/italic
+   plus the left indent are what mark this as an aside, not spacing. */
 .md-typeset .gloss[data-type="notes"] {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-style: italic;
-  margin: 0.15rem 0 0.6rem 1.2rem;
-}
-
-.md-typeset .gloss[data-type="notes"] p {
-  margin: 0; /* see .md-typeset .shloka p above — same inner-<p>-margin issue */
-}
-
-.md-typeset .gloss[data-type="notes"] p + p {
-  margin-top: 0.4rem; /* a note can span multiple paragraphs (e.g. छन्दः line + पदार्थः table above) — restore SOME separation between them, just not against the div's own edges */
-}
-
-.md-typeset .gloss[data-type="notes"] + .gloss[data-type="notes"] {
-  margin-top: 0;
+  margin: 0 0 0 1.2rem;
 }
 
 /* --- floating notes toggle button --------------------------------------- */
