@@ -144,27 +144,54 @@ def site_label(key: str, default: str) -> str:
     return str(_RAW_LABELS.get(key, "")).strip() or default
 
 
+class TextGroup:
+    """One directory of texts within a section, and the H2 heading it
+    renders under on the home page card / section index page / nav (see
+    SectionConfig.text_groups). Pure categorization — a text's group has
+    no effect on how its content is processed, only where it lives on
+    disk (<section>/<group.dir_name>/<slug>/...) and which heading it's
+    listed under."""
+
+    def __init__(self, dir_name: str, h2_label: str):
+        self.dir_name = dir_name
+        self.h2_label = h2_label
+
+
 class SectionConfig:
     """One entry of site_config.yaml's content_sections: list."""
 
     def __init__(self, raw: dict):
         self.dir = str(raw.get("dir", "")).strip()
         self.h1_label = str(raw.get("h1_label", self.dir)).strip()
-        self.h2_text_label = str(raw.get("h2_text_label", "ग्रन्थाः")).strip()
         self.h2_topics_label = str(raw.get("h2_topics_label", "विषयाः")).strip()
         self.default_chapter_word = (
             str(raw.get("default_chapter_word", "")).strip()
             or str(SITE_CONFIG.get("default_chapter_word", "अध्यायः")).strip()
         )
         self.has_topics = bool(raw.get("topics", False))
+        # text_groups: lets a section split its texts across MULTIPLE
+        # directories (e.g. kavya/gadya/, kavya/stotra/, kavya/padya/
+        # instead of a single kavya/texts/), each becoming its own H2
+        # heading — purely a categorization + home-page/nav display
+        # choice, zero effect on how a text's content is processed. A
+        # section that doesn't set text_groups: (e.g. shastra, which
+        # only ever needs one grouping) falls back to the single
+        # implicit group this always used: <dir>/texts/, headed
+        # h2_text_label (also configurable, unchanged from before).
+        raw_groups = raw.get("text_groups")
+        if isinstance(raw_groups, list) and raw_groups:
+            self.text_groups = [
+                TextGroup(str(g.get("dir", "")).strip(), str(g.get("h2_label", "")).strip())
+                for g in raw_groups if isinstance(g, dict) and str(g.get("dir", "")).strip()
+            ]
+        else:
+            self.text_groups = [
+                TextGroup("texts", str(raw.get("h2_text_label", "ग्रन्थाः")).strip())
+            ]
 
     @property
     def src(self) -> Path:
         return ROOT / self.dir
-
-    @property
-    def texts_src(self) -> Path:
-        return self.src / "texts"
 
     @property
     def out_dir(self) -> Path:
@@ -179,6 +206,16 @@ SECTIONS: list[SectionConfig] = [
     SectionConfig(raw) for raw in (SITE_CONFIG.get("content_sections") or [])
 ]
 TOPICS_SECTION = next((s for s in SECTIONS if s.has_topics), None)
+
+
+def group_texts(section: SectionConfig, texts: list["Text"]) -> list[tuple[TextGroup, list["Text"]]]:
+    """Buckets `texts` (a flat list — see discover_texts) back into
+    section.text_groups order, dropping any group with zero texts (no
+    empty heading shown for a group nobody's written anything in yet)."""
+    by_dir: dict[str, list["Text"]] = {}
+    for t in texts:
+        by_dir.setdefault(t.group.dir_name, []).append(t)
+    return [(g, by_dir[g.dir_name]) for g in section.text_groups if g.dir_name in by_dir]
 
 
 # ---------------------------------------------------------------------------
@@ -438,11 +475,12 @@ def title_order_sort_key(frontmatter: dict, title: str, source_for_warning: obje
 
 
 class Text:
-    def __init__(self, slug: str, directory: Path, meta: dict, section: SectionConfig):
+    def __init__(self, slug: str, directory: Path, meta: dict, section: SectionConfig, group: TextGroup):
         self.slug = slug
         self.dir = directory
         self.meta = meta
         self.section = section
+        self.group = group
         self.title = str(meta.get("title", slug)).strip()
         self.author = str(meta.get("author", "")).strip()
         self.default_shloka_type = str(meta.get("default_shloka_type", "")).strip()
@@ -507,11 +545,11 @@ class Text:
 
     @property
     def out_dir(self) -> Path:
-        return self.section.out_dir / "texts" / self.slug
+        return self.section.out_dir / self.group.dir_name / self.slug
 
     @property
     def rel_out_dir(self) -> str:
-        return f"{self.section.dir}/texts/{self.slug}"
+        return f"{self.section.dir}/{self.group.dir_name}/{self.slug}"
 
 
 class Chapter:
@@ -563,12 +601,11 @@ class Chapter:
             return self.slug
 
 
-def discover_texts(section: SectionConfig) -> list[Text]:
+def discover_texts_in_group(section: SectionConfig, group: TextGroup) -> list[Text]:
     texts = []
-    src_root = section.texts_src
+    src_root = section.src / group.dir_name
     if not src_root.exists():
-        warn(f"{src_root} does not exist — no texts found for section '{section.dir}' "
-             f"(did you run scripts/migrate_layout.py?)")
+        warn(f"{src_root} does not exist — no texts found for section '{section.dir}' group '{group.dir_name}'")
         return texts
     for d in sorted(p for p in src_root.iterdir() if p.is_dir() and not p.name.startswith(".")):
         meta_path = find_meta_file(d)
@@ -582,8 +619,21 @@ def discover_texts(section: SectionConfig) -> list[Text]:
         if "title" not in meta:
             warn(f"{meta_path} has no 'title' — skipping this text")
             continue
-        texts.append(Text(d.name, d, meta, section))
+        texts.append(Text(d.name, d, meta, section, group))
     texts.sort(key=lambda t: t.sort_key)
+    return texts
+
+
+def discover_texts(section: SectionConfig) -> list[Text]:
+    """Flat list across every one of this section's text_groups (see
+    SectionConfig.text_groups) — groups in their site_config.yaml
+    declaration order, texts sorted within each group. Each Text
+    remembers which group it came from (Text.group), used for its own
+    output path (Text.rel_out_dir) and for re-grouping by heading on the
+    home page / section index / nav (see group_texts)."""
+    texts: list[Text] = []
+    for group in section.text_groups:
+        texts.extend(discover_texts_in_group(section, group))
     return texts
 
 
@@ -1132,7 +1182,7 @@ def render_commentary_div(cls_raw: str, type_key: str, attrs: str, content: str,
         if hidden_initial:
             classes = f"{classes} {HIDDEN_INITIAL_CLASS}"
     inner = content.strip()
-    rendered = f"<u>{label}</u> – {inner}" if label else inner
+    rendered = f"<b>{label}</b> – {inner}" if label else inner
     # data-type is re-emitted (data-name and any other original attribute
     # is intentionally dropped — it was only ever needed to resolve the
     # label above, at build time; CSS keys off the sv-style-* class
@@ -1271,12 +1321,26 @@ def process_content_sections(
 # containing section's landing page for a text's own TOC page, etc).
 # ---------------------------------------------------------------------------
 
-def render_topnav(current_rel_file: str, up_target_rel_file: str | None, up_label: str | None) -> str:
+def render_topnav(
+    current_rel_file: str, up_target_rel_file: str | None, up_label: str | None,
+    prev_target_rel_file: str | None = None, next_target_rel_file: str | None = None,
+) -> str:
+    """The small sticky pill at the top of every generated page — Home,
+    then (if given) an Up-to-TOC link, then (if given — only chapter
+    pages pass these, see render_chapter) icon-only Prev/Next links to
+    the adjacent chapter in this text. Either arrow is simply omitted at
+    the first/last chapter — no dead/disabled-looking link."""
     home_link = rel_link(current_rel_file, "index.md")
     parts = [f"[{site_label('home_button_label', 'मुखपृष्ठम्')}]({home_link})"]
     if up_target_rel_file:
         up_link = rel_link(current_rel_file, up_target_rel_file)
         parts.append(f'[⬆ {up_label}]({up_link})')
+    if prev_target_rel_file:
+        prev_link = rel_link(current_rel_file, prev_target_rel_file)
+        parts.append(f'[←]({prev_link})')
+    if next_target_rel_file:
+        next_link = rel_link(current_rel_file, next_target_rel_file)
+        parts.append(f'[→]({next_link})')
     inner = " · ".join(parts)
     return f'<div class="sv-topnav">\n\n{inner}\n\n</div>\n'
 
@@ -1386,17 +1450,19 @@ def write_md(path: Path, content: str):
 
 def build_domain_index_page(section: SectionConfig, texts: list[Text], topic_nav_entries: list) -> str:
     """A section's own landing page — mirrors its home-page card (texts,
-    then topics if this is the topics-carrying section), just as a full
-    page rather than a card. This is the "Up" target for every text's own
-    TOC page, and (via the "मुखपृष्ठम्" button) reachable from anywhere."""
+    grouped by section.text_groups, then topics if this is the
+    topics-carrying section), just as a full page rather than a card.
+    This is the "Up" target for every text's own TOC page, and (via the
+    "मुखपृष्ठम्" button) reachable from anywhere."""
     rel_file = f"{section.dir}/index.md"
     lines = [render_topnav(rel_file, None, None), f"# {section.h1_label}", ""]
-    lines.append(f"## {section.h2_text_label}")
-    lines.append("")
-    for t in texts:
-        target = f"{t.rel_out_dir}/index.md"
-        lines.append(f"- [{t.title}]({rel_link(rel_file, target)})")
-    lines.append("")
+    for group, texts_in_group in group_texts(section, texts):
+        lines.append(f"## {group.h2_label}")
+        lines.append("")
+        for t in texts_in_group:
+            target = f"{t.rel_out_dir}/index.md"
+            lines.append(f"- [{t.title}]({rel_link(rel_file, target)})")
+        lines.append("")
     if section.has_topics and topic_nav_entries:
         lines.append(f"## {section.h2_topics_label}")
         lines.append("")
@@ -1557,7 +1623,15 @@ def render_chapter(
         header.append("")
 
     up_target = f"{chapter.text.rel_out_dir}/index.md"
-    topnav = render_topnav(chapter.rel_out_file, up_target, chapter.text.title)
+    siblings = chapter.text.chapters
+    idx = siblings.index(chapter)
+    prev_ch = siblings[idx - 1] if idx > 0 else None
+    next_ch = siblings[idx + 1] if idx < len(siblings) - 1 else None
+    topnav = render_topnav(
+        chapter.rel_out_file, up_target, chapter.text.title,
+        prev_target_rel_file=prev_ch.rel_out_file if prev_ch else None,
+        next_target_rel_file=next_ch.rel_out_file if next_ch else None,
+    )
     title_line = f"# {chapter.text.title} — {chapter.nav_label}"
     table_lines = build_shloka_table(chapter, all_shlokas, chandas, alankaras)
     content = "\n".join([topnav, title_line, ""] + header + body_parts + [""] + table_lines) + "\n"
@@ -1630,11 +1704,12 @@ def build_home_page(
         lines.append("")
         lines.append(f"## {section.h1_label}")
         lines.append("")
-        lines.append(f"### {section.h2_text_label}")
-        lines.append("")
-        for t in texts:
-            lines.append(f"- [{t.title}]({t.rel_out_dir}/index.md)")
-        lines.append("")
+        for group, texts_in_group in group_texts(section, texts):
+            lines.append(f"### {group.h2_label}")
+            lines.append("")
+            for t in texts_in_group:
+                lines.append(f"- [{t.title}]({t.rel_out_dir}/index.md)")
+            lines.append("")
         if section.has_topics and topic_nav_entries:
             lines.append(f"### {section.h2_topics_label}")
             lines.append("")
@@ -1686,7 +1761,7 @@ extra_css:
 
 extra_javascript:
   - javascripts/notes-toggle.js
-
+{analytics_block}
 markdown_extensions:
   - attr_list
   - md_in_html
@@ -1732,11 +1807,17 @@ def build_mkdocs_static() -> str:
     heading — a much better fit for this site than leaving Material's
     chrome in English while the content itself is Devanagari throughout."""
     theme_cfg = SITE_CONFIG.get("theme", {}) or {}
+    ga_property = str(SITE_CONFIG.get("google_analytics_property", "")).strip()
+    analytics_block = (
+        f"\nextra:\n  analytics:\n    provider: google\n    property: {ga_property}\n"
+        if ga_property else ""
+    )
     return MKDOCS_STATIC_TMPL.format(
         site_name=SITE_CONFIG.get("site_name") or "साहित्यशास्त्रम्",
         language=theme_cfg.get("language") or "en",
         primary=theme_cfg.get("primary") or "deep orange",
         accent=theme_cfg.get("accent") or "amber",
+        analytics_block=analytics_block,
     )
 
 
@@ -1760,10 +1841,9 @@ def build_nav(
         # entry — without one, MkDocs makes any nav group link to the
         # first descendant page it finds, which looks like the section
         # only shows its first text.
-        entries = [
-            {section.h1_label: f"{section.dir}/index.md"},
-            {section.h2_text_label: [text_nav(t) for t in texts]},
-        ]
+        entries = [{section.h1_label: f"{section.dir}/index.md"}]
+        for group, texts_in_group in group_texts(section, texts):
+            entries.append({group.h2_label: [text_nav(t) for t in texts_in_group]})
         if section.has_topics and topic_nav_entries:
             entries.append(
                 {section.h2_topics_label: [

@@ -14,6 +14,11 @@
 
 site_name: "साहित्यशास्त्रम्"
 
+# Google Analytics 4 property ID (e.g. "G-XXXXXXXXXX") — wired into
+# mkdocs.yml's extra.analytics block (Material's built-in GA4 support).
+# Leave blank/omit to build with no analytics at all.
+google_analytics_property: "G-86P5515DPZ"
+
 theme:
   primary: "deep orange"
   accent: "amber"
@@ -62,7 +67,7 @@ default_chapter_word: "अध्यायः"
 # true: each pada lands on its own line, exactly like the source.
 # Override per-book in that text's meta.yaml (same key name) — this is
 # only the site-wide fallback when a text doesn't set its own.
-maintain_shloka_linebreak: false
+maintain_shloka_linebreak: true
 
 content_sections:
   - dir: "shastra"
@@ -79,6 +84,19 @@ content_sections:
 
   - dir: "kavya"
     h1_label: "काव्यानि"
-    h2_text_label: "ग्रन्थाः"
     default_chapter_word: "भागः"
     topics: false
+    # Multiple text directories under kavya/, each its own H2 heading on
+    # the home page card / kavya/index.md / nav — purely categorization,
+    # no effect on how a text's own content is processed (see
+    # SectionConfig.text_groups / Text.group in generate_indices.py). A
+    # section that only ever needs ONE grouping (e.g. shastra above)
+    # just omits text_groups: entirely — it falls back to a single
+    # implicit group at <dir>/texts/, headed h2_text_label.
+    text_groups:
+      - dir: "gadya"
+        h2_label: "गद्यम्"
+      - dir: "padya"
+        h2_label: "पद्यम्"
+      - dir: "nataka"
+        h2_label: "नाटकम्"
