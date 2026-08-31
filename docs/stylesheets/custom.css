@@ -120,6 +120,22 @@
    div needs regardless of style (the uniform-vertical-rhythm <p> fix,
    and the "<u>label</u> – " prefix look, which the Python side generates
    the same way for .gloss too). --------------------------------------- */
+/* Material's own list rules (.md-typeset ul/ol) carry a real
+   margin-top/margin-bottom (1em, and 0.5em again for a nested list) —
+   the exact same class of bug as the <p> margin issue above, just for
+   <ul>/<ol> instead of <p>. Any of our uniform-rhythm containers whose
+   content happens to include a Markdown list (e.g. a multi-point note)
+   needs this reset too, or that one block breaks the flat, even flow
+   everywhere else on the page. Only top/bottom is touched — the
+   existing left indent (bullet position) is Material's and stays. */
+.md-typeset .shloka ul, .md-typeset .shloka ol,
+.md-typeset .gloss li, .md-typeset .gloss li,
+.md-typeset .vada ul, .md-typeset .vada ol,
+.md-typeset .dialog-block ul, .md-typeset .dialog-block ol {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 .md-typeset .vada p {
   margin: 0; /* see the "Uniform vertical rhythm" note above .shloka */
 }
@@ -187,8 +203,8 @@
 }
 
 .sv-style-fine_print {
-  margin: 0 0 0 1.2rem;
-  line-height: 1.7;
+  margin: 0 0 0 2.5rem;
+  line-height: 1.6;
   color: var(--md-default-fg-color--light);
   font-size: 0.75rem;
   font-style: italic;

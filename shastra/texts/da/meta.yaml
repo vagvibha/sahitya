@@ -14,4 +14,6 @@ gloss_types:
     hideable: false
     hidden_by_default: false
   - data_type: notes
+    css_style: fine_print
+    hideable: true
     hidden_by_default: false
