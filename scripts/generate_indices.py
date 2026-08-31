@@ -1182,7 +1182,7 @@ def render_commentary_div(cls_raw: str, type_key: str, attrs: str, content: str,
         if hidden_initial:
             classes = f"{classes} {HIDDEN_INITIAL_CLASS}"
     inner = content.strip()
-    rendered = f"<b>{label}</b> – {inner}" if label else inner
+    rendered = f"<b>{label}</b><br>{inner}" if label else inner
     # data-type is re-emitted (data-name and any other original attribute
     # is intentionally dropped — it was only ever needed to resolve the
     # label above, at build time; CSS keys off the sv-style-* class

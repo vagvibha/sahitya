@@ -170,7 +170,7 @@ types:
 
   - data_type: vyakarana
     css_style: basic_gloss
-    label: "व्याकरणः"
+    label: "व्याकरणम्"
     hideable: true
     hidden_by_default: false
 
