@@ -7,3 +7,11 @@ default_class: vritti
 order: 2
 sources:
    - http://sa.wikisource.org
+gloss_types:
+  - data_type: tika
+    css_style: basic_gloss
+    label_from_attr: data-name
+    hideable: false
+    hidden_by_default: false
+  - data_type: notes
+    hidden_by_default: false
