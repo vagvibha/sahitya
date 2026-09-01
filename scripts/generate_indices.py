@@ -672,7 +672,13 @@ def discover_chapters(text: Text) -> list[Chapter]:
     dir_children = {d.name: d for d in text.dir.iterdir() if d.is_dir() and not d.name.startswith(".")}
 
     for name, d in dir_children.items():
-        sections = sorted((f for f in d.glob("*.md")), key=lambda f: f.stem)
+        sections = []
+        for f in sorted(d.glob("*.md"), key=lambda f: f.stem):
+            fm, _ = split_frontmatter(f.read_text(encoding="utf-8"))
+            if fm.get("ignore"):
+                print(f"Skipping {f} (ignore: true in frontmatter)")
+                continue
+            sections.append(f)
         if not sections:
             warn(f"chapter directory {d} contains no .md sections — skipping")
             continue
