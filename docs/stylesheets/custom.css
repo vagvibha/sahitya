@@ -145,6 +145,17 @@
   opacity: 0.7;
 }
 
+.md-typeset .vada[data-type="claim"] {
+  background: rgba(255, 179, 0, 0.14);
+  border-left: 4px solid #ffab00;
+  border-radius: 0.2rem;
+  padding: 0.7rem 1rem;
+  margin: 0.5rem 0;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .vada[data-type="claim"] {
+  background: rgba(255, 179, 0, 0.1);
+}
 /* --- kavya prose / play ------------------------------------------------ */
 .md-typeset .dialog-block {
   margin: 0; /* see the "Uniform vertical rhythm" note above .shloka */
