@@ -11,7 +11,7 @@ gloss_types:
   - data_type: tika
     css_style: basic_gloss
     label_from_attr: data-name
-    hideable: false
+    hideable: true
     hidden_by_default: false
   - data_type: notes
     css_style: fine_print
