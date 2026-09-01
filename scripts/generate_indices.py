@@ -21,9 +21,13 @@ What it does, in order:
     `topics/chandas.md` and `topics/alankara.md`, each an HTML `<table>`
     of meters/alankaras (see `build_glossary_page` for the exact
     convention).
-4.  Walks every chapter directory under each text, concatenates its
-    section files into a single generated chapter page, and along the
-    way:
+4.  Walks every chapter directory under each text and renders it per that
+    chapter's own `chapter_display_style:` (meta.yaml; default
+    `full_chapter`) — either concatenating its section files into a
+    single generated chapter page (`full_chapter`), or generating a
+    landing/TOC page plus one separate output page per section
+    (`sections`; see `render_chapter_sections`). Either way, along the
+    way it:
       - collects every `topics:` reference (for shastra-domain sections)
         so the chapter page can show back-links, and so each topic page
         can list every section that cites it;
@@ -272,22 +276,15 @@ def find_meta_file(text_dir: Path) -> Path | None:
 
 
 # ---------------------------------------------------------------------------
-# Numeric-aware sorting for chapter/section filenames — plain numeric
-# ("01", "02", ... "10") and prefixed ("da01-01", "da01-02", ... "da01-10")
-# both sort correctly, and correctly regardless of zero-padding, because
-# the sort key is (everything before the trailing digit run, that run's
-# actual numeric value) rather than a plain string compare.
+# Chapter directories and section (.md) filenames both sort by plain
+# alphabetical order of their name/stem. Authors are responsible for
+# zero-padding numeric prefixes so that plain string sort gives the
+# intended order (e.g. "01".."09".."15", not "1", "10", "11", ..., "2").
+# This also means an author can always insert a new file between two
+# existing ones — e.g. between "prefix-01.md" and "prefix-02.md" — by
+# adding "prefix-01-01.md" / "prefix-01-02.md", which alphabetically land
+# exactly in between, in that order.
 # ---------------------------------------------------------------------------
-
-TRAILING_DIGITS_RE = re.compile(r"^(.*?)(\d+)$")
-
-
-def numeric_key(stem: str):
-    m = TRAILING_DIGITS_RE.match(stem)
-    if m:
-        prefix, digits = m.groups()
-        return (0, prefix, int(digits))
-    return (1, stem, 0)
 
 
 def rel_link(from_rel_file: str, to_rel_file: str) -> str:
@@ -560,12 +557,41 @@ class Chapter:
         self.meta = meta or {}
 
     @property
+    def display_style(self) -> str:
+        """`chapter_display_style:` in this chapter's own meta.yaml —
+        "full_chapter" (default: every section concatenated onto one
+        page, exactly as before) or "sections" (a landing/TOC page for
+        the chapter plus one separate output page per section — see
+        render_chapter_sections). Unrecognized values fall back to
+        "full_chapter" with a warning."""
+        style = str(self.meta.get("chapter_display_style", "")).strip() or "full_chapter"
+        if style not in ("full_chapter", "sections"):
+            warn(
+                f"{self.text.dir}/{self.slug}: unknown chapter_display_style '{style}' "
+                f"— expected 'full_chapter' or 'sections' — falling back to 'full_chapter'"
+            )
+            return "full_chapter"
+        return style
+
+    @property
     def out_file(self) -> Path:
-        return self.text.out_dir / f"{self.slug}.md"
+        return DOCS / self.rel_out_file
 
     @property
     def rel_out_file(self) -> str:
+        """The chapter's own "entry" page — the single rendered page in
+        full_chapter mode, or the landing/TOC page in sections mode. This
+        is what every OTHER page links to when it means "this chapter"
+        (text index page, nav, the text-wide prev/next-chapter links) —
+        never an individual section page, even in sections mode."""
+        if self.display_style == "sections":
+            return f"{self.text.rel_out_dir}/{self.slug}/index.md"
         return f"{self.text.rel_out_dir}/{self.slug}.md"
+
+    def section_rel_out_file(self, section: Path) -> str:
+        """Only meaningful in sections mode — the individual output page
+        for one section (.md file) of this chapter."""
+        return f"{self.text.rel_out_dir}/{self.slug}/{section.stem}.md"
 
     @property
     def default_shloka_type(self) -> str:
@@ -646,7 +672,7 @@ def discover_chapters(text: Text) -> list[Chapter]:
     dir_children = {d.name: d for d in text.dir.iterdir() if d.is_dir() and not d.name.startswith(".")}
 
     for name, d in dir_children.items():
-        sections = sorted((f for f in d.glob("*.md")), key=lambda f: numeric_key(f.stem))
+        sections = sorted((f for f in d.glob("*.md")), key=lambda f: f.stem)
         if not sections:
             warn(f"chapter directory {d} contains no .md sections — skipping")
             continue
@@ -663,7 +689,7 @@ def discover_chapters(text: Text) -> list[Chapter]:
             continue
         chapters.append(Chapter(text, f.stem, [f]))
 
-    chapters.sort(key=lambda c: numeric_key(c.slug))
+    chapters.sort(key=lambda c: c.slug)
     return chapters
 
 
@@ -718,13 +744,31 @@ class RefPage:
 
 
 class Reference:
-    """One occurrence of a topic/meter/alankara tag inside a chapter page."""
+    """One occurrence of a topic/meter/alankara tag inside a chapter's
+    rendered output. `page_rel_out_file` is the actual physical page this
+    occurrence lives on and what back-links must point at — this is
+    `chapter.rel_out_file` for a full_chapter-mode chapter, but an
+    individual section's own page in sections mode (see
+    Chapter.section_rel_out_file), since chapter.rel_out_file there is
+    just the chapter's landing/TOC page, which carries no content of its
+    own. `section_title` is set (sections mode only) so back-link labels
+    can name the specific section, not just the chapter."""
 
-    def __init__(self, title_text: str, chapter: Chapter, anchor: str, preview: str):
+    def __init__(
+        self, title_text: str, chapter: Chapter, anchor: str, preview: str,
+        page_rel_out_file: str | None = None, section_title: str | None = None,
+    ):
         self.title_text = title_text
         self.chapter = chapter
         self.anchor = anchor
         self.preview = preview
+        self.page_rel_out_file = page_rel_out_file or chapter.rel_out_file
+        self.section_title = section_title
+
+    @property
+    def label(self) -> str:
+        base = f"{self.chapter.text.title} — {self.chapter.nav_label}"
+        return f"{base} — {self.section_title}" if self.section_title else base
 
 
 def discover_ref_pages(kind: str, folder: Path, rel_dir: str, exclude: set[str] = frozenset()) -> dict[str, RefPage]:
@@ -895,9 +939,8 @@ def render_glossary_entry_page(entry: TableEntry) -> str:
         parts.append(f"## {site_label('references_heading', 'सन्दर्भाः')}")
         parts.append("")
         for ref in entry.references:
-            label = f"{ref.chapter.text.title} — {ref.chapter.nav_label}"
-            link = rel_link(entry.rel_out_file, ref.chapter.rel_out_file) + f"#{ref.anchor}"
-            parts.append(f"- [{ref.preview}]({link}) — {label}")
+            link = rel_link(entry.rel_out_file, ref.page_rel_out_file) + f"#{ref.anchor}"
+            parts.append(f"- [{ref.preview}]({link}) — {ref.label}")
     parts.append("")
     return "\n".join(parts)
 
@@ -1326,21 +1369,31 @@ def render_topnav(
     prev_target_rel_file: str | None = None, next_target_rel_file: str | None = None,
 ) -> str:
     """The small sticky pill at the top of every generated page — Home,
-    then (if given) an Up-to-TOC link, then (if given — only chapter
-    pages pass these, see render_chapter) icon-only Prev/Next links to
-    the adjacent chapter in this text. Either arrow is simply omitted at
-    the first/last chapter — no dead/disabled-looking link."""
+    then (if given) an Up-to-TOC link, then (if given) icon-only Prev/Next
+    links to whatever's adjacent: the neighboring chapter in this text
+    for a full_chapter-mode chapter page or a sections-mode chapter's own
+    landing/TOC page (see render_chapter_full / render_chapter_sections),
+    or the neighboring section within the chapter for an individual
+    section page (render_chapter_sections). Either arrow is simply
+    omitted at the first/last item — no dead/disabled-looking link."""
     home_link = rel_link(current_rel_file, "index.md")
     parts = [f"[{site_label('home_button_label', 'मुखपृष्ठम्')}]({home_link})"]
     if up_target_rel_file:
         up_link = rel_link(current_rel_file, up_target_rel_file)
         parts.append(f'[⬆ {up_label}]({up_link})')
     if prev_target_rel_file:
-        prev_link = rel_link(current_rel_file, prev_target_rel_file)
-        parts.append(f'[←]({prev_link})')
+        # Raw HTML (not `[←](...)` + attr_list) on purpose: a markdown
+        # link's URL segment `(...)` immediately followed by `{: .cls}`
+        # is indistinguishable, to convert_bracket_attr_spans' bare-paren
+        # pattern, from the kavya stage-direction convention it exists
+        # to convert — it would silently eat the link. raw_html_href
+        # (not rel_link) because this is literal HTML, never rewritten
+        # by MkDocs' Markdown-link clean-URL handling.
+        prev_href = raw_html_href(current_rel_file, prev_target_rel_file)
+        parts.append(f'<a class="sv-topnav-arrow" href="{prev_href}">←</a>')
     if next_target_rel_file:
-        next_link = rel_link(current_rel_file, next_target_rel_file)
-        parts.append(f'[→]({next_link})')
+        next_href = raw_html_href(current_rel_file, next_target_rel_file)
+        parts.append(f'<a class="sv-topnav-arrow" href="{next_href}">→</a>')
     inner = " · ".join(parts)
     return f'<div class="sv-topnav">\n\n{inner}\n\n</div>\n'
 
@@ -1501,7 +1554,7 @@ def build_text_index_page(text: Text) -> str:
     lines.append(f"## {chapters_label}")
     lines.append("")
     for ch in text.chapters:
-        lines.append(f"- [{ch.nav_label}]({ch.slug}.md)")
+        lines.append(f"- [{ch.nav_label}]({rel_link(rel_file, ch.rel_out_file)})")
     lines.append("")
     return "\n".join(lines)
 
@@ -1523,23 +1576,39 @@ def section_label(fm: dict, body: str, fallback_stem: str) -> str:
     return fallback_stem
 
 
+def section_display_title(fm: dict, stem: str) -> str:
+    """The title shown for one section on a sections-mode chapter's
+    landing/TOC page: that section's own `title:` frontmatter, or (if
+    absent) its filename without extension. Deliberately NOT the same
+    lookup as section_label() above (which prefers `ref:` and falls back
+    to the body's first '# heading') — this is specifically about the
+    section's frontmatter title, per the chapter_display_style: sections
+    spec."""
+    if fm.get("title"):
+        return str(fm["title"]).strip()
+    return stem
+
+
 TOPIC_LINK_TMPL = "- [{title}]({link})"
 
 
 def build_shloka_table(
-    chapter: Chapter, all_shlokas: list[Shloka], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
+    current_rel_file: str, all_shlokas: list[Shloka], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
 ) -> list[str]:
-    """Renders the श्लोकसूची table shared by both kavya and shastra
-    chapter pages — one row per shloka in `all_shlokas` (1-indexed =>
-    anchor "#s{i}", matching extract_shlokas' numbering), linking its
-    meter/alankaras to their glossary pages where recognized. Returns []
-    if there are no shlokas at all (nothing to show)."""
+    """Renders the श्लोकसूची table shared by every page that can carry
+    shlokas — a full_chapter-mode chapter page, or (in sections mode) an
+    individual section page — one row per shloka in `all_shlokas`
+    (1-indexed => anchor "#s{i}", matching extract_shlokas' numbering),
+    linking its meter/alankaras to their glossary pages where recognized.
+    `current_rel_file` is the page this table is being rendered onto (for
+    relative links). Returns [] if there are no shlokas at all (nothing
+    to show)."""
     def link_chandas(m: str) -> str:
         if not m:
             return "—"
         if m not in chandas:
             return m
-        return f"[{m}]({rel_link(chapter.rel_out_file, chandas[m].rel_out_file)})"
+        return f"[{m}]({rel_link(current_rel_file, chandas[m].rel_out_file)})"
 
     def link_alankaras(items: list[str]) -> str:
         if not items:
@@ -1547,7 +1616,7 @@ def build_shloka_table(
         out = []
         for a in items:
             if a in alankaras:
-                out.append(f"[{a}]({rel_link(chapter.rel_out_file, alankaras[a].rel_out_file)})")
+                out.append(f"[{a}]({rel_link(current_rel_file, alankaras[a].rel_out_file)})")
             else:
                 out.append(a)
         return ", ".join(out)
@@ -1563,21 +1632,24 @@ def build_shloka_table(
     return table_lines
 
 
-def render_chapter(
+def render_chapter_full(
     chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
 ) -> tuple[str, list[Shloka]]:
-    """Returns (rendered_markdown, all_shlokas_in_anchor_order). One
-    render path for every chapter, regardless of what kind of text it's
-    part of (no more shastra-vs-kavya split driven by a text `type:` —
-    see site update notes for why that distinction never actually needed
-    to be a text-level classification): every section gets a
-    `<div id="sec{i}">` anchor, every section's `topics:` frontmatter (if
-    any) contributes a सम्बद्धाः विषयाः back-link block up top, shlokas are
-    numbered contiguously chapter-wide, and a श्लोकसूची table (see
-    build_shloka_table) is appended whenever the chapter has any shlokas
-    at all. A chapter with no `topics:` anywhere in its sections simply
-    gets no सम्बद्धाः विषयाः block — this function doesn't need to know in
-    advance which kind of text it's rendering."""
+    """Returns (rendered_markdown, all_shlokas_in_anchor_order). The
+    `chapter_display_style: full_chapter` (default, and only historical)
+    render path — every section concatenated onto one page, regardless of
+    what kind of text it's part of (no more shastra-vs-kavya split driven
+    by a text `type:` — see site update notes for why that distinction
+    never actually needed to be a text-level classification): every
+    section gets a `<div id="sec{i}">` anchor, every section's `topics:`
+    frontmatter (if any) contributes a सम्बद्धाः विषयाः back-link block up
+    top, shlokas are numbered contiguously chapter-wide, and a श्लोकसूची
+    table (see build_shloka_table) is appended whenever the chapter has
+    any shlokas at all. A chapter with no `topics:` anywhere in its
+    sections simply gets no सम्बद्धाः विषयाः block — this function doesn't
+    need to know in advance which kind of text it's rendering. See
+    render_chapter_sections for the `chapter_display_style: sections`
+    alternative."""
     seen_topics: list[str] = []
     body_parts = []
     all_shlokas: list[Shloka] = []
@@ -1633,25 +1705,146 @@ def render_chapter(
         next_target_rel_file=next_ch.rel_out_file if next_ch else None,
     )
     title_line = f"# {chapter.text.title} — {chapter.nav_label}"
-    table_lines = build_shloka_table(chapter, all_shlokas, chandas, alankaras)
+    table_lines = build_shloka_table(chapter.rel_out_file, all_shlokas, chandas, alankaras)
     content = "\n".join([topnav, title_line, ""] + header + body_parts + [""] + table_lines) + "\n"
     return content, all_shlokas
 
 
-def record_shloka_references(chapter: Chapter, chandas: dict, alankaras: dict, shlokas_with_index: list[tuple[int, Shloka]]):
+def record_shloka_references(
+    chapter: Chapter, chandas: dict, alankaras: dict, shlokas_with_index: list[tuple[int, Shloka]],
+    page_rel_out_file: str | None = None, section_title: str | None = None,
+):
     """Registers each shloka's data-chandas=/data-alankara= (or its
     section's chandas:/alankara: frontmatter fallback) against the
     matching chandas/alankara glossary entry, so that entry's own page
     lists this chapter under सन्दर्भाः. Shared by both kavya and shastra
     chapters — a shastra shloka (e.g. in a shastra-karika/shastra-vada
-    text) can cite a meter/alankara exactly like a kavya one."""
+    text) can cite a meter/alankara exactly like a kavya one. `page_rel_out_file`/
+    `section_title` let a sections-mode caller point references at the
+    individual section's own page instead of the chapter's landing/TOC
+    page — see Reference."""
     for i, sh in shlokas_with_index:
         anchor = f"s{i}"
         if sh.chandas and sh.chandas in chandas:
-            chandas[sh.chandas].references.append(Reference(sh.chandas, chapter, anchor, sh.preview))
+            chandas[sh.chandas].references.append(
+                Reference(sh.chandas, chapter, anchor, sh.preview, page_rel_out_file, section_title)
+            )
         for a in sh.alankaras:
             if a in alankaras:
-                alankaras[a].references.append(Reference(a, chapter, anchor, sh.preview))
+                alankaras[a].references.append(
+                    Reference(a, chapter, anchor, sh.preview, page_rel_out_file, section_title)
+                )
+
+
+def render_chapter_sections(
+    chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
+) -> None:
+    """The `chapter_display_style: sections` render path — writes one
+    output page per section (own URL, own topnav, own सम्बद्धाः विषयाः
+    block and श्लोकसूची table, shloka anchors numbered from #s1 within
+    that page) plus a separate chapter landing/TOC page (chapter.out_file
+    == chapter.rel_out_file) listing the chapter itself followed by each
+    section (title from that section's own `title:` frontmatter, or its
+    filename if absent — see section_display_title), each linking to its
+    page. Unlike render_chapter_full, this writes its own output files
+    directly (there's no single "the" chapter page to hand back to the
+    caller) and records shloka/topic references against each section's
+    own page, not the chapter's landing page — see Reference."""
+    up_target = f"{chapter.text.rel_out_dir}/index.md"
+    siblings = chapter.text.chapters
+    idx = siblings.index(chapter)
+    prev_ch = siblings[idx - 1] if idx > 0 else None
+    next_ch = siblings[idx + 1] if idx < len(siblings) - 1 else None
+
+    toc_entries: list[tuple[str, str]] = []  # (display_title, rel_out_file)
+
+    for i, section in enumerate(chapter.sections):
+        raw = section.read_text(encoding="utf-8")
+        fm, body = split_frontmatter(raw)
+        display_title = section_display_title(fm, section.stem)
+        back_link_label = section_label(fm, body, section.stem)
+        section_rel_file = chapter.section_rel_out_file(section)
+        toc_entries.append((display_title, section_rel_file))
+
+        anchor = "sec1"
+        seen_topics: list[str] = []
+        for t in as_list(fm.get("topics")):
+            if t not in topics:
+                warn(f"{section} references unknown topic '{t}' (no matching topics/*.md title)")
+                continue
+            seen_topics.append(t)
+            topics[t].references.append(
+                Reference(t, chapter, anchor, back_link_label, section_rel_file, display_title)
+            )
+
+        body = process_content_sections(
+            body, chapter.default_class, chapter.text.effective_gloss_types, source_for_warning=section,
+        )
+        fm_chandas = str(fm.get("chandas", "")).strip()
+        body, shlokas, _ = extract_shlokas(
+            body, fm_chandas, as_list(fm.get("alankara")), chapter.default_shloka_type,
+            0, source_for_warning=section, maintain_linebreak=chapter.text.maintain_shloka_linebreak,
+        )
+        for sh in shlokas:
+            if sh.chandas and sh.chandas not in chandas:
+                warn(f"{section} references unknown meter '{sh.chandas}' (no matching <!-- chandas-name --> row in the chandas glossary)")
+            for a in sh.alankaras:
+                if a not in alankaras:
+                    warn(f"{section} references unknown alankara '{a}' (no matching <!-- alankara-name --> row in the alankara glossary)")
+        record_shloka_references(
+            chapter, chandas, alankaras, list(enumerate(shlokas, start=1)),
+            page_rel_out_file=section_rel_file, section_title=display_title,
+        )
+
+        header = []
+        if seen_topics:
+            header.append(f"## {site_label('related_topics_heading', 'सम्बद्धाः विषयाः')}")
+            header.append("")
+            for t in seen_topics:
+                link = rel_link(section_rel_file, topics[t].rel_out_file)
+                header.append(TOPIC_LINK_TMPL.format(title=t, link=link))
+            header.append("")
+            header.append("---")
+            header.append("")
+
+        prev_sec = chapter.sections[i - 1] if i > 0 else None
+        next_sec = chapter.sections[i + 1] if i < len(chapter.sections) - 1 else None
+        topnav = render_topnav(
+            section_rel_file, chapter.rel_out_file, chapter.nav_label,
+            prev_target_rel_file=chapter.section_rel_out_file(prev_sec) if prev_sec else None,
+            next_target_rel_file=chapter.section_rel_out_file(next_sec) if next_sec else None,
+        )
+        title_line = f"# {chapter.text.title} — {chapter.nav_label} — {display_title}"
+        table_lines = build_shloka_table(section_rel_file, shlokas, chandas, alankaras)
+        content = "\n".join(
+            [topnav, title_line, ""] + header + [f'<div id="{anchor}"></div>\n\n{body.strip()}'] + [""] + table_lines
+        ) + "\n"
+        write_md(DOCS / section_rel_file, content)
+
+    topnav = render_topnav(
+        chapter.rel_out_file, up_target, chapter.text.title,
+        prev_target_rel_file=prev_ch.rel_out_file if prev_ch else None,
+        next_target_rel_file=next_ch.rel_out_file if next_ch else None,
+    )
+    lines = [topnav, f"# {chapter.text.title} — {chapter.nav_label}", ""]
+    for display_title, section_rel_file in toc_entries:
+        lines.append(f"- [{display_title}]({rel_link(chapter.rel_out_file, section_rel_file)})")
+    lines.append("")
+    write_md(chapter.out_file, "\n".join(lines))
+
+
+def process_chapter(
+    chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
+) -> None:
+    """Renders and writes everything for one chapter, dispatching on
+    Chapter.display_style — the single entry point main() calls per
+    chapter, so it doesn't need to know which render path applies."""
+    if chapter.display_style == "sections":
+        render_chapter_sections(chapter, topics, chandas, alankaras)
+        return
+    content, all_shlokas = render_chapter_full(chapter, topics, chandas, alankaras)
+    write_md(chapter.out_file, content)
+    record_shloka_references(chapter, chandas, alankaras, list(enumerate(all_shlokas, start=1)))
 
 
 H1_RE = re.compile(r"^\s*#\s+\S")
@@ -1677,9 +1870,8 @@ def render_ref_page(page: RefPage) -> str:
         parts.append(f"## {site_label('references_heading', 'सन्दर्भाः')}")
         parts.append("")
         for ref in page.references:
-            label = f"{ref.chapter.text.title} — {ref.chapter.nav_label}"
-            link = rel_link(page.rel_out_file, ref.chapter.rel_out_file) + f"#{ref.anchor}"
-            parts.append(f"- [{ref.preview}]({link}) — {label}")
+            link = rel_link(page.rel_out_file, ref.page_rel_out_file) + f"#{ref.anchor}"
+            parts.append(f"- [{ref.preview}]({link}) — {ref.label}")
     parts.append("")
     return "\n".join(parts)
 
@@ -1915,14 +2107,12 @@ def main():
         sections_with_texts.append((section, texts))
 
     # --- render chapters + text index pages for every section ------------
-    # One render path for every chapter — see render_chapter()'s docstring
-    # for why this no longer depends on a text `type:` classification.
+    # process_chapter() dispatches per-chapter on chapter_display_style —
+    # see render_chapter_full() / render_chapter_sections()'s docstrings.
     for section, texts in sections_with_texts:
         for t in texts:
             for ch in t.chapters:
-                content, all_shlokas = render_chapter(ch, topics, chandas, alankaras)
-                write_md(ch.out_file, content)
-                record_shloka_references(ch, chandas, alankaras, list(enumerate(all_shlokas, start=1)))
+                process_chapter(ch, topics, chandas, alankaras)
             write_md(t.out_dir / "index.md", build_text_index_page(t))
 
         write_md(DOCS / f"{section.dir}/index.md", build_domain_index_page(section, texts, topic_nav_entries))

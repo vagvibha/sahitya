@@ -345,6 +345,14 @@ body.sv-force-hide .md-typeset .sv-toggleable {
   white-space: nowrap;
 }
 
+/* Prev/Next (←/→) links — slightly heavier/larger than the plain text
+   links beside them, since they're icon-only and benefit from standing
+   out a bit more. */
+.md-typeset .sv-topnav a.sv-topnav-arrow {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
 /* --- home page: one card per top-level content section (शास्त्रम्/
    काव्यम्/...), each containing that section's own ग्रन्थाः (and, for the
    topics-carrying section, विषयाः) — see build_home_page() in
