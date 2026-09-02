@@ -3,3 +3,8 @@ author: बाणभट्टः
 type: kavya-prose
 chapters: अनुक्रमणिका
 order: 1
+gloss_types:
+  - data_type: notes
+    css_style: fine_print
+    hideable: true
+    hidden_by_default: false
