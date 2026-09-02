@@ -193,7 +193,7 @@ types:
   - data_type: notes
     css_style: fine_print
     hideable: true
-    hidden_by_default: true
+    hidden_by_default: false
 
   # --- vada (claim/refute) — see the header comment above for why this
   # uses class: vada instead of the default "gloss". flowing_text since
