@@ -30,7 +30,7 @@ order: 1
         विहितां प्रियया मनःप्रियामथ निश्चित्य गिरं गरीयसीम् ।<br>
         उपपत्तिमदूर्जिताश्रयं नृपं ऊचे वचनं वृकोदरः ॥ (कि० २।१)
         <audio controls>
-          <source src="../../../assets/audio/chandas/viyogini-ka02-01.mp3" type="audio/mpeg">
+          <source src="/assets/audio/chandas/viyogini-ka02-01.mp3" type="audio/mpeg">
           Your browser does not support the audio element.
         </audio>
     </td>
@@ -74,11 +74,19 @@ order: 1
       ऽऽ।   ऽऽ     । ।   ऽ।ऽ ऽ     ।ऽ।   ऽ  ऽ।  ।ऽ।  ऽऽ
     </td>
     <td>
+      अथ प्रजानामधिपः प्रभाते जायाप्रतिग्राहितगन्धमाल्याम् ।<br>
+      वनाय पीतप्रतिबद्धवत्सां यशोधनो धेनुमृषेर्मुमोच ॥ (रघु० २।१)<br>
+      <audio controls>
+          <source src="/assets/audio/chandas/upajati-vks-raghu2.mp3" type="audio/mpeg">
+              Your browser does not support the audio element.
+      </audio>
+      <br>
+
       अस्त्युत्तरस्यां दिशि देवतात्मा हिमालयो नाम नगाधिराजः ।<br>
-      पूर्वापरौ तोयनिधी वगाह्य स्थितः पृथिव्या इव मानदण्डः॥<br>
+      पूर्वापरौ तोयनिधी वगाह्य स्थितः पृथिव्या इव मानदण्डः॥ (कु० १।१)<br>
       ऽऽ।   ऽ ऽ । ।ऽ   । ऽऽ    ।ऽ   ।ऽऽ      ॥   ऽ।ऽऽ<br>
       <audio controls>
-          <source src="../../../assets/audio/chandas/upajati-vks-ks1.mp3" type="audio/mpeg">
+          <source src="/assets/audio/chandas/upajati-vks-ks1.mp3" type="audio/mpeg">
               Your browser does not support the audio element.
       </audio>
       <br>
@@ -115,7 +123,7 @@ order: 1
       विवेश कश्चिज्जटिलस्तपोवनं<br>
       शरीरबद्धः प्रथमाश्रमो यथा ॥<br>
       <audio controls>
-          <source src="../../../assets/audio/chandas/vamshastha-vks-athajina.mp3" type="audio/mpeg">
+          <source src="/assets/audio/chandas/vamshastha-vks-athajina.mp3" type="audio/mpeg">
               Your browser does not support the audio element.
       </audio>
     </td>
@@ -201,7 +209,7 @@ order: 1
       श्रोणीभारादलसगमना स्तोकनम्रा स्तनाभ्यां<br>
       या तत्र स्याद् युवतिविषये सृष्टिराद्येव धातुः ॥
       <audio controls>
-          <source src="../../../assets/audio/chandas/mandakranta-vks-tanvi.mp3" type="audio/mpeg">
+          <source src="/assets/audio/chandas/mandakranta-vks-tanvi.mp3" type="audio/mpeg">
               Your browser does not support the audio element.
       </audio>
     </td>
@@ -215,7 +223,7 @@ order: 1
       जसौ जसयला वसु-ग्रहयतिश्च पृथ्वी गुरुः। (वसवः ८, ग्रहाः ९)<br>
       ज-स-ज-स-य-ल-ग (।ऽ। ।।ऽ ।ऽ। ।।ऽ ।ऽऽ ।ऽ)
       <audio controls>
-          <source src="../../../assets/audio/chandas/prithvi-laxana.mp3" type="audio/mpeg">
+          <source src="/assets/audio/chandas/prithvi-laxana.mp3" type="audio/mpeg">
           Your browser does not support the audio element.
       </audio>
     </td>
@@ -230,7 +238,7 @@ order: 1
       ददाति कुसुमं फलं शिथिलयत्यभीष्टां क्रियाम्<br>
       अहो न परिचीयते कृपणवञ्चनाचातुरी॥
       <audio controls>
-          <source src="../../../assets/audio/chandas/prithvi-jahati.mp3" type="audio/mpeg">
+          <source src="/assets/audio/chandas/prithvi-jahati.mp3" type="audio/mpeg">
           Your browser does not support the audio element.
       </audio>
     </td>
