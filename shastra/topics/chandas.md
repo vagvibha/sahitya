@@ -16,8 +16,8 @@ order: 1
   </tr>
 </thead>
 <tbody>
-  <tr>
-    <td>वियोगिनी</td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td>वियोगिनी</td>
     <td>
       १०+११
     </td>
@@ -35,8 +35,8 @@ order: 1
         </audio>
     </td>
   </tr>
-  <tr>
-    <td>इन्द्रवज्रा</td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td>इन्द्रवज्रा</td>
     <td>११</td>
     <td>
       स्यादिन्द्रवज्रा यदि तौ जगौ गः<br>
@@ -50,8 +50,8 @@ order: 1
       जातो ममायं विशदः प्रकामं प्रत्यर्पितन्यास इवान्तरात्मा॥
     </td>
   </tr>
-  <tr>
-    <td> उपेन्द्रवज्रा </td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td> उपेन्द्रवज्रा </td>
     <td>
       ११
     </td>
@@ -63,8 +63,8 @@ order: 1
       त्वमेव माता च पिता त्वमेव।...
     </td>
   </tr>
-  <tr>
-    <td>उपजातिः</td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td>उपजातिः</td>
     <td>
       ११
     </td>
@@ -90,8 +90,8 @@ order: 1
       येषां न विद्या न तपो न दानम्।...<br>
     </td>
   </tr>
-  <tr>
-    <td>वंशस्थम्</td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td>वंशस्थम्</td>
     <td>
       १२
     </td>
@@ -120,8 +120,8 @@ order: 1
       </audio>
     </td>
   </tr>
-  <tr>
-    <td>तोटकम्</td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td>तोटकम्</td>
     <td>
       १२
     </td>
@@ -134,8 +134,8 @@ order: 1
       हृदये कलये विमलं चरणं भव शङ्करदेशिक मे शरणम् ॥
     </td>
   </tr>
-  <tr>
-    <td>वसन्ततिलका</td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td>वसन्ततिलका</td>
     <td>
       १४
     </td>
@@ -155,8 +155,8 @@ order: 1
       प्रारब्धमुत्तमजनाः न परित्यज्यन्ति ॥
     </td>
   </tr>
-  <tr>
-    <td>मालिनी</td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td>मालिनी</td>
     <td>
       १५
     </td>
@@ -181,8 +181,8 @@ order: 1
       किमिव हि मधुराणां मण्डनं नाकृतीनाम् 
     </td>
   </tr>
-  <tr>
-    <td>मन्दाक्रान्ता</td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td>मन्दाक्रान्ता</td>
     <td>
       १७
     </td>
@@ -206,8 +206,8 @@ order: 1
       </audio>
     </td>
   </tr>
-  <tr>
-    <td>पृथ्वी</td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td>पृथ्वी</td>
     <td>
       १७
     </td>
@@ -235,8 +235,8 @@ order: 1
       </audio>
     </td>
   </tr>
-  <tr>
-    <td>शिखरिणी</td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td>शिखरिणी</td>
     <td>
       १७
     </td>
@@ -253,8 +253,8 @@ order: 1
       यदा किञ्चिज्ज्ञोऽहं द्विप इव मदान्धः।
     </td>
   </tr>
-  <tr>
-    <td>आर्या</td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td>आर्या</td>
     <td>
       १२+१८<br>
       १२+१५
@@ -267,8 +267,8 @@ order: 1
     <td>
     </td>
   </tr>
-  <tr>
-    <td>शार्दूलविक्रीडितम्</td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td>शार्दूलविक्रीडितम्</td>
     <td>
       १९
     </td>
@@ -279,8 +279,8 @@ order: 1
       केयूराणि न भूषयन्ते पुरुषम् ...
     </td>
   </tr>
-  <tr>
-    <td>स्रग्धरा</td> <!-- chandas-name -->
+  <tr data-glossary-entry>
+    <td>स्रग्धरा</td>
     <td>
       २१
     </td>

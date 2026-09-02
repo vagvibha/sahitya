@@ -156,6 +156,7 @@
 [data-md-color-scheme="slate"] .md-typeset .vada[data-type="claim"] {
   background: rgba(255, 179, 0, 0.1);
 }
+
 /* --- kavya prose / play ------------------------------------------------ */
 .md-typeset .dialog-block {
   margin: 0; /* see the "Uniform vertical rhythm" note above .shloka */
@@ -417,5 +418,12 @@ body.sv-force-hide .md-typeset .sv-toggleable {
 .md-typeset .sv-home-card li {
   margin: 0.2rem 0;
   font-size: 0.92rem;
+}
+
+/* paribhasha.md's auto-generated table — when several texts define the
+   same term, their rows share one merged (rowspan) संज्ञा cell instead
+   of repeating the name; center it vertically within its merged span. */
+.md-typeset td.sv-paribhasha-name {
+  vertical-align: middle;
 }
 

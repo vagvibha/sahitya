@@ -95,14 +95,16 @@ has the old flat layout):
 
 from __future__ import annotations
 
+import html
 import posixpath
 import re
 import shutil
 import sys
+from itertools import groupby
 from pathlib import Path
 
 import yaml
-from bs4 import BeautifulSoup, Comment
+from bs4 import BeautifulSoup
 
 # ---------------------------------------------------------------------------
 # Paths / constants
@@ -594,6 +596,24 @@ class Chapter:
         return f"{self.text.rel_out_dir}/{self.slug}/{section.stem}.md"
 
     @property
+    def full_chapter_label(self) -> str | None:
+        """Only relevant in `chapter_display_style: sections` —
+        `full_chapter_label:` in this chapter's own meta.yaml. If set, an
+        extra "whole chapter on one page" reading view is generated
+        alongside the per-section pages (see render_chapter_sections) and
+        listed first on the chapter's landing/TOC page, under this exact
+        text. Unset/blank (the default) means no such page is generated —
+        sections mode shows only the per-section list, as before."""
+        label = self.meta.get("full_chapter_label")
+        return str(label).strip() or None if label else None
+
+    @property
+    def full_chapter_rel_out_file(self) -> str:
+        """Only meaningful when full_chapter_label is set — the combined
+        reading-view page generated alongside the per-section pages."""
+        return f"{self.text.rel_out_dir}/{self.slug}/full.md"
+
+    @property
     def default_shloka_type(self) -> str:
         """Value that fills in `data-type=` on a bare `<div class="shloka">`
         (one that doesn't already carry its own data-type=) — the
@@ -804,12 +824,16 @@ def discover_ref_pages(kind: str, folder: Path, rel_dir: str, exclude: set[str] 
 # topics/chandas.md and topics/alankara.md (under the topics-carrying
 # section) are each a single hand-maintained page containing one or more
 # HTML <table>s (one row per meter/alankara). A row counts as a matchable
-# glossary entry if it carries an HTML comment `<!-- chandas-name -->` /
-# `<!-- alankara-name -->` anywhere among that <tr>'s direct children —
-# that comment is only a marker (its exact wording isn't otherwise used);
+# glossary entry if its `<tr>` carries a bare `data-glossary-entry`
+# attribute (present/absent is all that matters — it carries no value);
 # the entry's canonical name is the exact text of that row's first <td>,
 # and must match `chandas:`/`alankara:` frontmatter or
-# `data-chandas=`/`data-alankara=` attributes exactly.
+# `data-chandas=`/`data-alankara=` attributes exactly. This is the same
+# `data-*` convention used everywhere else in the source content
+# (data-type=, data-chandas=, data-alankara=, ...) — earlier versions of
+# this script used an HTML comment (`<!-- chandas-name -->`) here instead,
+# which worked but was the one marker in the whole project that didn't
+# match this pattern.
 #
 # These tables are small, well-formed, hand-authored HTML, so — unlike the
 # shloka/commentary scanning above — using BeautifulSoup here (full parse
@@ -821,7 +845,7 @@ def discover_ref_pages(kind: str, folder: Path, rel_dir: str, exclude: set[str] 
 # clicking the entry's name in the table; (2) turns that first cell's text
 # into a link to the detail page, in the copy written to docs/.
 
-GLOSSARY_MARKER = {"chandas": "chandas-name", "alankara": "alankara-name"}
+GLOSSARY_ENTRY_ATTR = "data-glossary-entry"
 GLOSSARY_OUT_SUBDIR = {"chandas": "_chandas", "alankara": "_alankara"}
 
 TABLE_BLOCK_RE = re.compile(r"<table\b.*?</table>", re.IGNORECASE | re.DOTALL)
@@ -875,7 +899,6 @@ def build_glossary_page(kind: str, path: Path, rel_dir: str) -> tuple[dict[str, 
 
     raw = path.read_text(encoding="utf-8")
     fm, body = split_frontmatter(raw)
-    marker = GLOSSARY_MARKER[kind]
     entries: dict[str, TableEntry] = {}
 
     def repl_table(m: re.Match) -> str:
@@ -892,17 +915,14 @@ def build_glossary_page(kind: str, path: Path, rel_dir: str) -> tuple[dict[str, 
         for tr in table.find_all("tr"):
             if tr.find("th"):
                 continue  # header row
-            has_marker = bool(
-                tr.find_all(string=lambda s, marker=marker: isinstance(s, Comment) and marker in s)
-            )
-            if not has_marker:
+            if not tr.has_attr(GLOSSARY_ENTRY_ATTR):
                 continue
             tds = tr.find_all("td", recursive=False)
             if not tds:
                 continue
             name = tds[0].get_text(strip=True)
             if not name:
-                warn(f"{path}: a row marked <!-- {marker} --> has an empty name cell — skipping")
+                warn(f"{path}: a row marked {GLOSSARY_ENTRY_ATTR} has an empty name cell — skipping")
                 continue
             if name in entries:
                 warn(f"{path}: duplicate {kind} entry '{name}' — keeping the first occurrence")
@@ -923,23 +943,129 @@ def build_glossary_page(kind: str, path: Path, rel_dir: str) -> tuple[dict[str, 
 
     new_body = TABLE_BLOCK_RE.sub(repl_table, body).strip()
     if not entries:
-        warn(f"{path}: found no rows marked <!-- {marker} --> — no {kind} entries were registered")
+        warn(f"{path}: found no rows marked {GLOSSARY_ENTRY_ATTR} — no {kind} entries were registered")
 
     title = str(fm.get("title", kind)).strip()
     rendered = new_body if H1_RE.match(new_body) else f"# {title}\n\n{new_body}"
     return entries, rendered, fm
 
 
+    parts.append("")
+    return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Paribhasha ("term defined in-text") collection
+# ---------------------------------------------------------------------------
+#
+# Structurally the mirror image of the chandas/alankara glossary above:
+# chandas/alankara are ONE hand-authored canonical definition per name,
+# referenced FROM many shlokas elsewhere — a duplicate name there is an
+# authoring mistake. A paribhasha term is the opposite — potentially many
+# DIFFERENT texts defining the same term differently, and we want to
+# collect all of them, not pick one canonical version. So there's no
+# dedup, no per-term detail page, and no marker comment/attribute to
+# maintain by hand: every entry comes from a `<paribhasha name="..."
+# source="...">...</paribhasha>` tag found directly in the source content
+# (see extract_paribhasha_entries), and topics/paribhasha.md's own table
+# is entirely auto-generated (see build_paribhasha_table) — there's
+# nothing to hand-maintain on that page except optional prose above the
+# table and, optionally, `header: [...]` frontmatter naming its 3 columns.
+#
+# A <paribhasha> tag is deliberately never rewritten or stripped from the
+# rendered page it lives on — this pass only ever reads it, so marking a
+# passage this way has zero effect on how that passage displays.
+
+PARIBHASHA_BLOCK_RE = re.compile(r"<paribhasha\b.*?</paribhasha>", re.IGNORECASE | re.DOTALL)
+PARIBHASHA_DEFAULT_HEADERS = ["संज्ञा", "परिभाषा", "मूलम्"]
+
+
+class ParibhashaEntry:
+    """One `<paribhasha>` occurrence found in the source content. `text_html`
+    is already-escaped, already-`<br>`-joined inner content, safe to drop
+    straight into a table cell. `page_rel_out_file`/`anchor` identify
+    exactly where on the site this occurrence lives, the same way
+    Reference does for topic/chandas/alankara back-links."""
+
+    def __init__(self, name: str, text_html: str, source: str, page_rel_out_file: str, anchor: str):
+        self.name = name
+        self.text_html = text_html
+        self.source = source
+        self.page_rel_out_file = page_rel_out_file
+        self.anchor = anchor
+
+
+def extract_paribhasha_entries(
+    body: str, page_rel_out_file: str, anchor: str, source_for_warning: object,
+    paribhasha_entries: list[ParibhashaEntry],
+) -> None:
+    """Scans `body` — a section's raw content, before process_content_sections/
+    extract_shlokas touch it (neither of those two knows or cares about
+    `<paribhasha>` tags, so scanning before or after wouldn't change what's
+    found; doing it first keeps this pass fully independent of the rest of
+    the pipeline) — for `<paribhasha name="..." source="...">` tags, and
+    appends one ParibhashaEntry per tag found onto `paribhasha_entries`, in
+    place. Purely additive/read-only: nothing about `body` itself is
+    touched or returned."""
+    for m in PARIBHASHA_BLOCK_RE.finditer(body):
+        soup = BeautifulSoup(m.group(0), "html.parser")
+        tag = soup.find("paribhasha")
+        if tag is None:
+            continue
+        name = (tag.get("name") or "").strip()
+        if not name:
+            warn(f"{source_for_warning}: <paribhasha> tag with no name= attribute — skipping")
+            continue
+        source = (tag.get("source") or "").strip()
+        lines = [ln.strip() for ln in tag.get_text("\n").splitlines() if ln.strip()]
+        text_html = "<br>".join(html.escape(ln) for ln in lines)
+        if not text_html:
+            warn(f"{source_for_warning}: <paribhasha name=\"{name}\"> has no content — skipping")
+            continue
+        paribhasha_entries.append(ParibhashaEntry(name, text_html, source, page_rel_out_file, anchor))
+
+
+def build_paribhasha_table(
+    paribhasha_rel_file: str, entries: list[ParibhashaEntry], headers: list[str]
+) -> str:
+    """The auto-generated table appended to the bottom of topics/paribhasha.md
+    — sorted by नाम (entry.name), with runs of same-named entries (several
+    texts defining the same term — expected, not an error, unlike
+    chandas/alankara) sharing one vertically-centered, rowspan'd first
+    cell instead of repeating the name. Raw HTML `<table>` (not a
+    markdown pipe-table) since rowspan can't be expressed in the latter —
+    matches how the chandas/alankara tables are hand-authored as raw HTML
+    too. Returns "" if there are no entries at all."""
+    if not entries:
+        return ""
+    entries_sorted = sorted(entries, key=lambda e: e.name)
+    rows: list[str] = []
+    for name, group_iter in groupby(entries_sorted, key=lambda e: e.name):
+        group = list(group_iter)
+        name_cell = f'<td rowspan="{len(group)}" class="sv-paribhasha-name">{html.escape(name)}</td>'
+        for i, e in enumerate(group):
+            href = raw_html_href(paribhasha_rel_file, e.page_rel_out_file) + f"#{e.anchor}"
+            cells = [name_cell] if i == 0 else []
+            cells.append(f'<td><a href="{href}">{e.text_html}</a></td>')
+            cells.append(f"<td>{html.escape(e.source) if e.source else '—'}</td>")
+            rows.append("<tr>" + "".join(cells) + "</tr>")
+    thead = "<tr>" + "".join(f"<th>{html.escape(h)}</th>" for h in headers) + "</tr>"
+    return (
+        '<table>\n<thead>\n' + thead + "\n</thead>\n<tbody>\n"
+        + "\n".join(rows) + "\n</tbody>\n</table>"
+    )
+
+
 def render_glossary_entry_page(entry: TableEntry) -> str:
     topnav = render_topnav(entry.rel_out_file, entry.listing_rel_file, entry.listing_title)
     parts = [topnav, f"# {entry.title}", ""]
-    for label, html in zip(entry.col_labels, entry.col_html):
-        if not html:
+    for label, cell_html in zip(entry.col_labels, entry.col_html):
+        if not cell_html:
             continue
         if label:
             parts.append(f"**{label}**")
             parts.append("")
-        parts.append(html)
+        parts.append(cell_html)
         parts.append("")
     if entry.references:
         parts.append(f"## {site_label('references_heading', 'सन्दर्भाः')}")
@@ -981,6 +1107,7 @@ DATA_TYPE_INJECT_RE = None  # placeholder, unused — injection is done via spli
 
 def preview_text(raw: str, max_len: int = 60) -> str:
     text = raw.lstrip(">").strip()
+    text = re.sub(r"<[^>]+>", "", text)  # strip tags (e.g. <paribhasha ...>) — keep their text content
     text = re.sub(r"\*\*|\*|_", "", text)
     text = re.sub(r"\s+", " ", text)
     first_line = text.split("।")[0].split("॥")[0].strip()
@@ -1639,7 +1766,12 @@ def build_shloka_table(
 
 
 def render_chapter_full(
-    chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
+    chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"],
+    paribhasha_entries: list[ParibhashaEntry],
+    *,
+    current_rel_file: str | None = None,
+    topnav_override: str | None = None,
+    primary: bool = True,
 ) -> tuple[str, list[Shloka]]:
     """Returns (rendered_markdown, all_shlokas_in_anchor_order). The
     `chapter_display_style: full_chapter` (default, and only historical)
@@ -1653,9 +1785,21 @@ def render_chapter_full(
     table (see build_shloka_table) is appended whenever the chapter has
     any shlokas at all. A chapter with no `topics:` anywhere in its
     sections simply gets no सम्बद्धाः विषयाः block — this function doesn't
-    need to know in advance which kind of text it's rendering. See
-    render_chapter_sections for the `chapter_display_style: sections`
-    alternative."""
+    need to know in advance which kind of text it's rendering.
+
+    The keyword-only params exist for exactly one other caller —
+    render_chapter_sections's `full_chapter_label:` companion page, which
+    reuses this same rendering (same anchor numbering, same shloka table)
+    at a different URL (chapter.full_chapter_rel_out_file, not
+    chapter.rel_out_file — the landing/TOC page there is a separate,
+    already-written file), with its own topnav (Home + up-to-chapter-TOC
+    only, no chapter-level prev/next — see render_chapter_sections).
+    `primary=False` marks that call as a secondary reading view of
+    content already fully processed once for the per-section pages: it
+    skips re-registering topic/paribhasha back-references and
+    re-emitting warnings already reported during that per-section pass,
+    without needing three separate flags to say so."""
+    current_rel_file = current_rel_file or chapter.rel_out_file
     seen_topics: list[str] = []
     body_parts = []
     all_shlokas: list[Shloka] = []
@@ -1667,11 +1811,15 @@ def render_chapter_full(
         anchor = f"sec{i+1}"
         for t in as_list(fm.get("topics")):
             if t not in topics:
-                warn(f"{section} references unknown topic '{t}' (no matching topics/*.md title)")
+                if primary:
+                    warn(f"{section} references unknown topic '{t}' (no matching topics/*.md title)")
                 continue
             if t not in seen_topics:
                 seen_topics.append(t)
-            topics[t].references.append(Reference(t, chapter, anchor, label))
+            if primary:
+                topics[t].references.append(Reference(t, chapter, anchor, label))
+        if primary:
+            extract_paribhasha_entries(body, current_rel_file, anchor, section, paribhasha_entries)
         body = process_content_sections(
             body, chapter.default_class, chapter.text.effective_gloss_types, source_for_warning=section,
         )
@@ -1682,10 +1830,12 @@ def render_chapter_full(
         )
         for sh in shlokas:
             if sh.chandas and sh.chandas not in chandas:
-                warn(f"{section} references unknown meter '{sh.chandas}' (no matching <!-- chandas-name --> row in the chandas glossary)")
+                if primary:
+                    warn(f"{section} references unknown meter '{sh.chandas}' (no data-glossary-entry row for it in the chandas glossary)")
             for a in sh.alankaras:
                 if a not in alankaras:
-                    warn(f"{section} references unknown alankara '{a}' (no matching <!-- alankara-name --> row in the alankara glossary)")
+                    if primary:
+                        warn(f"{section} references unknown alankara '{a}' (no data-glossary-entry row for it in the alankara glossary)")
         all_shlokas.extend(shlokas)
         body_parts.append(f'<div id="{anchor}"></div>\n\n{body.strip()}')
 
@@ -1694,24 +1844,27 @@ def render_chapter_full(
         header.append(f"## {site_label('related_topics_heading', 'सम्बद्धाः विषयाः')}")
         header.append("")
         for t in seen_topics:
-            link = rel_link(chapter.rel_out_file, topics[t].rel_out_file)
+            link = rel_link(current_rel_file, topics[t].rel_out_file)
             header.append(TOPIC_LINK_TMPL.format(title=t, link=link))
         header.append("")
         header.append("---")
         header.append("")
 
-    up_target = f"{chapter.text.rel_out_dir}/index.md"
-    siblings = chapter.text.chapters
-    idx = siblings.index(chapter)
-    prev_ch = siblings[idx - 1] if idx > 0 else None
-    next_ch = siblings[idx + 1] if idx < len(siblings) - 1 else None
-    topnav = render_topnav(
-        chapter.rel_out_file, up_target, chapter.text.title,
-        prev_target_rel_file=prev_ch.rel_out_file if prev_ch else None,
-        next_target_rel_file=next_ch.rel_out_file if next_ch else None,
-    )
+    if topnav_override is not None:
+        topnav = topnav_override
+    else:
+        up_target = f"{chapter.text.rel_out_dir}/index.md"
+        siblings = chapter.text.chapters
+        idx = siblings.index(chapter)
+        prev_ch = siblings[idx - 1] if idx > 0 else None
+        next_ch = siblings[idx + 1] if idx < len(siblings) - 1 else None
+        topnav = render_topnav(
+            current_rel_file, up_target, chapter.text.title,
+            prev_target_rel_file=prev_ch.rel_out_file if prev_ch else None,
+            next_target_rel_file=next_ch.rel_out_file if next_ch else None,
+        )
     title_line = f"# {chapter.text.title} — {chapter.nav_label}"
-    table_lines = build_shloka_table(chapter.rel_out_file, all_shlokas, chandas, alankaras)
+    table_lines = build_shloka_table(current_rel_file, all_shlokas, chandas, alankaras)
     content = "\n".join([topnav, title_line, ""] + header + body_parts + [""] + table_lines) + "\n"
     return content, all_shlokas
 
@@ -1743,7 +1896,8 @@ def record_shloka_references(
 
 
 def render_chapter_sections(
-    chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
+    chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"],
+    paribhasha_entries: list[ParibhashaEntry],
 ) -> None:
     """The `chapter_display_style: sections` render path — writes one
     output page per section (own URL, own topnav, own सम्बद्धाः विषयाः
@@ -1752,10 +1906,19 @@ def render_chapter_sections(
     == chapter.rel_out_file) listing the chapter itself followed by each
     section (title from that section's own `title:` frontmatter, or its
     filename if absent — see section_display_title), each linking to its
-    page. Unlike render_chapter_full, this writes its own output files
-    directly (there's no single "the" chapter page to hand back to the
-    caller) and records shloka/topic references against each section's
-    own page, not the chapter's landing page — see Reference."""
+    page. If `full_chapter_label:` is set in this chapter's meta.yaml, an
+    extra page combining every section (via render_chapter_full — same
+    rendering as full_chapter mode, own topnav, no chapter-level
+    prev/next since there's nothing chapter-level to page between here)
+    is generated at chapter.full_chapter_rel_out_file and listed FIRST on
+    the landing/TOC page, under that label — a secondary reading view
+    (`primary=False`), so it deliberately does not re-register
+    topic/paribhasha back-references or re-emit warnings already reported
+    for the same content while building the per-section pages. Unlike
+    render_chapter_full, this writes its own output files directly
+    (there's no single "the" chapter page to hand back to the caller) and
+    records shloka/topic/paribhasha references against each section's own
+    page, not the chapter's landing page — see Reference."""
     up_target = f"{chapter.text.rel_out_dir}/index.md"
     siblings = chapter.text.chapters
     idx = siblings.index(chapter)
@@ -1783,6 +1946,8 @@ def render_chapter_sections(
                 Reference(t, chapter, anchor, back_link_label, section_rel_file, display_title)
             )
 
+        extract_paribhasha_entries(body, section_rel_file, anchor, section, paribhasha_entries)
+
         body = process_content_sections(
             body, chapter.default_class, chapter.text.effective_gloss_types, source_for_warning=section,
         )
@@ -1793,10 +1958,10 @@ def render_chapter_sections(
         )
         for sh in shlokas:
             if sh.chandas and sh.chandas not in chandas:
-                warn(f"{section} references unknown meter '{sh.chandas}' (no matching <!-- chandas-name --> row in the chandas glossary)")
+                warn(f"{section} references unknown meter '{sh.chandas}' (no data-glossary-entry row for it in the chandas glossary)")
             for a in sh.alankaras:
                 if a not in alankaras:
-                    warn(f"{section} references unknown alankara '{a}' (no matching <!-- alankara-name --> row in the alankara glossary)")
+                    warn(f"{section} references unknown alankara '{a}' (no data-glossary-entry row for it in the alankara glossary)")
         record_shloka_references(
             chapter, chandas, alankaras, list(enumerate(shlokas, start=1)),
             page_rel_out_file=section_rel_file, section_title=display_title,
@@ -1827,6 +1992,16 @@ def render_chapter_sections(
         ) + "\n"
         write_md(DOCS / section_rel_file, content)
 
+    if chapter.full_chapter_label:
+        full_rel_file = chapter.full_chapter_rel_out_file
+        full_topnav = render_topnav(full_rel_file, chapter.rel_out_file, chapter.nav_label)
+        full_content, _ = render_chapter_full(
+            chapter, topics, chandas, alankaras, paribhasha_entries,
+            current_rel_file=full_rel_file, topnav_override=full_topnav, primary=False,
+        )
+        write_md(DOCS / full_rel_file, full_content)
+        toc_entries.insert(0, (chapter.full_chapter_label, full_rel_file))
+
     topnav = render_topnav(
         chapter.rel_out_file, up_target, chapter.text.title,
         prev_target_rel_file=prev_ch.rel_out_file if prev_ch else None,
@@ -1840,15 +2015,16 @@ def render_chapter_sections(
 
 
 def process_chapter(
-    chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"]
+    chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"],
+    paribhasha_entries: list[ParibhashaEntry],
 ) -> None:
     """Renders and writes everything for one chapter, dispatching on
     Chapter.display_style — the single entry point main() calls per
     chapter, so it doesn't need to know which render path applies."""
     if chapter.display_style == "sections":
-        render_chapter_sections(chapter, topics, chandas, alankaras)
+        render_chapter_sections(chapter, topics, chandas, alankaras, paribhasha_entries)
         return
-    content, all_shlokas = render_chapter_full(chapter, topics, chandas, alankaras)
+    content, all_shlokas = render_chapter_full(chapter, topics, chandas, alankaras, paribhasha_entries)
     write_md(chapter.out_file, content)
     record_shloka_references(chapter, chandas, alankaras, list(enumerate(all_shlokas, start=1)))
 
@@ -2068,12 +2244,21 @@ def main():
     topics: dict[str, RefPage] = {}
     chandas: dict[str, TableEntry] = {}
     alankaras: dict[str, TableEntry] = {}
+    paribhasha_entries: list[ParibhashaEntry] = []
     topic_nav_entries: list = []
     topics_rel_dir = f"{TOPICS_SECTION.dir}/topics" if TOPICS_SECTION else ""
 
+    paribhasha_path = TOPICS_SECTION.topics_src / "paribhasha.md" if TOPICS_SECTION else None
+    paribhasha_fm: dict = {}
+    paribhasha_body = ""
+    has_paribhasha_page = bool(paribhasha_path and paribhasha_path.exists())
+    if has_paribhasha_page:
+        paribhasha_fm, paribhasha_body = split_frontmatter(paribhasha_path.read_text(encoding="utf-8"))
+
     if TOPICS_SECTION:
         topics = discover_ref_pages(
-            "topic", TOPICS_SECTION.topics_src, topics_rel_dir, exclude={"chandas.md", "alankara.md"}
+            "topic", TOPICS_SECTION.topics_src, topics_rel_dir,
+            exclude={"chandas.md", "alankara.md", "paribhasha.md"},
         )
         chandas, chandas_body, chandas_page_fm = build_glossary_page(
             "chandas", TOPICS_SECTION.topics_src / "chandas.md", topics_rel_dir
@@ -2082,9 +2267,9 @@ def main():
             "alankara", TOPICS_SECTION.topics_src / "alankara.md", topics_rel_dir
         )
 
-        # विषयाः listing: regular topics plus the chandas/alankara glossary
-        # pages themselves, all sorted together the same way (order:
-        # frontmatter, falling back to title).
+        # विषयाः listing: regular topics plus the chandas/alankara/paribhasha
+        # special pages themselves, all sorted together the same way
+        # (order: frontmatter, falling back to title).
         topic_nav_entries = list(topics.values())
         topic_nav_entries.append(
             NavListEntry(
@@ -2102,6 +2287,15 @@ def main():
                 TOPICS_SECTION.topics_src / "alankara.md",
             )
         )
+        if has_paribhasha_page:
+            topic_nav_entries.append(
+                NavListEntry(
+                    str(paribhasha_fm.get("title", "paribhasha")).strip(),
+                    f"{topics_rel_dir}/paribhasha.md",
+                    paribhasha_fm,
+                    paribhasha_path,
+                )
+            )
         topic_nav_entries.sort(key=lambda e: e.sort_key)
 
     # --- discover every configured section's texts + chapters ------------
@@ -2118,7 +2312,7 @@ def main():
     for section, texts in sections_with_texts:
         for t in texts:
             for ch in t.chapters:
-                process_chapter(ch, topics, chandas, alankaras)
+                process_chapter(ch, topics, chandas, alankaras, paribhasha_entries)
             write_md(t.out_dir / "index.md", build_text_index_page(t))
 
         write_md(DOCS / f"{section.dir}/index.md", build_domain_index_page(section, texts, topic_nav_entries))
@@ -2154,6 +2348,28 @@ def main():
             entry.listing_title = alankara_title
             write_md(entry.out_file, render_glossary_entry_page(entry))
 
+    # --- paribhasha page: prose (if any) + fully auto-generated table -----
+    if TOPICS_SECTION and has_paribhasha_page:
+        paribhasha_rel = f"{topics_rel_dir}/paribhasha.md"
+        up_target = f"{TOPICS_SECTION.dir}/topics/index.md"
+        up_label = TOPICS_SECTION.h2_topics_label
+        title = str(paribhasha_fm.get("title", "paribhasha")).strip()
+        headers = as_list(paribhasha_fm.get("header"))
+        if headers and len(headers) != 3:
+            warn(f"{paribhasha_path}: header: must list exactly 3 column names — using the default instead")
+            headers = []
+        headers = headers or PARIBHASHA_DEFAULT_HEADERS
+        body = paribhasha_body.strip()
+        if not H1_RE.match(body):
+            body = f"# {title}\n\n{body}" if body else f"# {title}"
+        table_html = build_paribhasha_table(paribhasha_rel, paribhasha_entries, headers)
+        if not table_html:
+            warn(f"{paribhasha_path}: no <paribhasha> tags found anywhere in the site — the table will be empty")
+        parts = [render_topnav(paribhasha_rel, up_target, up_label), body]
+        if table_html:
+            parts.append(table_html)
+        write_md(DOCS / paribhasha_rel, "\n\n".join(parts) + "\n")
+
     # --- home page ---------------------------------------------------------
     write_md(DOCS / "index.md", build_home_page(sections_with_texts, topic_nav_entries))
 
@@ -2165,7 +2381,7 @@ def main():
     n_texts = sum(len(texts) for _, texts in sections_with_texts)
     print(f"\nDone. {n_texts} text(s) across {len(SECTIONS)} section(s), "
           f"{len(topics)} topic(s), {len(chandas)} meter(s), {len(alankaras)} alankara(s), "
-          f"{n_assets} asset file(s).")
+          f"{len(paribhasha_entries)} paribhasha entries, {n_assets} asset file(s).")
     if WARNINGS:
         print(f"\n{len(WARNINGS)} warning(s) were printed above — please review.", file=sys.stderr)
 
