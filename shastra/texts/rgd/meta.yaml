@@ -5,3 +5,8 @@ chapters: आननानि
 default_class: vritti
 default_shloka_type: karika
 order: 3
+gloss_types:
+  - data_type: notes
+    css_style: fine_print
+    hideable: true
+    hidden_by_default: false

@@ -5,3 +5,8 @@ chapters: उल्लासाः
 default_shloka_type: karika
 default_class: vritti
 order: 1
+gloss_types:
+  - data_type: notes
+    css_style: fine_print
+    hideable: true
+    hidden_by_default: false
