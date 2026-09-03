@@ -5,3 +5,6 @@ ignore: false
 default_class: dialog-block
 default_shloka_type: nataka
 order: 3
+header: |
+  **इदं कविभ्यः पूर्वेभ्यो नमोवाकं प्रशास्महे ।<br>
+  वन्देमहि च तां वाणीममृतामात्मनः कलाम् ॥**<br>

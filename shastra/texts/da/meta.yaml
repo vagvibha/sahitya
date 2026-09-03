@@ -5,6 +5,10 @@ chapters: अनुक्रमणिका
 default_shloka_type: karika
 default_class: vritti
 order: 2
+header: |
+  <br>
+  **स्वेछाकेसरिणः स्वच्छस्वच्छायायासितेन्दवः ।<br>
+  त्रायन्तां वो मधुरिपोः प्रपन्नार्तिच्छिदो नखाः ॥**<br>
 sources:
    - http://sa.wikisource.org
 gloss_types:

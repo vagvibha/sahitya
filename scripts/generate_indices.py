@@ -1683,6 +1683,9 @@ def build_text_index_page(text: Text) -> str:
     lines = [render_topnav(rel_file, up_target, text.section.h1_label), f"# {text.title}", ""]
     if text.author:
         lines += [f"**{site_label('author_label', 'कर्ता:')}** {text.author}", ""]
+    header = str(text.meta.get("header", "")).strip()
+    if header:
+        lines += [header, ""]
     chapters_label = str(text.meta.get("chapters", "")).strip() or "अध्यायाः / भागाः"
     lines.append(f"## {chapters_label}")
     lines.append("")

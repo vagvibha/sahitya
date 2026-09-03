@@ -6,3 +6,6 @@ ignore: false
 default_class: dialog-block
 default_shloka_type: nataka
 order: 1
+header: |
+  **उदयनवेन्दुसवर्णावासवदत्ताबलौ बलस्य त्वाम् ।<br>
+  पद्मावतीर्णपूर्णौ वसन्तकम्रौ भुजौ पाताम् ॥**<br>

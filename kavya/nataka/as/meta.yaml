@@ -4,3 +4,12 @@ chapters: अङ्काः
 default_class: dialog-block
 default_shloka_type: nataka
 order: 2
+header: |
+  **या सृष्टिः स्रष्टुराद्या वहति विधिहुतं या हविर्या च होत्री<br>
+  ये द्वे कालं विधत्तः श्रुतिविषयगुणा या स्थिता व्याप्य विश्वम् ।<br>
+  यामाहुः सर्वबीजप्रकृतिरिति यया प्राणिनः प्राणवन्तः<br>
+  प्रत्यक्षाभिः प्रपन्नस्तनुभिरवतु वस्ताभिरष्टाभिरीशः ॥**<br>
+  <audio controls>
+      <source src="/assets/audio/chandas/sragdhara-r-as1.mp3" type="audio/mpeg">
+          Your browser does not support the audio element.
+  </audio>
