@@ -242,7 +242,7 @@ block-beta
     columns 5
     
     %% Row 1
-    tl["अवच्छेद्यता"]  space  tm["अवच्छेदकता"]  space  space
+    tl["अवच्छेदकता"]  space  tm["अवच्छेद्यता"]  space  space
     
     %% Row 2
     space:5
@@ -314,7 +314,7 @@ block-beta
     columns 9
     
     %% Row 1
-    space:2  t2["अवच्छेदकता"]  space  t3["अवच्छेद्यता"]  space:4
+    space:2  t2["अवच्छेद्यता"]  space  t3["अवच्छेदकता"]  space:4
     
     %% Row 2
     space:9
