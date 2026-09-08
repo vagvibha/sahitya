@@ -37,6 +37,16 @@ jobs:
       - name: Build site
         run: mkdocs build --strict
 
+      - name: Zip site for offline download
+        run: (cd site && zip -rq ../site.zip .)
+
+      - name: Upload zipped site (downloadable Actions artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-offline
+          path: site.zip
+          retention-days: 90
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
