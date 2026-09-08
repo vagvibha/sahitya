@@ -2113,6 +2113,9 @@ NAV_HEADER = """\
 """
 
 MKDOCS_STATIC_TMPL = """\
+hooks:
+  - scripts/mkdocs_hooks.py
+
 site_name: {site_name}
 docs_dir: docs
 
@@ -2139,6 +2142,28 @@ extra_css:
 extra_javascript:
   - javascripts/notes-toggle.js
 {analytics_block}
+# Enables Jinja macros/variables in markdown content — most commonly
+# {{{{ page.meta.some_key }}}} to pull in a value from that page's own
+# YAML frontmatter (e.g. `warning_text: ...` in a page's header, then
+# `{{{{ page.meta.warning_text }}}}` anywhere in its body). See
+# https://mkdocs-macros-plugin.readthedocs.io/en/latest/pages/ for the
+# full templating surface (also reaches config/extra values, and lets a
+# page reference another page's frontmatter, conditionals, loops, etc.).
+# No define_env() hook file is configured — this site only uses the
+# built-in page/config access, not custom Python macros.
+#
+# Jinja's default comment syntax, {{#... #}}, collides with the
+# `{{#some-id}}` attr_list convention already used in this site's source
+# content (e.g. `## heading {{#custom-anchor}}`, `[](){{#gunavritti}}`) —
+# both start with a bare `{{#`. Rather than touch existing/future content,
+# the comment delimiter alone is moved out of the way; {{{{ }}}} (variables)
+# and {{% %}} (control flow) are untouched.
+plugins:
+  - search
+  - macros:
+      j2_comment_start_string: "{{##"
+      j2_comment_end_string: "##}}"
+
 markdown_extensions:
   - attr_list
   - md_in_html
@@ -2157,6 +2182,11 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
   - toc:
       permalink: true
+      # Unicode-aware (Devanagari-safe) slugify is set via the on_config
+      # hook in scripts/mkdocs_hooks.py, not here — see that file's
+      # docstring for why: !!python/name: can only resolve genuinely
+      # importable/installed packages, and a project-local file isn't
+      # one, so this couldn't be a plain inline config value.
 
 # The chandas/alankara detail pages under topics/_chandas/ and
 # topics/_alankara/ are intentionally not linked from nav (only reachable

@@ -29,7 +29,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install mkdocs mkdocs-material pyyaml beautifulsoup4
+          pip install mkdocs mkdocs-material pyyaml beautifulsoup4 mkdocs-macros-plugin
 
       - name: Generate indices (docs/ + mkdocs.yml nav)
         run: python scripts/generate_indices.py
