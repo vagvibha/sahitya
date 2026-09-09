@@ -4,6 +4,7 @@ chapters: अङ्काः
 ignore: false
 default_class: dialog-block
 default_shloka_type: nataka
+source: "typed; ocr"
 order: 3
 header: |
   **इदं कविभ्यः पूर्वेभ्यो नमोवाकं प्रशास्महे ।<br>

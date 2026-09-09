@@ -5,6 +5,7 @@ chapters: अङ्काः
 ignore: false
 default_class: dialog-block
 default_shloka_type: nataka
+source: "typed"
 order: 1
 header: |
   **उदयनवेन्दुसवर्णावासवदत्ताबलौ बलस्य त्वाम् ।<br>

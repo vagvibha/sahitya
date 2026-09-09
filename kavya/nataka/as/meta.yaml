@@ -4,6 +4,7 @@ chapters: अङ्काः
 default_class: dialog-block
 default_shloka_type: nataka
 order: 2
+source: "typed; ocr"
 header: |
   **या सृष्टिः स्रष्टुराद्या वहति विधिहुतं या हविर्या च होत्री<br>
   ये द्वे कालं विधत्तः श्रुतिविषयगुणा या स्थिता व्याप्य विश्वम् ।<br>
