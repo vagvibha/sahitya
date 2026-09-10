@@ -3,6 +3,7 @@ author: बाणभट्टः
 type: kavya-prose
 chapters: अनुक्रमणिका
 order: 1
+source: "ambuda.org"
 gloss_types:
   - data_type: notes
     css_style: fine_print
