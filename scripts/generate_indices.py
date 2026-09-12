@@ -1382,6 +1382,71 @@ def resolve_default_class(default_class: str, gloss_types: dict[str, dict]) -> t
     return value, ""
 
 
+def expand_gloss_shorthand(
+    text: str, gloss_types: dict[str, dict], source_for_warning: object = "", warn_enabled: bool = True,
+) -> str:
+    """Shorthand tag syntax for commentary divs: `<TYPE>...</TYPE>`, where
+    TYPE is any data_type key already known in this chapter's
+    effective_gloss_types (site-wide gloss_types.yaml, overlaid with this
+    book's own meta.yaml gloss_types:/gloss_labels: — see Text.__init__),
+    expands to the equivalent `<div class="..." data-type="TYPE"
+    ...>...</div>` — e.g. `<notes>...</notes>` for
+    `<div class="gloss" data-type="notes">...</div>`, `<tika
+    data-name="...">...</tika>` for a tika div with its author attr, etc.
+    Deliberately generic rather than hardcoded to any one type name, to
+    match this script's existing policy of never hardcoding a
+    gloss-type name in code (see gloss_types.yaml's header comment) —
+    every book's own custom gloss_types: automatically gets shorthand
+    for free, with no code change here.
+
+    Any attributes written on the shorthand tag are forwarded verbatim
+    onto the generated div (so `toggle-hide="true"`, `data-name="..."`,
+    etc. all still work exactly as they do written out longhand).
+
+    Runs as a pure text-splice pass over the raw section body, before
+    parse_divs() ever sees it — so everything downstream (paribhasha
+    extraction, shloka extraction, div nesting/implicit-close) treats an
+    expanded shorthand tag exactly like the equivalent hand-written
+    <div>, with no special-casing anywhere else in the pipeline.
+
+    Shorthand tags may nest inside each other or inside/around a
+    hand-written <div> (matched purely by tag name via a small stack, so
+    e.g. a <notes> inside a <tika> works). An open tag with no matching
+    close (or vice versa) warns and is left as literal, unexpanded text
+    — this script's general policy is to never guess at malformed
+    markup rather than silently drop or mispair it.
+    """
+    if not gloss_types:
+        return text
+    tag_alt = "|".join(re.escape(k) for k in sorted(gloss_types.keys(), key=len, reverse=True))
+    open_re = re.compile(rf'<(?P<tag>{tag_alt})\b(?P<attrs>(?:[^>"]|"[^"]*")*)>')
+    close_re = re.compile(rf'</(?P<tag>{tag_alt})\s*>')
+
+    tokens = [(m.start(), m.end(), "open", m.group("tag"), m.group("attrs")) for m in open_re.finditer(text)]
+    tokens += [(m.start(), m.end(), "close", m.group("tag"), None) for m in close_re.finditer(text)]
+    tokens.sort(key=lambda t: t[0])
+
+    stack: list[tuple[str, int, int, str]] = []
+    splices: list[tuple[int, int, str]] = []
+    for start, end, kind, tag, attrs in tokens:
+        if kind == "open":
+            stack.append((tag, start, end, attrs))
+        else:
+            if not stack or stack[-1][0] != tag:
+                if warn_enabled:
+                    warn(f"{source_for_warning}: </{tag}> shorthand with no matching open <{tag}> — left as-is")
+                continue
+            o_tag, o_start, o_end, o_attrs = stack.pop()
+            cls = str(gloss_types[o_tag].get("class", GLOSS_CLASS)).strip().lower() or GLOSS_CLASS
+            splices.append((o_start, o_end, f'<div class="{cls}" data-type="{o_tag}"{o_attrs}>'))
+            splices.append((start, end, "</div>"))
+    if warn_enabled:
+        for tag, start, end, attrs in stack:
+            warn(f"{source_for_warning}: <{tag}> shorthand never closed — left as-is")
+
+    return apply_splices(text, splices) if splices else text
+
+
 def process_content_sections(
     body: str, default_class: str, gloss_types: dict[str, dict], source_for_warning: object = "",
 ) -> str:
@@ -1810,6 +1875,9 @@ def render_chapter_full(
     for i, section in enumerate(chapter.sections):
         raw = section.read_text(encoding="utf-8")
         fm, body = split_frontmatter(raw)
+        body = expand_gloss_shorthand(
+            body, chapter.text.effective_gloss_types, source_for_warning=section, warn_enabled=primary,
+        )
         label = section_label(fm, body, section.stem)
         anchor = f"sec{i+1}"
         for t in as_list(fm.get("topics")):
@@ -1933,6 +2001,7 @@ def render_chapter_sections(
     for i, section in enumerate(chapter.sections):
         raw = section.read_text(encoding="utf-8")
         fm, body = split_frontmatter(raw)
+        body = expand_gloss_shorthand(body, chapter.text.effective_gloss_types, source_for_warning=section)
         display_title = section_display_title(fm, section.stem)
         back_link_label = section_label(fm, body, section.stem)
         section_rel_file = chapter.section_rel_out_file(section)
@@ -2149,8 +2218,12 @@ extra_javascript:
 # https://mkdocs-macros-plugin.readthedocs.io/en/latest/pages/ for the
 # full templating surface (also reaches config/extra values, and lets a
 # page reference another page's frontmatter, conditionals, loops, etc.).
-# No define_env() hook file is configured — this site only uses the
-# built-in page/config access, not custom Python macros.
+# module_name: points at scripts/macros_env.py (HAND-MAINTAINED, not
+# regenerated — same convention as the mkdocs_hooks.py hooks: entry
+# below) — its define_env() registers custom Jinja macros callable from
+# any page's body, on top of the built-in page.meta.*/config access.
+# Currently just xref() — a relative-link helper that replaces fragile
+# root-absolute links (see its own docstring in macros_env.py for why).
 #
 # Jinja's default comment syntax, {{#... #}}, collides with the
 # `{{#some-id}}` attr_list convention already used in this site's source
@@ -2161,6 +2234,7 @@ extra_javascript:
 plugins:
   - search
   - macros:
+      module_name: scripts/macros_env
       j2_comment_start_string: "{{##"
       j2_comment_end_string: "##}}"
 
