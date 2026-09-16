@@ -632,6 +632,22 @@ class Chapter:
         return str(self.meta.get("default_class", "")).strip() or self.text.default_class
 
     @property
+    def shloka_toc_default(self) -> bool:
+        """Whether a shloka counts toward this chapter's श्लोकसूची table
+        by default — `shloka_toc:` in this chapter's own meta.yaml wins
+        if set at all (True OR False, same "key present at all" rule as
+        Text.maintain_shloka_linebreak); otherwise the text's own
+        meta.yaml if IT sets the key; otherwise True — today's behavior,
+        unchanged for every existing book. A shloka div's own explicit
+        toc="true"/toc="false" attribute always wins over both of these
+        (see extract_shlokas/Shloka.toc)."""
+        if "shloka_toc" in self.meta:
+            return bool(self.meta["shloka_toc"])
+        if "shloka_toc" in self.text.meta:
+            return bool(self.text.meta["shloka_toc"])
+        return True
+
+    @property
     def nav_label(self) -> str:
         if self.meta.get("chapter_name"):
             return str(self.meta["chapter_name"]).strip()
@@ -1119,12 +1135,21 @@ def preview_text(raw: str, max_len: int = 60) -> str:
 
 
 class Shloka:
-    def __init__(self, chandas: str, alankaras: list[str], preview: str, data_type: str, highlight: bool):
+    def __init__(self, chandas: str, alankaras: list[str], preview: str, data_type: str, highlight: bool, toc: bool = True):
         self.chandas = chandas
         self.alankaras = alankaras
         self.preview = preview
         self.data_type = data_type
         self.highlight = highlight
+        # Whether this shloka gets a row in the chapter's श्लोकसूची table
+        # (see build_shloka_table) — resolved once, in extract_shlokas,
+        # from this div's own toc="true"/"false" attribute if present,
+        # else the chapter/text-level shloka_toc: default (Chapter.
+        # shloka_toc_default). Deliberately does NOT affect this shloka's
+        # own #sN anchor numbering, nor its chandas/alankara glossary
+        # back-references (record_shloka_references) — those stay exactly
+        # as if every shloka were included; only the table row is skipped.
+        self.toc = toc
 
 
 def inject_shloka_linebreaks(inner: str) -> str:
@@ -1141,7 +1166,7 @@ def inject_shloka_linebreaks(inner: str) -> str:
 
 def extract_shlokas(
     body: str, fm_chandas: str, fm_alankaras: list[str], default_shloka_type: str, start_index: int = 0,
-    source_for_warning: object = "", maintain_linebreak: bool = False,
+    source_for_warning: object = "", maintain_linebreak: bool = False, shloka_toc_default: bool = True,
 ) -> tuple[str, list[Shloka], int]:
     """Find every <div class="shloka"> in `body` at any nesting depth,
     inject an id="..." attribute for the Shloka Table to link to (see
@@ -1152,8 +1177,13 @@ def extract_shlokas(
     <div class="shloka">, never naked text — see process_content_sections'
     `default_class` for that), and — if `maintain_linebreak` is on for
     this text — replace the shloka's own source line breaks with
-    explicit <br /> tags (see inject_shloka_linebreaks). Returns
-    (modified_body, [Shloka, ...], next_index).
+    explicit <br /> tags (see inject_shloka_linebreaks). Also resolves
+    each shloka's own toc="true"/"false" attribute against
+    `shloka_toc_default` (see Chapter.shloka_toc_default) into the
+    returned Shloka's `.toc` — every shloka is still counted/numbered/
+    returned exactly as before (see Shloka.toc's own docstring for why);
+    it's build_shloka_table's job to skip a row for one with toc=False,
+    not this function's. Returns (modified_body, [Shloka, ...], next_index).
 
     `start_index` lets callers number shlokas contiguously across every
     section in a chapter (ids must be chapter-unique, since all sections
@@ -1185,10 +1215,12 @@ def extract_shlokas(
                 else list(fm_alankaras)
             )
             highlight = attrs.get("highlight", "").strip().lower() == "true"
+            toc_attr = attrs.get("toc", "").strip().lower()
+            toc = shloka_toc_default if toc_attr not in ("true", "false") else (toc_attr == "true")
 
             inner = body[node.tag_end:node.inner_end]
             anchor = f"s{counter}"
-            shlokas.append(Shloka(chandas, alankaras, preview_text(inner), data_type, highlight))
+            shlokas.append(Shloka(chandas, alankaras, preview_text(inner), data_type, highlight, toc))
 
             if maintain_linebreak:
                 splices.append((node.tag_end, node.inner_end, inject_shloka_linebreaks(inner)))
@@ -1798,12 +1830,16 @@ def build_shloka_table(
 ) -> list[str]:
     """Renders the श्लोकसूची table shared by every page that can carry
     shlokas — a full_chapter-mode chapter page, or (in sections mode) an
-    individual section page — one row per shloka in `all_shlokas`
-    (1-indexed => anchor "#s{i}", matching extract_shlokas' numbering),
-    linking its meter/alankaras to their glossary pages where recognized.
-    `current_rel_file` is the page this table is being rendered onto (for
-    relative links). Returns [] if there are no shlokas at all (nothing
-    to show)."""
+    individual section page — one row per shloka in `all_shlokas` whose
+    own `.toc` is True (1-indexed => anchor "#s{i}", matching
+    extract_shlokas' numbering; `i` is still each shloka's real position
+    in the FULL list, toc=False entries included, so a toc=False shloka
+    earlier in the chapter never shifts the anchor numbers of the ones
+    after it — see Shloka.toc), linking its meter/alankaras to their
+    glossary pages where recognized. `current_rel_file` is the page this
+    table is being rendered onto (for relative links). Returns [] if
+    there are no shlokas at all, or none of them have toc=True (nothing
+    to show either way)."""
     def link_chandas(m: str) -> str:
         if not m:
             return "—"
@@ -1824,11 +1860,15 @@ def build_shloka_table(
 
     if not all_shlokas:
         return []
-    table_lines = [f"## {site_label('shloka_list_heading', 'श्लोकसूची')}", "", "| श्लोकः | छन्दः | अलङ्काराः |", "| --- | --- | --- |"]
+    rows = []
     for i, sh in enumerate(all_shlokas, start=1):
-        table_lines.append(
-            f"| [{sh.preview}](#s{i}) | {link_chandas(sh.chandas)} | {link_alankaras(sh.alankaras)} |"
-        )
+        if not sh.toc:
+            continue
+        rows.append(f"| [{sh.preview}](#s{i}) | {link_chandas(sh.chandas)} | {link_alankaras(sh.alankaras)} |")
+    if not rows:
+        return []
+    table_lines = [f"## {site_label('shloka_list_heading', 'श्लोकसूची')}", "", "| श्लोकः | छन्दः | अलङ्काराः |", "| --- | --- | --- |"]
+    table_lines += rows
     table_lines += ["", "---", ""]
     return table_lines
 
@@ -1898,6 +1938,7 @@ def render_chapter_full(
         body, shlokas, shloka_counter = extract_shlokas(
             body, fm_chandas, as_list(fm.get("alankara")), chapter.default_shloka_type,
             shloka_counter, source_for_warning=section, maintain_linebreak=chapter.text.maintain_shloka_linebreak,
+            shloka_toc_default=chapter.shloka_toc_default,
         )
         for sh in shlokas:
             if sh.chandas and sh.chandas not in chandas:
@@ -2027,6 +2068,7 @@ def render_chapter_sections(
         body, shlokas, _ = extract_shlokas(
             body, fm_chandas, as_list(fm.get("alankara")), chapter.default_shloka_type,
             0, source_for_warning=section, maintain_linebreak=chapter.text.maintain_shloka_linebreak,
+            shloka_toc_default=chapter.shloka_toc_default,
         )
         for sh in shlokas:
             if sh.chandas and sh.chandas not in chandas:
