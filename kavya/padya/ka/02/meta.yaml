@@ -1,5 +1,6 @@
 chapter_name: "दितीयः सर्गः"
-xdict:
+dict:
    title: [सर्गः-२]
    type: shloka
+   auto_shloka: false
    shloka_key_prefix: "KA,99,00"
