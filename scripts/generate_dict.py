@@ -92,6 +92,16 @@ def out_dir_for(config: DictConfig, text: gi.Text) -> Path:
     return DICT_ROOT / config.folder / text.slug
 
 
+def base_header(text: gi.Text, config: DictConfig, type_: str, skip: list[str]) -> list[str]:
+    """HEADER:title/type, plus HEADER:skip=... only when `skip` is
+    non-empty — an empty `dict.skip` is the default (no words to skip),
+    so a bare "HEADER:skip=" line for it would just be noise."""
+    header = [f"HEADER:title={text.title} {config.title}", f"HEADER:type={type_}"]
+    if skip:
+        header.append(f"HEADER:skip={';'.join(skip)}")
+    return header
+
+
 # ---------------------------------------------------------------------------
 # Notes format
 # ---------------------------------------------------------------------------
@@ -123,19 +133,25 @@ def process_notes_chapter(text: gi.Text, chapter: gi.Chapter, config: DictConfig
     out_dir = out_dir_for(config, text)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    header = [f"HEADER:title={text.title} {config.title}", "HEADER:type=notes", f"HEADER:skip={';'.join(config.skip)}"]
-    content = "\n".join(header) + "\n" + "\n\n".join(records) + ("\n" if records else "")
+    header = base_header(text, config, "notes", config.skip)
     out_path = out_dir / f"{chapter.slug}.txt"
-    out_path.write_text(content, encoding="utf-8")
-    print(f"wrote {out_path} ({len(records)} record(s))")
+    if not records:
+        print(f"skipping {out_path} (no entries)")
+    else:
+        content = "\n".join(header) + "\n" + "\n\n".join(records) + "\n"
+        out_path.write_text(content, encoding="utf-8")
+        print(f"wrote {out_path} ({len(records)} record(s))")
 
     if config.chapter_key:
-        full_body = "\n\n".join(full_chapter_parts)
-        full_entry = dr.render_notes_entry(full_body, text.effective_gloss_types, source_for_warning=chapter.text.dir)
-        full_content = "\n".join(header) + "\n" + notes_record([config.chapter_key], full_entry) + "\n"
+        full_body = "\n\n".join(full_chapter_parts).strip()
         full_path = out_dir / f"{chapter.slug}-full.txt"
-        full_path.write_text(full_content, encoding="utf-8")
-        print(f"wrote {full_path} (1 record)")
+        if not full_body:
+            print(f"skipping {full_path} (no entries)")
+        else:
+            full_entry = dr.render_notes_entry(full_body, text.effective_gloss_types, source_for_warning=chapter.text.dir)
+            full_content = "\n".join(header) + "\n" + notes_record([config.chapter_key], full_entry) + "\n"
+            full_path.write_text(full_content, encoding="utf-8")
+            print(f"wrote {full_path} (1 record)")
 
 
 # ---------------------------------------------------------------------------
@@ -191,17 +207,23 @@ def process_shloka_chapter(text: gi.Text, chapter: gi.Chapter, config: DictConfi
             div_skip = de.as_syn_list(attrs.get("skip", ""))
             syns = div_syns or file_syns
             skip = div_skip or file_skip
-            if not syns:
-                gi.warn(f"{section}: shloka with no syns= (div attr or frontmatter) — skipping (nothing to key it by)")
-                continue
 
             shloka_raw = body[node.tag_end:node.inner_end]
-            _, shloka_text = de.resolve_dictrefs_in_text(shloka_raw, source_for_warning=section)
-            shloka_text = shloka_text.strip()
 
+            # A shloka_key_prefix-generated key is itself a valid headword
+            # (it's prepended to the "+" line below), so it counts as a
+            # de-facto syn — only skip the shloka if there's neither an
+            # explicit syn NOR a generated key to look it up by.
             key = None
             if config.shloka_key_prefix:
                 key = dr.shloka_dict_key(shloka_raw, config.shloka_key_prefix, source_for_warning=section)
+
+            if not syns and not key:
+                gi.warn(f"{section}: shloka with no syns= (div attr or frontmatter) and no shloka_key_prefix — skipping (nothing to key it by)")
+                continue
+
+            _, shloka_text = de.resolve_dictrefs_in_text(shloka_raw, source_for_warning=section)
+            shloka_text = shloka_text.strip()
 
             group_start = node.end
             group_end = shloka_nodes[i + 1].start if i + 1 < len(shloka_nodes) else len(body)
@@ -222,23 +244,29 @@ def process_shloka_chapter(text: gi.Text, chapter: gi.Chapter, config: DictConfi
     out_dir = out_dir_for(config, text)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    header = [f"HEADER:title={text.title} {config.title}", "HEADER:type=shloka", f"HEADER:skip={';'.join(config.skip)}"]
+    header = base_header(text, config, "shloka", config.skip)
     if hasattr(config, 'auto_shloka') and not config.auto_shloka:
         header.append(f"HEADER:auto_shloka=false")
-    content = "\n".join(header) + "\n" + "\n\n".join(records) + ("\n" if records else "")
     out_path = out_dir / f"{chapter.slug}.txt"
-    out_path.write_text(content, encoding="utf-8")
-    print(f"wrote {out_path} ({len(records)} record(s))")
+    if not records:
+        print(f"skipping {out_path} (no entries)")
+    else:
+        content = "\n".join(header) + "\n" + "\n\n".join(records) + "\n"
+        out_path.write_text(content, encoding="utf-8")
+        print(f"wrote {out_path} ({len(records)} record(s))")
 
     if config.chapter_key:
         # "always of type notes" (spec) — the full-chapter view is a single
         # notes-style record, even for a dict.type: shloka chapter.
-        full_header = [f"HEADER:title={text.title} {config.title}", "HEADER:type=notes", f"HEADER:skip={';'.join(config.skip)}"]
-        full_body = "\n\n".join(full_chapter_parts)
-        full_content = "\n".join(full_header) + "\n" + notes_record([config.chapter_key], full_body) + "\n"
+        full_header = base_header(text, config, "notes", config.skip)
+        full_body = "\n\n".join(full_chapter_parts).strip()
         full_path = out_dir / f"{chapter.slug}-full.txt"
-        full_path.write_text(full_content, encoding="utf-8")
-        print(f"wrote {full_path} (1 record)")
+        if not full_body:
+            print(f"skipping {full_path} (no entries)")
+        else:
+            full_content = "\n".join(full_header) + "\n" + notes_record([config.chapter_key], full_body) + "\n"
+            full_path.write_text(full_content, encoding="utf-8")
+            print(f"wrote {full_path} (1 record)")
 
 
 # ---------------------------------------------------------------------------
