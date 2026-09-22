@@ -106,6 +106,8 @@ from pathlib import Path
 import yaml
 from bs4 import BeautifulSoup
 
+import dict_extract
+
 # ---------------------------------------------------------------------------
 # Paths / constants
 # ---------------------------------------------------------------------------
@@ -1918,6 +1920,7 @@ def render_chapter_full(
         body = expand_gloss_shorthand(
             body, chapter.text.effective_gloss_types, source_for_warning=section, warn_enabled=primary,
         )
+        body, _dict_captures = dict_extract.extract_dict_and_ref_tags(body, source_for_warning=section)
         label = section_label(fm, body, section.stem)
         anchor = f"sec{i+1}"
         for t in as_list(fm.get("topics")):
@@ -2043,6 +2046,7 @@ def render_chapter_sections(
         raw = section.read_text(encoding="utf-8")
         fm, body = split_frontmatter(raw)
         body = expand_gloss_shorthand(body, chapter.text.effective_gloss_types, source_for_warning=section)
+        body, _dict_captures = dict_extract.extract_dict_and_ref_tags(body, source_for_warning=section)
         display_title = section_display_title(fm, section.stem)
         back_link_label = section_label(fm, body, section.stem)
         section_rel_file = chapter.section_rel_out_file(section)
