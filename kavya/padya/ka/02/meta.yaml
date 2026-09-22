@@ -1,2 +1,5 @@
 chapter_name: "दितीयः सर्गः"
-dict: किरातार्जुनीयम्-२
+xdict:
+   title: [सर्गः-२]
+   type: shloka
+   shloka_key_prefix: "KA,99,00"
