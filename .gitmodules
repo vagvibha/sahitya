@@ -1,0 +1,3 @@
+[submodule "scripts/ssengine"]
+	path = scripts/ssengine
+	url = git@github.com-vv:vagvibha/ssengine.git
