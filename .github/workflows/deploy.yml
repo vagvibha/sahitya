@@ -17,9 +17,20 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Overrides the top-level `contents: read` for this job only (job-level
+    # permissions replace, not add to, the top-level block) — needed to
+    # push the regenerated dict/ back to main below. The deploy job further
+    # down is untouched and keeps contents: read.
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # scripts/engine is the shared-engine submodule (generate_indices.py,
+          # dict_extract.py, dict_render.py, generate_dict.py, mkdocs_hooks.py,
+          # macros_env.py) — without this, scripts/*.py are dangling symlinks.
+          submodules: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -33,6 +44,21 @@ jobs:
 
       - name: Generate indices (docs/ + mkdocs.yml nav)
         run: python scripts/generate_indices.py
+
+      - name: Generate dict/
+        run: python scripts/generate_dict.py
+
+      - name: Commit dict/ if it changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dict/
+          if git diff --cached --quiet; then
+            echo "dict/ unchanged — nothing to commit"
+          else
+            git commit -m "Regenerate dict/ [skip ci]"
+            git push origin HEAD:main
+          fi
 
       - name: Build site
         run: mkdocs build --strict
