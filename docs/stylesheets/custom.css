@@ -420,10 +420,60 @@ body.sv-force-hide .md-typeset .sv-toggleable {
   font-size: 0.92rem;
 }
 
-/* paribhasha.md's auto-generated table — when several texts define the
-   same term, their rows share one merged (rowspan) संज्ञा cell instead
-   of repeating the name; center it vertically within its merged span. */
-.md-typeset td.sv-paribhasha-name {
+/* topic definitions table (build_topic_definitions_table in
+   generate_indices.py) — संज्ञा (term) column shares one rowspan'd cell
+   across every text defining the same term (several texts defining the
+   same term is expected, not an error) — center it vertically within
+   its merged span; Material's default table CSS handles everything
+   else. */
+.md-typeset td.sv-topic-term {
   vertical-align: middle;
+}
+
+/* the small forward jump-link process_topic_tags() drops right after
+   every <topic> occurrence, to that topic's own page (see
+   generate_indices.py) — deliberately subtle: present without
+   competing with the surrounding text for attention. */
+.md-typeset a.sv-topic-jump {
+  font-size: 0.7em;
+  text-decoration: none;
+  opacity: 0.55;
+  padding-left: 0.05rem;
+}
+
+.md-typeset a.sv-topic-jump:hover {
+  opacity: 1;
+}
+
+/* a topic category collapsed behind expanded_by_default: false (see
+   render_topic_categories in generate_indices.py) — plain native
+   <details>/<summary>, just given the same heading-ish look as the
+   plain h2/h3/h4 categories sitting next to it, so collapsed and
+   expanded categories both read as one consistent list. */
+.md-typeset details.sv-topic-category {
+  border: none;
+  box-shadow: none;
+  margin: 1em 0;
+  padding: 0;
+}
+
+.md-typeset details.sv-topic-category > summary {
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.md-typeset details.sv-topic-category > summary::before {
+  background-color: var(--md-default-fg-color--light);
+}
+
+/* the small, deliberately non-invasive marker on a non-inline topic
+   definition (from the self-closing <topic define= entry=> form — see
+   process_topic_tags in generate_indices.py) in the परिभाषाः table —
+   distinguishes it from an ordinary in-text definition without drawing
+   attention to itself, matching .sv-topic-jump's low-key treatment. */
+.md-typeset .sv-topic-note-mark {
+  font-size: 0.75em;
+  opacity: 0.55;
 }
 

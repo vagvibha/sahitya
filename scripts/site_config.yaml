@@ -8,7 +8,11 @@
 #
 #   <dir>/meta.yaml        (optional — section-level notes, not required)
 #   <dir>/texts/<slug>/meta.yaml, <dir>/texts/<slug>/<chapter>/*.md, ...
-#   <dir>/topics/*.md      (optional — see `topics` below)
+#
+# Topics (see `topics:` below) are NOT part of any content section — they
+# live at the repo root (`<topics.dir>/<category>/...`), since a topic is
+# commonly referenced from texts across several different sections, same
+# as shastra (this script's sibling project).
 #
 # No Python changes are needed to add a section that follows this shape.
 
@@ -46,8 +50,27 @@ labels:
   intro_nav_label: "परिचयः"           # per-text "introduction" TOC nav label
   author_label: "कर्ता:"              # prefix before a text's author on its TOC page
   shloka_list_heading: "श्लोकसूची"    # kavya chapter pages' verse table heading
-  related_topics_heading: "सम्बद्धाः विषयाः"  # shastra chapter pages' topic back-link heading
   references_heading: "सन्दर्भाः"     # "cited in" back-reference heading (topics + chandas/alankara pages)
+  definitions_heading: "परिभाषाः"     # a topic page's auto-generated definitions table (<topic define="...">)
+  term_column_heading: "संज्ञा"       # definitions table column: the term being defined (<topic define="...">'s value)
+  definition_column_heading: "परिभाषा" # definitions table column: the definition text itself
+  source_column_heading: "मूलम्"      # definitions table column: which text/chapter it's from
+
+# Topics — the repo-root directory topic categories live under (see the
+# generate_indices.py module docstring for the full topics/ layout).
+# `h1_label:` is both the topics listing page's own heading AND its
+# home-page card's/nav entry's label. Reuses the site's own previous
+# "शास्त्रीयविषयाः" label (this used to be the shastra section's own
+# h2_topics_label) so nothing changes for a reader, even though topics
+# themselves are no longer nested under the shastra section.
+topics:
+  dir: "topics"
+  h1_label: "शास्त्रीयविषयाः"
+  # This site tracks kavya meter/figures of speech (topics/chandas.md,
+  # topics/alankara.md) — shastra (this script's sibling project) leaves
+  # this off, since its texts have no use for it. See TopicsConfig's
+  # own docstring in generate_indices.py.
+  chandas_alankara: true
 
 # Default word used for a chapter's nav label when neither the chapter's
 # own meta.yaml (chapter_name:) nor the text's meta.yaml (chapter_type:)
@@ -72,20 +95,20 @@ maintain_shloka_linebreak: true
 content_sections:
   - dir: "shastra"
     h1_label: "साहित्यशास्त्रम्"
-    h2_text_label: "लक्षणग्रन्थाः"
-    h2_topics_label: "शास्त्रीयविषयाः"
     default_chapter_word: "अध्यायः"
-    # This section's topics/ subfolder (topics/*.md + topics/chandas.md +
-    # topics/alankara.md) is the one site-wide source for topic back-links
-    # and the chandas/alankara glossary — referenced from every section's
-    # shlokas, not just this one. At most one content_sections entry
-    # should set this.
-    topics: true
+    # Provisional single category holding both current texts (काव्यप्रकाशः,
+    # ध्वन्यालोकः) — same text_groups: mechanism kavya/ below already uses.
+    # Rename this dir/h2_label (and split into more groups) once real
+    # categories are decided; a single group here is a placeholder, not
+    # a structural limitation — add more entries exactly like kavya/'s
+    # gadya/padya/nataka below whenever needed, no code changes required.
+    text_groups:
+      - dir: "texts"
+        h2_label: "लक्षणग्रन्थाः"
 
   - dir: "kavya"
     h1_label: "काव्यानि"
     default_chapter_word: "भागः"
-    topics: false
     # Multiple text directories under kavya/, each its own H2 heading on
     # the home page card / kavya/index.md / nav — purely categorization,
     # no effect on how a text's own content is processed (see

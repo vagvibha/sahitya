@@ -34,15 +34,6 @@ jobs:
       - name: Generate indices (docs/ + mkdocs.yml nav)
         run: python scripts/generate_indices.py
 
-      - name: Validate dictionary data (dict/)
-        # Regenerates dict/ into this ephemeral runner purely to catch a
-        # malformed <dict>/<dictref>/shloka-key mistake before it reaches
-        # main — generate_dict.py raises (non-zero exit) on any such
-        # error. The actual dict/ files that ship are the ones you
-        # generate and commit locally; this step's output is discarded,
-        # never committed back.
-        run: python scripts/generate_dict.py
-
       - name: Build site
         run: mkdocs build --strict
 

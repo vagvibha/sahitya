@@ -171,12 +171,10 @@ class SectionConfig:
     def __init__(self, raw: dict):
         self.dir = str(raw.get("dir", "")).strip()
         self.h1_label = str(raw.get("h1_label", self.dir)).strip()
-        self.h2_topics_label = str(raw.get("h2_topics_label", "विषयाः")).strip()
         self.default_chapter_word = (
             str(raw.get("default_chapter_word", "")).strip()
             or str(SITE_CONFIG.get("default_chapter_word", "अध्यायः")).strip()
         )
-        self.has_topics = bool(raw.get("topics", False))
         # text_groups: lets a section split its texts across MULTIPLE
         # directories (e.g. kavya/gadya/, kavya/stotra/, kavya/padya/
         # instead of a single kavya/texts/), each becoming its own H2
@@ -205,15 +203,38 @@ class SectionConfig:
     def out_dir(self) -> Path:
         return DOCS / self.dir
 
+
+class TopicsConfig:
+    """The (optional, site-wide, at-most-one) `topics:` block in
+    site_config.yaml — topics live at the repo root, independent of any
+    one content section (a topic can be, and often is, referenced from
+    texts across multiple different sections/cards — see
+    process_topic_tags), so unlike SectionConfig this isn't tied to any
+    section's own directory. Also where the chandas/alankara glossary
+    pages (topics/chandas.md, topics/alankara.md — a separate mechanism
+    from regular <topic>-tag topics; see build_glossary_page) now live,
+    for the same reason: a meter/alankara can be cited from a shloka in
+    ANY section, kavya or shastra alike."""
+
+    def __init__(self, raw: dict):
+        self.dir = str(raw.get("dir", "topics")).strip()
+        self.h1_label = str(raw.get("h1_label", "विषयाः")).strip()
+
     @property
-    def topics_src(self) -> Path:
-        return self.src / "topics"
+    def src(self) -> Path:
+        return ROOT / self.dir
+
+    @property
+    def out_dir(self) -> Path:
+        return DOCS / self.dir
 
 
 SECTIONS: list[SectionConfig] = [
     SectionConfig(raw) for raw in (SITE_CONFIG.get("content_sections") or [])
 ]
-TOPICS_SECTION = next((s for s in SECTIONS if s.has_topics), None)
+TOPICS_CONFIG: TopicsConfig | None = (
+    TopicsConfig(SITE_CONFIG["topics"]) if isinstance(SITE_CONFIG.get("topics"), dict) else None
+)
 
 
 def group_texts(section: SectionConfig, texts: list["Text"]) -> list[tuple[TextGroup, list["Text"]]]:
@@ -770,9 +791,10 @@ class RefPage:
         self.path = path
         self.frontmatter = frontmatter
         self.body = body
-        self.rel_dir = rel_dir  # e.g. "shastra/topics"
+        self.rel_dir = rel_dir  # e.g. "topics/shastriya-vishayah"
         self.title = str(frontmatter.get("title", slug)).strip()
         self.references: list["Reference"] = []  # filled in during the scan
+        self.category: "TopicCategory | None" = None  # filled in by main(), after discover_topic_categories
 
     @property
     def sort_key(self):
@@ -815,23 +837,118 @@ class Reference:
         return f"{base} — {self.section_title}" if self.section_title else base
 
 
+class TopicCategory:
+    """One `topics/<category>/` directory — pure categorization + display
+    grouping for topics, the same role TextGroup plays for texts, except
+    (unlike TextGroup, which is declared centrally in site_config.yaml)
+    a topic category is discovered from disk, one per `topics/*/`
+    subdirectory with its own meta.yaml — categorizing TOPICS is a
+    content-authoring decision (which topics exist and how they cluster
+    changes as the corpus grows), not a site-structure one."""
+
+    def __init__(self, slug: str, meta: dict, rel_dir: str, source_for_warning: object):
+        self.slug = slug
+        self.meta = meta
+        self.rel_dir = rel_dir  # e.g. "topics/shastriya-vishayah"
+        self.title = str(meta.get("title", slug)).strip()
+        self._source = source_for_warning
+        self.topics: list["RefPage"] = []  # filled in by main(), sorted
+
+    @property
+    def expanded_by_default(self) -> bool:
+        # Absent => true (every topic always fully listed) — this is
+        # opt-IN collapsing, only for categories that ask for it
+        # (typically ones with many topics).
+        return bool(self.meta.get("expanded_by_default", True))
+
+    @property
+    def sort_key(self):
+        return title_order_sort_key(self.meta, self.title, self._source)
+
+
+def discover_topic_categories(topics_src: Path, topics_rel_dir: str) -> list[TopicCategory]:
+    """Every `topics/<category>/` subdirectory, each requiring its own
+    meta.yaml with `title:`. A stray `.md` file directly under `topics/`
+    (chandas.md/alankara.md are the one deliberate exception — see
+    build_glossary_page/main, which exclude them from this scan entirely)
+    is warned about and skipped — every regular topic must live inside
+    some category directory. Categories with zero topics in them are
+    dropped by main() before display, the same way group_texts() drops an
+    empty TextGroup — see there."""
+    categories: list[TopicCategory] = []
+    if not topics_src.exists():
+        return categories
+    for p in sorted(topics_src.iterdir()):
+        if p.name.startswith("."):
+            continue
+        if p.is_file():
+            if p.suffix == ".md" and p.name not in {"chandas.md", "alankara.md"}:
+                warn(f"{p}: topics must now live inside a category directory "
+                     f"(topics/<category>/{p.name}, with topics/<category>/meta.yaml "
+                     f"giving that category a title) — this file is directly under "
+                     f"topics/ and will be ignored")
+            continue
+        meta = read_meta(p)
+        title = str(meta.get("title", "")).strip()
+        if not title:
+            warn(f"{p} is a topic category directory with no meta.yaml 'title:' — skipping "
+                 f"(and every topic inside it)")
+            continue
+        categories.append(TopicCategory(p.name, meta, f"{topics_rel_dir}/{p.name}", p))
+    return categories
+
+
+def discover_multifile_topic(d: Path) -> tuple[dict, str]:
+    """A `topics/<category>/<slug>/` directory: a complex topic authored
+    as several .md files instead of one. `d/meta.yaml` carries this
+    topic's own `title:` (and `order:`, for its position among OTHER
+    topics IN ITS CATEGORY — same meaning as a single-file topic's
+    frontmatter `order:`); every child `*.md` inside `d` carries its OWN
+    `order:` in its frontmatter (falling back to filename when
+    absent/non-numeric — same convention as everywhere else, see
+    title_order_sort_key), and all of them are concatenated in that order
+    into one combined body, exactly as if authored as a single file — no
+    headings/separators are injected between them; if the source files
+    want section headings, they already have their own '#'/'##' lines."""
+    meta = read_meta(d)
+    parts = []
+    children = sorted(
+        d.glob("*.md"),
+        key=lambda f: title_order_sort_key(split_frontmatter(f.read_text(encoding="utf-8"))[0], f.stem, f),
+    )
+    for f in children:
+        fm, body = split_frontmatter(f.read_text(encoding="utf-8"))
+        parts.append(body.strip())
+    if not children:
+        warn(f"{d} is a topic directory with no .md files inside — it will render empty")
+    return meta, "\n\n".join(parts)
+
+
 def discover_ref_pages(kind: str, folder: Path, rel_dir: str, exclude: set[str] = frozenset()) -> dict[str, RefPage]:
     pages: dict[str, RefPage] = {}
     if not folder.exists():
         return pages
-    for f in sorted(folder.glob("*.md")):
-        if f.name in exclude:
+    entries = sorted(p for p in folder.iterdir() if not p.name.startswith("."))
+    for p in entries:
+        if p.name in exclude:
             continue
-        text = f.read_text(encoding="utf-8")
-        fm, body = split_frontmatter(text)
+        if p.is_dir():
+            fm, body = discover_multifile_topic(p)
+            f = p  # for warning messages / sort_key source
+        elif p.suffix == ".md":
+            text = p.read_text(encoding="utf-8")
+            fm, body = split_frontmatter(text)
+            f = p
+        else:
+            continue
         title = str(fm.get("title", "")).strip()
         if not title:
-            warn(f"{f} has no 'title' in frontmatter — skipping")
+            warn(f"{f} has no 'title' in frontmatter/meta.yaml — skipping")
             continue
         if title in pages:
             warn(f"duplicate title '{title}' between {pages[title].path} and {f}")
             continue
-        pages[title] = RefPage(kind, f.stem, f, fm, body, rel_dir)
+        pages[title] = RefPage(kind, p.stem, f, fm, body, rel_dir)
     return pages
 
 
@@ -973,105 +1090,320 @@ def build_glossary_page(kind: str, path: Path, rel_dir: str) -> tuple[dict[str, 
 
 
 # ---------------------------------------------------------------------------
-# Paribhasha ("term defined in-text") collection
-# ---------------------------------------------------------------------------
+# <topic name="..." define="term" context="...">...</topic> — replaces
+# BOTH sahitya mechanisms at once:
+#   - the old section-level `topics:` frontmatter ("सम्बद्धाः विषयाः") —
+#     here every occurrence is a precise, paragraph-level tag instead of a
+#     whole-section declaration;
+#   - the old `<paribhasha name="..." source="...">` tag — here
+#     `define="<term>"` on a `<topic>` occurrence does the same job (a
+#     definition of TERM, collected from wherever it's defined across the
+#     corpus), without needing a second tag or a separate global page:
+#     the definitions collect onto the NAMED topic's own page (`term`
+#     doesn't have to equal `name` — several related terms can collect
+#     definitions onto one shared topic page, e.g. name="साधनचतुष्टयम्"
+#     define="शमः" and, elsewhere, name="साधनचतुष्टयम्" define="दमः").
 #
-# Structurally the mirror image of the chandas/alankara glossary above:
-# chandas/alankara are ONE hand-authored canonical definition per name,
-# referenced FROM many shlokas elsewhere — a duplicate name there is an
-# authoring mistake. A paribhasha term is the opposite — potentially many
-# DIFFERENT texts defining the same term differently, and we want to
-# collect all of them, not pick one canonical version. So there's no
-# dedup, no per-term detail page, and no marker comment/attribute to
-# maintain by hand: every entry comes from a `<paribhasha name="..."
-# source="...">...</paribhasha>` tag found directly in the source content
-# (see extract_paribhasha_entries), and topics/paribhasha.md's own table
-# is entirely auto-generated (see build_paribhasha_table) — there's
-# nothing to hand-maintain on that page except optional prose above the
-# table and, optionally, `header: [...]` frontmatter naming its 3 columns.
+# `context=` and `define=` are independent (see process_topic_tags for
+# the full rules) — `context="..."` adds a सन्दर्भाः (reference) entry
+# labeled with that string, `define="<term>"` adds a परिभाषाः
+# (definition) entry, either or both may be given, and at least one is
+# required. What's new here vs. sahitya's old mechanisms is that (a) the
+# anchor is per-OCCURRENCE, not per-section — the tag is rewritten
+# (spliced) into `<span id="tpN">...</span>` in place, so a reader
+# clicking a back-link on the topic page lands on the exact paragraph,
+# not just the top of the section/chapter it's in; (b) a small forward
+# jump-link to that topic's own page is inserted right after it too, so
+# the reverse hop (from the text, straight to the topic) is just as
+# immediate; and (c) a same-labeled reference repeated within one
+# chapter is deduped to its first occurrence (see seen_ref_labels).
 #
-# A <paribhasha> tag is deliberately never rewritten or stripped from the
-# rendered page it lives on — this pass only ever reads it, so marking a
-# passage this way has zero effect on how that passage displays.
+# Unlike sahitya's <paribhasha>, the tag here IS rewritten/stripped from
+# the output (into a `<span id="...">` plus a jump-link), since we need a
+# real anchor id at the exact spot — an untouched custom element has
+# nowhere to put one without either duplicating IDs or affecting layout.
 
-PARIBHASHA_BLOCK_RE = re.compile(r"<paribhasha\b.*?</paribhasha>", re.IGNORECASE | re.DOTALL)
-PARIBHASHA_DEFAULT_HEADERS = ["संज्ञा", "परिभाषा", "मूलम्"]
+TOPIC_OPEN_RE = re.compile(r'<topic\b((?:[^>"]|"[^"]*")*?)(/?)>', re.IGNORECASE)
+TOPIC_CLOSE_RE = re.compile(r"</topic\s*>", re.IGNORECASE)
 
 
-class ParibhashaEntry:
-    """One `<paribhasha>` occurrence found in the source content. `text_html`
-    is already-escaped, already-`<br>`-joined inner content, safe to drop
-    straight into a table cell. `page_rel_out_file`/`anchor` identify
-    exactly where on the site this occurrence lives, the same way
-    Reference does for topic/chandas/alankara back-links."""
+class TopicDefinition:
+    """One `<topic name="X" define="term">...</topic>` occurrence — a
+    definition of TERM (not necessarily = X — a topic page can collect
+    definitions of several distinct terms; see build_topic_definitions_table)
+    found in some text, to be listed on topic X's own page. `text_html` is
+    already-escaped, already-`<br>`-joined content, safe to drop straight
+    into a table cell.
 
-    def __init__(self, name: str, text_html: str, source: str, page_rel_out_file: str, anchor: str):
-        self.name = name
+    `anchor` identifies exactly where on `page_rel_out_file` this occurrence
+    lives, the same way Reference does — EXCEPT it's None for a non-inline
+    definition (see the self-closing `<topic name="X" define="term"
+    entry="...">` form below), which has no passage on the page to point
+    at; build_topic_definitions_table then links मूलम् at the bare page
+    (opens at its top) instead of a precise paragraph, and marks that row
+    with a small indicator."""
+
+    def __init__(self, term: str, text_html: str, page_rel_out_file: str, anchor: str | None, label: str):
+        self.term = term
         self.text_html = text_html
-        self.source = source
         self.page_rel_out_file = page_rel_out_file
         self.anchor = anchor
+        self.label = label  # e.g. "गीता — अध्यायः 2", for the मूलम् column
 
 
-def extract_paribhasha_entries(
-    body: str, page_rel_out_file: str, anchor: str, source_for_warning: object,
-    paribhasha_entries: list[ParibhashaEntry],
-) -> None:
-    """Scans `body` — a section's raw content, before process_content_sections/
-    extract_shlokas touch it (neither of those two knows or cares about
-    `<paribhasha>` tags, so scanning before or after wouldn't change what's
-    found; doing it first keeps this pass fully independent of the rest of
-    the pipeline) — for `<paribhasha name="..." source="...">` tags, and
-    appends one ParibhashaEntry per tag found onto `paribhasha_entries`, in
-    place. Purely additive/read-only: nothing about `body` itself is
-    touched or returned."""
-    for m in PARIBHASHA_BLOCK_RE.finditer(body):
-        soup = BeautifulSoup(m.group(0), "html.parser")
-        tag = soup.find("paribhasha")
-        if tag is None:
+TOPIC_JUMP_MARK = "↗"
+NON_INLINE_TOPIC_MARK = (
+    '<span class="sv-topic-note-mark" '
+    'title="टिप्पणीरूपेण उक्तम् — मूलपाठे प्रकाशितं नास्ति">●</span> '
+)
+
+
+def process_topic_tags(
+    body: str, chapter: "Chapter", topics: dict[str, "RefPage"],
+    definitions: dict[str, list[TopicDefinition]],
+    page_rel_out_file: str, section_title: str | None, start_index: int,
+    seen_ref_labels: dict[str, set[str]],
+    source_for_warning: object = "", primary: bool = True,
+) -> tuple[str, int]:
+    """Scans `body` for `<topic>` tags, in TWO forms:
+
+    - PAIRED — `<topic name="..." define="?" context="?">...</topic>` —
+      rewritten into `<span id="tpN">...</span>` (so the surrounding
+      content displays exactly as authored, just with an anchor dropped at
+      that precise spot) immediately followed by a small forward jump-link
+      to that topic's own page — and, when `primary`, registering a
+      Reference and/or TopicDefinition on the matching topic's page.
+    - SELF-CLOSING — `<topic name="..." define="term"
+      entry="...">` (no body, and never `context=`) — a definition NOT
+      tied to any published passage: a note about a term the site doesn't
+      otherwise display inline. Always stripped from the output entirely
+      (like `<dict entry="...">`'s self-closing form). Its मूलम् link (see
+      build_topic_definitions_table) opens the referencing chapter/section
+      page at the top rather than a precise anchor, and the row carries a
+      small indicator marking it as non-inline.
+
+    Both forms are found via a token-based scan (TOPIC_OPEN_RE/
+    TOPIC_CLOSE_RE, paired up procedurally) rather than one DOTALL regex
+    spanning `<topic...>` to the next `</topic>` — the latter would
+    misfire across an EARLIER self-closing `<topic .../>` by treating
+    everything up to the NEXT real `</topic>` as that unrelated tag's
+    "inner" content (the same hazard dict_extract.py's DICT_OPEN_RE/
+    DICT_CLOSE_RE tokenizing avoids for `<dict>`).
+
+    `start_index` lets callers number tp-anchors (paired occurrences only
+    — a self-closing one needs no anchor, having nothing to jump from)
+    contiguously across an entire page (a full_chapter-mode chapter
+    concatenates every section onto one page, so ids must stay unique
+    across all of them — see render_chapter_full/record_shloka_references
+    for the same pattern with shloka `sN` anchors); a sections-mode caller
+    instead resets this to 0 per section (each section already has its own
+    page/URL). Returns (new_body, next_index).
+
+    `context=` and `define=` are independent on the PAIRED form, and at
+    least one is required (a `<topic>` occurrence with neither is flagged
+    with a warning and does nothing beyond the anchor/jump-link — see
+    below):
+      - `context="..."` ALONE adds a सन्दर्भाः (reference) entry, labeled
+        with this string — a plain "topic X is discussed/relevant here"
+        pointer, no definition implied.
+      - `define="<term>"` ALONE adds a परिभाषाः (definition) entry for
+        TERM — a definition doesn't need its own separate सन्दर्भाः row
+        too (that would just be the same location listed twice on the
+        same page); if the passage is ALSO worth a standalone सन्दर्भाः
+        entry in its own right, add `context=` too.
+      - BOTH together add both, one row each, `context`'s value used as
+        the reference's label.
+    The SELF-CLOSING form always requires BOTH `define=` and `entry=`
+    (there's no body to draw a definition from otherwise) and never takes
+    `context=` (warned and ignored if given — there's no passage on the
+    page for a reference to point at).
+
+    `seen_ref_labels` (topic name -> the set of सन्दर्भाः labels already
+    added for THIS topic IN THIS CHAPTER) dedupes reference entries — see
+    the original docstring for the full reasoning; unchanged here, and
+    doesn't apply to the self-closing form (which never adds a Reference
+    at all).
+    """
+    tokens: list[tuple[int, int, str, str, bool]] = []
+    for m in TOPIC_OPEN_RE.finditer(body):
+        tokens.append((m.start(), m.end(), "open", m.group(1), m.group(2) == "/"))
+    for m in TOPIC_CLOSE_RE.finditer(body):
+        tokens.append((m.start(), m.end(), "close", "", False))
+    tokens.sort(key=lambda t: t[0])
+
+    counter = start_index
+    splices: list[tuple[int, int, str]] = []
+    stack: list[tuple[int, int, str]] = []  # (start, end, attrs_str) of the open paired <topic>
+
+    def def_label() -> str:
+        base = f"{chapter.text.title} — {chapter.nav_label}"
+        return f"{base} — {section_title}" if section_title else base
+
+    for start, end, kind, attrs_str, self_closing in tokens:
+        if kind == "open" and self_closing:
+            splices.append((start, end, ""))  # self-closing never shows anything, known or not
+            attrs = parse_attrs(attrs_str)
+            name = (attrs.get("name") or "").strip()
+            if not name:
+                if primary:
+                    warn(f"{source_for_warning}: self-closing <topic> tag with no name= attribute — skipping")
+                continue
+            term = (attrs.get("define") or "").strip()
+            entry = (attrs.get("entry") or "").strip()
+            if not term or not entry:
+                if primary:
+                    warn(f"{source_for_warning}: self-closing <topic name=\"{name}\"> needs both define= "
+                         f"and entry= (a non-inline definition has no body to draw one from) — skipping")
+                continue
+            if not primary:
+                continue
+            if name not in topics:
+                warn(f"{source_for_warning}: <topic name=\"{name}\"> references unknown topic "
+                     f"(no matching topics/*/*.md or topics/*/*/meta.yaml title '{name}')")
+                continue
+            if (attrs.get("context") or "").strip():
+                warn(f"{source_for_warning}: self-closing <topic name=\"{name}\"> doesn't take context= "
+                     f"(no passage on the page for a reference to point at) — ignoring")
+            lines = [ln.strip() for ln in entry.splitlines() if ln.strip()]
+            text_html = "<br>".join(html.escape(ln) for ln in lines)
+            if not text_html:
+                warn(f"{source_for_warning}: self-closing <topic name=\"{name}\" define=\"{term}\"> "
+                     f"has an empty entry= — skipping")
+                continue
+            definitions.setdefault(name, []).append(
+                TopicDefinition(term, text_html, page_rel_out_file, None, def_label())
+            )
             continue
-        name = (tag.get("name") or "").strip()
+
+        if kind == "open":  # paired open
+            if stack:
+                if primary:
+                    warn(f"{source_for_warning}: <topic> opened at offset {start} before the one opened "
+                         f"at offset {stack[-1][0]} was closed (no nesting supported) — left as-is")
+                continue
+            stack.append((start, end, attrs_str))
+            continue
+
+        # close
+        if not stack:
+            if primary:
+                warn(f"{source_for_warning}: </topic> with no matching open <topic> — left as-is")
+            continue
+        o_start, o_end, o_attrs_str = stack.pop()
+        attrs = parse_attrs(o_attrs_str)
+        name = (attrs.get("name") or "").strip()
+        inner = body[o_end:start]
         if not name:
-            warn(f"{source_for_warning}: <paribhasha> tag with no name= attribute — skipping")
+            if primary:
+                warn(f"{source_for_warning}: <topic> tag with no name= attribute — leaving unlinked")
+            splices.append((o_start, o_end, ""))
+            splices.append((start, end, ""))
             continue
-        source = (tag.get("source") or "").strip()
-        lines = [ln.strip() for ln in tag.get_text("\n").splitlines() if ln.strip()]
-        text_html = "<br>".join(html.escape(ln) for ln in lines)
-        if not text_html:
-            warn(f"{source_for_warning}: <paribhasha name=\"{name}\"> has no content — skipping")
+        counter += 1
+        anchor = f"tp{counter}"
+        known = name in topics
+        if known:
+            jump_href = raw_html_href(page_rel_out_file, topics[name].rel_out_file)
+            jump_link = f' <a class="sv-topic-jump" href="{jump_href}" title="{html.escape(name)}">{TOPIC_JUMP_MARK}</a>'
+        else:
+            jump_link = ""
+        splices.append((o_start, o_end, f'<span id="{anchor}">'))
+        splices.append((start, end, f'</span>{jump_link}'))
+        if not primary:
             continue
-        paribhasha_entries.append(ParibhashaEntry(name, text_html, source, page_rel_out_file, anchor))
+        if not known:
+            warn(f"{source_for_warning}: <topic name=\"{name}\"> references unknown topic "
+                 f"(no matching topics/*/*.md or topics/*/*/meta.yaml title '{name}')")
+            continue
+        context = (attrs.get("context") or "").strip()
+        term = (attrs.get("define") or "").strip()
+        if not context and not term:
+            warn(f"{source_for_warning}: <topic name=\"{name}\"> has neither context= nor define= "
+                 f"— it won't show up anywhere on {name}'s own page. Add context=\"...\" for a plain "
+                 f"reference, define=\"<term>\" for a definition, or both.")
+            continue
+        if context:
+            label = html.escape(context)
+            already_seen = seen_ref_labels.setdefault(name, set())
+            if label not in already_seen:
+                already_seen.add(label)
+                topics[name].references.append(Reference(name, chapter, anchor, label, page_rel_out_file, section_title))
+        if term:
+            lines = [ln.strip() for ln in re.sub(r"<[^>]+>", "", inner).splitlines() if ln.strip()]
+            text_html = "<br>".join(html.escape(ln) for ln in lines)
+            if not text_html:
+                warn(f"{source_for_warning}: <topic name=\"{name}\" define=\"{term}\"> has no content — skipping definition")
+            else:
+                definitions.setdefault(name, []).append(
+                    TopicDefinition(term, text_html, page_rel_out_file, anchor, def_label())
+                )
+
+    if stack and primary:
+        for o_start, _, _ in stack:
+            warn(f"{source_for_warning}: <topic> opened at offset {o_start} was never closed")
+
+    return apply_splices(body, splices), counter
 
 
-def build_paribhasha_table(
-    paribhasha_rel_file: str, entries: list[ParibhashaEntry], headers: list[str]
-) -> str:
-    """The auto-generated table appended to the bottom of topics/paribhasha.md
-    — sorted by नाम (entry.name), with runs of same-named entries (several
-    texts defining the same term — expected, not an error, unlike
-    chandas/alankara) sharing one vertically-centered, rowspan'd first
-    cell instead of repeating the name. Raw HTML `<table>` (not a
-    markdown pipe-table) since rowspan can't be expressed in the latter —
-    matches how the chandas/alankara tables are hand-authored as raw HTML
-    too. Returns "" if there are no entries at all."""
+def build_topic_definitions_table(topic_rel_file: str, entries: list[TopicDefinition]) -> str:
+    """The auto-generated परिभाषाः table appended to a topic's own page
+    when at least one `<topic define="...">` occurrence named it —
+    columns संज्ञा (the term being defined — see TopicDefinition; several
+    distinct terms can collect onto the same topic page, e.g. topic
+    "साधनचतुष्टयम्" collecting separate शमः/दमः/... definitions),
+    परिभाषा (the definition, linked back to its exact paragraph), and
+    मूलम् (which text/chapter it came from). Column headers come from
+    site_config.yaml's labels: (term_column_heading/definition_column_heading/
+    source_column_heading), not hardcoded here. Sorted by संज्ञा, with
+    runs of the same term (expected — several texts defining the same
+    term differently) sharing one vertically-centered, rowspan'd संज्ञा
+    cell instead of repeating it — mirrors sahitya's old <paribhasha>
+    table for exactly the same reason. Raw HTML `<table>` (rowspan can't
+    be expressed in a markdown pipe-table). A non-inline entry (from the
+    self-closing `<topic define= entry=>` form — see process_topic_tags)
+    gets a small NON_INLINE_TOPIC_MARK prefix in its परिभाषा cell and a
+    मूलम् link that opens the referencing page at the top rather than a
+    precise paragraph. Returns "" if `entries` is empty."""
     if not entries:
         return ""
-    entries_sorted = sorted(entries, key=lambda e: e.name)
+    entries_sorted = sorted(entries, key=lambda e: e.term)
     rows: list[str] = []
-    for name, group_iter in groupby(entries_sorted, key=lambda e: e.name):
+    for term, group_iter in groupby(entries_sorted, key=lambda e: e.term):
         group = list(group_iter)
-        name_cell = f'<td rowspan="{len(group)}" class="sv-paribhasha-name">{html.escape(name)}</td>'
+        term_cell = f'<td rowspan="{len(group)}" class="sv-topic-term">{html.escape(term)}</td>'
         for i, e in enumerate(group):
-            href = raw_html_href(paribhasha_rel_file, e.page_rel_out_file) + f"#{e.anchor}"
-            cells = [name_cell] if i == 0 else []
-            cells.append(f'<td><a href="{href}">{e.text_html}</a></td>')
-            cells.append(f"<td>{html.escape(e.source) if e.source else '—'}</td>")
-            rows.append("<tr>" + "".join(cells) + "</tr>")
-    thead = "<tr>" + "".join(f"<th>{html.escape(h)}</th>" for h in headers) + "</tr>"
-    return (
-        '<table>\n<thead>\n' + thead + "\n</thead>\n<tbody>\n"
-        + "\n".join(rows) + "\n</tbody>\n</table>"
+            if e.anchor:
+                href = raw_html_href(topic_rel_file, e.page_rel_out_file) + f"#{e.anchor}"
+                cell_text = e.text_html
+            else:
+                # non-inline (self-closing <topic define= entry=>) — no
+                # precise passage to anchor to, so the link just opens the
+                # referencing page at its top; the small mark distinguishes
+                # this row from an ordinary in-text definition.
+                href = raw_html_href(topic_rel_file, e.page_rel_out_file)
+                cell_text = NON_INLINE_TOPIC_MARK + e.text_html
+            cells = [term_cell] if i == 0 else []
+            cells.append(f'<td><a href="{href}">{cell_text}</a></td>')
+            cells.append(f"<td>{html.escape(e.label)}</td>")
+            # a single space between adjacent </td><td> boundaries below —
+            # purely for MkDocs Material's search-index text extraction,
+            # which concatenates adjacent inline elements with NO
+            # separating whitespace of its own (confirmed against a real
+            # build's search_index.json: without this, "संज्ञा" and
+            # "परिभाषा" glue into one unsearchable "संज्ञापरिभाषा" token,
+            # and a संज्ञा value like "शमः" glues onto the परिभाषा text
+            # right after it into "शमःशमः...", neither of which matches
+            # a search for the plain word). Browsers ignore this
+            # whitespace for layout purposes (table cells already have
+            # their own visual separation), so it changes nothing
+            # visible — only what's indexed.
+            rows.append("<tr>" + " ".join(cells) + "</tr>")
+    thead = "<tr><th>{}</th> <th>{}</th> <th>{}</th></tr>".format(
+        site_label("term_column_heading", "संज्ञा"),
+        site_label("definition_column_heading", "परिभाषा"),
+        site_label("source_column_heading", "मूलम्"),
     )
+    return '<table>\n<thead>\n' + thead + "\n</thead>\n<tbody>\n" + "\n".join(rows) + "\n</tbody>\n</table>"
 
 
 def render_glossary_entry_page(entry: TableEntry) -> str:
@@ -1642,6 +1974,8 @@ def clean_output():
     for section in SECTIONS:
         if section.out_dir.exists():
             shutil.rmtree(section.out_dir)
+    if TOPICS_CONFIG and TOPICS_CONFIG.out_dir.exists():
+        shutil.rmtree(TOPICS_CONFIG.out_dir)
     if ASSETS_OUT.exists():
         shutil.rmtree(ASSETS_OUT)
     index_md = DOCS / "index.md"
@@ -1733,12 +2067,45 @@ def write_md(path: Path, content: str):
 # Section (शास्त्रम्/काव्यम्/...) + text + chapter page rendering
 # ---------------------------------------------------------------------------
 
-def build_domain_index_page(section: SectionConfig, texts: list[Text], topic_nav_entries: list) -> str:
+def render_topic_categories(rel_file: str, categories: list["TopicCategory"], heading_level: str) -> list[str]:
+    """Shared by build_home_page/build_topics_index_page — every place
+    that lists topics grouped by category. A category with
+    `expanded_by_default: true` (the default) gets a plain heading (at
+    `heading_level`, e.g. "###") + list, exactly like a TextGroup's texts
+    (see build_domain_index_page). One with `expanded_by_default: false`
+    instead gets a native `<details>` (closed), so a category with many
+    topics doesn't dominate the page — click to expand; works with no JS,
+    including fully offline. `markdown="1"` on the wrapping tag is needed
+    for the nested markdown-syntax list to render at all inside raw HTML
+    — see md_in_html in build_mkdocs_static."""
+    lines: list[str] = []
+    for cat in categories:
+        items = [f"- [{t.title}]({rel_link(rel_file, t.rel_out_file)})" for t in cat.topics]
+        if cat.expanded_by_default:
+            lines.append(f"{heading_level} {cat.title}")
+            lines.append("")
+            lines.extend(items)
+            lines.append("")
+        else:
+            lines.append('<details class="sv-topic-category" markdown="1">')
+            lines.append(f"<summary>{cat.title}</summary>")
+            lines.append("")
+            lines.extend(items)
+            lines.append("")
+            lines.append("</details>")
+            lines.append("")
+    return lines
+
+
+def build_domain_index_page(section: SectionConfig, texts: list[Text]) -> str:
     """A section's own landing page — mirrors its home-page card (texts,
-    grouped by section.text_groups, then topics if this is the
-    topics-carrying section), just as a full page rather than a card.
-    This is the "Up" target for every text's own TOC page, and (via the
-    "मुखपृष्ठम्" button) reachable from anywhere."""
+    grouped by section.text_groups), just as a full page rather than a
+    card. This is the "Up" target for every text's own TOC page, and (via
+    the "मुखपृष्ठम्" button) reachable from anywhere. Topics are NOT part
+    of this — they're a root-level, section-independent sibling of every
+    content section (a topic is commonly referenced from texts across
+    several different sections — see process_topic_tags), with their own
+    root-level listing/nav entry; see build_topics_index_page."""
     rel_file = f"{section.dir}/index.md"
     lines = [render_topnav(rel_file, None, None), f"# {section.h1_label}", ""]
     for group, texts_in_group in group_texts(section, texts):
@@ -1748,31 +2115,33 @@ def build_domain_index_page(section: SectionConfig, texts: list[Text], topic_nav
             target = f"{t.rel_out_dir}/index.md"
             lines.append(f"- [{t.title}]({rel_link(rel_file, target)})")
         lines.append("")
-    if section.has_topics and topic_nav_entries:
-        lines.append(f"## {section.h2_topics_label}")
-        lines.append("")
-        for entry in topic_nav_entries:
-            lines.append(f"- [{entry.title}]({rel_link(rel_file, entry.rel_out_file)})")
-        lines.append("")
     return "\n".join(lines)
 
 
-def build_topics_index_page(section: SectionConfig, topic_nav_entries: list) -> str:
-    """Dedicated विषयाः landing page — the "Up" target for every individual
-    topic page and for the chandas/alankara glossary listing pages, so
-    going "up" from inside a topic lands you back among *other topics*,
-    not back among the texts (which is a different, unrelated listing one
-    level further up, at the section's own domain index page)."""
-    rel_file = f"{section.dir}/topics/index.md"
-    up_target = f"{section.dir}/index.md"
+def build_topics_index_page(
+    topics_config: "TopicsConfig", topic_categories: list["TopicCategory"], special_entries: list["NavListEntry"],
+) -> str:
+    """The root-level विषयाः landing page — the "Up" target for every
+    individual topic page (and for the chandas/alankara glossary listing
+    pages — see NavListEntry), AND (via its own home-page card/nav entry)
+    directly reachable from anywhere, exactly like a content section's
+    own domain index page — topics are a sibling of every section here,
+    not nested inside one (see TopicsConfig). `special_entries` (chandas/
+    alankara) are listed flat, above the category groups — they're each
+    ONE hand-authored canonical page, not a category of several topics,
+    so they don't need (and can't really take) a category grouping of
+    their own."""
+    rel_file = f"{topics_config.dir}/index.md"
     lines = [
-        render_topnav(rel_file, up_target, section.h1_label),
-        f"# {section.h2_topics_label}",
+        render_topnav(rel_file, None, None),
+        f"# {topics_config.h1_label}",
         "",
     ]
-    for entry in topic_nav_entries:
+    for entry in special_entries:
         lines.append(f"- [{entry.title}]({rel_link(rel_file, entry.rel_out_file)})")
-    lines.append("")
+    if special_entries:
+        lines.append("")
+    lines.extend(render_topic_categories(rel_file, topic_categories, "##"))
     return "\n".join(lines)
 
 
@@ -1794,37 +2163,13 @@ def build_text_index_page(text: Text) -> str:
     return "\n".join(lines)
 
 
-SECTION_HEADING_RE = re.compile(r"^\s*#\s+(.+)$", re.MULTILINE)
-
-
-def section_label(fm: dict, body: str, fallback_stem: str) -> str:
-    """Best-effort human-readable label for a section, used in back-links:
-    prefer an explicit `ref:` frontmatter string, then the section's own
-    '# heading', then fall back to its filename. (Formerly shloka_num:/
-    karika_num: — replaced by the single `ref:` string; those old keys
-    are no longer read.)"""
-    if fm.get("ref"):
-        return str(fm["ref"])
-    m = SECTION_HEADING_RE.search(body)
-    if m:
-        return m.group(1).strip()
-    return fallback_stem
-
-
 def section_display_title(fm: dict, stem: str) -> str:
     """The title shown for one section on a sections-mode chapter's
     landing/TOC page: that section's own `title:` frontmatter, or (if
-    absent) its filename without extension. Deliberately NOT the same
-    lookup as section_label() above (which prefers `ref:` and falls back
-    to the body's first '# heading') — this is specifically about the
-    section's frontmatter title, per the chapter_display_style: sections
-    spec."""
+    absent) its filename without extension."""
     if fm.get("title"):
         return str(fm["title"]).strip()
     return stem
-
-
-TOPIC_LINK_TMPL = "- [{title}]({link})"
 
 
 def build_shloka_table(
@@ -1877,7 +2222,7 @@ def build_shloka_table(
 
 def render_chapter_full(
     chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"],
-    paribhasha_entries: list[ParibhashaEntry],
+    definitions: dict[str, list[TopicDefinition]],
     *,
     current_rel_file: str | None = None,
     topnav_override: str | None = None,
@@ -1889,13 +2234,12 @@ def render_chapter_full(
     what kind of text it's part of (no more shastra-vs-kavya split driven
     by a text `type:` — see site update notes for why that distinction
     never actually needed to be a text-level classification): every
-    section gets a `<div id="sec{i}">` anchor, every section's `topics:`
-    frontmatter (if any) contributes a सम्बद्धाः विषयाः back-link block up
-    top, shlokas are numbered contiguously chapter-wide, and a श्लोकसूची
-    table (see build_shloka_table) is appended whenever the chapter has
-    any shlokas at all. A chapter with no `topics:` anywhere in its
-    sections simply gets no सम्बद्धाः विषयाः block — this function doesn't
-    need to know in advance which kind of text it's rendering.
+    section gets a `<div id="sec{i}">` anchor, every `<topic>` tag inside
+    it is processed in place (see process_topic_tags — precise,
+    paragraph-level back-links/jump-links, not a whole-section
+    declaration), shlokas are numbered contiguously chapter-wide, and a
+    श्लोकसूची table (see build_shloka_table) is appended whenever the
+    chapter has any shlokas at all.
 
     The keyword-only params exist for exactly one other caller —
     render_chapter_sections's `full_chapter_label:` companion page, which
@@ -1906,14 +2250,15 @@ def render_chapter_full(
     only, no chapter-level prev/next — see render_chapter_sections).
     `primary=False` marks that call as a secondary reading view of
     content already fully processed once for the per-section pages: it
-    skips re-registering topic/paribhasha back-references and
+    skips re-registering topic back-references/definitions and
     re-emitting warnings already reported during that per-section pass,
     without needing three separate flags to say so."""
     current_rel_file = current_rel_file or chapter.rel_out_file
-    seen_topics: list[str] = []
     body_parts = []
     all_shlokas: list[Shloka] = []
     shloka_counter = 0
+    topic_tag_counter = 0
+    seen_ref_labels: dict[str, set[str]] = {}
     for i, section in enumerate(chapter.sections):
         raw = section.read_text(encoding="utf-8")
         fm, body = split_frontmatter(raw)
@@ -1921,19 +2266,11 @@ def render_chapter_full(
             body, chapter.text.effective_gloss_types, source_for_warning=section, warn_enabled=primary,
         )
         body, _dict_captures = dict_extract.extract_dict_and_ref_tags(body, source_for_warning=section)
-        label = section_label(fm, body, section.stem)
         anchor = f"sec{i+1}"
-        for t in as_list(fm.get("topics")):
-            if t not in topics:
-                if primary:
-                    warn(f"{section} references unknown topic '{t}' (no matching topics/*.md title)")
-                continue
-            if t not in seen_topics:
-                seen_topics.append(t)
-            if primary:
-                topics[t].references.append(Reference(t, chapter, anchor, label))
-        if primary:
-            extract_paribhasha_entries(body, current_rel_file, anchor, section, paribhasha_entries)
+        body, topic_tag_counter = process_topic_tags(
+            body, chapter, topics, definitions, current_rel_file, None, topic_tag_counter,
+            seen_ref_labels, source_for_warning=section, primary=primary,
+        )
         body = process_content_sections(
             body, chapter.default_class, chapter.text.effective_gloss_types, source_for_warning=section,
         )
@@ -1954,17 +2291,6 @@ def render_chapter_full(
         all_shlokas.extend(shlokas)
         body_parts.append(f'<div id="{anchor}"></div>\n\n{body.strip()}')
 
-    header = []
-    if seen_topics:
-        header.append(f"## {site_label('related_topics_heading', 'सम्बद्धाः विषयाः')}")
-        header.append("")
-        for t in seen_topics:
-            link = rel_link(current_rel_file, topics[t].rel_out_file)
-            header.append(TOPIC_LINK_TMPL.format(title=t, link=link))
-        header.append("")
-        header.append("---")
-        header.append("")
-
     if topnav_override is not None:
         topnav = topnav_override
     else:
@@ -1980,7 +2306,7 @@ def render_chapter_full(
         )
     title_line = f"# {chapter.text.title} — {chapter.nav_label}"
     table_lines = build_shloka_table(current_rel_file, all_shlokas, chandas, alankaras)
-    content = "\n".join([topnav, title_line, ""] + header + body_parts + [""] + table_lines) + "\n"
+    content = "\n".join([topnav, title_line, ""] + body_parts + [""] + table_lines) + "\n"
     return content, all_shlokas
 
 
@@ -2012,28 +2338,28 @@ def record_shloka_references(
 
 def render_chapter_sections(
     chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"],
-    paribhasha_entries: list[ParibhashaEntry],
+    definitions: dict[str, list[TopicDefinition]],
 ) -> None:
     """The `chapter_display_style: sections` render path — writes one
-    output page per section (own URL, own topnav, own सम्बद्धाः विषयाः
-    block and श्लोकसूची table, shloka anchors numbered from #s1 within
-    that page) plus a separate chapter landing/TOC page (chapter.out_file
-    == chapter.rel_out_file) listing the chapter itself followed by each
-    section (title from that section's own `title:` frontmatter, or its
-    filename if absent — see section_display_title), each linking to its
-    page. If `full_chapter_label:` is set in this chapter's meta.yaml, an
-    extra page combining every section (via render_chapter_full — same
+    output page per section (own URL, own topnav, own श्लोकसूची table,
+    shloka anchors numbered from #s1 within that page) plus a separate
+    chapter landing/TOC page (chapter.out_file == chapter.rel_out_file)
+    listing the chapter itself followed by each section (title from that
+    section's own `title:` frontmatter, or its filename if absent — see
+    section_display_title), each linking to its page. If
+    `full_chapter_label:` is set in this chapter's meta.yaml, an extra
+    page combining every section (via render_chapter_full — same
     rendering as full_chapter mode, own topnav, no chapter-level
     prev/next since there's nothing chapter-level to page between here)
     is generated at chapter.full_chapter_rel_out_file and listed FIRST on
     the landing/TOC page, under that label — a secondary reading view
-    (`primary=False`), so it deliberately does not re-register
-    topic/paribhasha back-references or re-emit warnings already reported
-    for the same content while building the per-section pages. Unlike
+    (`primary=False`), so it deliberately does not re-register topic
+    back-references/definitions or re-emit warnings already reported for
+    the same content while building the per-section pages. Unlike
     render_chapter_full, this writes its own output files directly
     (there's no single "the" chapter page to hand back to the caller) and
-    records shloka/topic/paribhasha references against each section's own
-    page, not the chapter's landing page — see Reference."""
+    records shloka/topic references against each section's own page, not
+    the chapter's landing page — see Reference."""
     up_target = f"{chapter.text.rel_out_dir}/index.md"
     siblings = chapter.text.chapters
     idx = siblings.index(chapter)
@@ -2041,6 +2367,10 @@ def render_chapter_sections(
     next_ch = siblings[idx + 1] if idx < len(siblings) - 1 else None
 
     toc_entries: list[tuple[str, str]] = []  # (display_title, rel_out_file)
+    # one dict for the WHOLE chapter (not reset per section) — see
+    # process_topic_tags: "for a given chapter" dedup applies across
+    # every section's own page here, not just within one.
+    seen_ref_labels: dict[str, set[str]] = {}
 
     for i, section in enumerate(chapter.sections):
         raw = section.read_text(encoding="utf-8")
@@ -2048,22 +2378,13 @@ def render_chapter_sections(
         body = expand_gloss_shorthand(body, chapter.text.effective_gloss_types, source_for_warning=section)
         body, _dict_captures = dict_extract.extract_dict_and_ref_tags(body, source_for_warning=section)
         display_title = section_display_title(fm, section.stem)
-        back_link_label = section_label(fm, body, section.stem)
         section_rel_file = chapter.section_rel_out_file(section)
         toc_entries.append((display_title, section_rel_file))
 
-        anchor = "sec1"
-        seen_topics: list[str] = []
-        for t in as_list(fm.get("topics")):
-            if t not in topics:
-                warn(f"{section} references unknown topic '{t}' (no matching topics/*.md title)")
-                continue
-            seen_topics.append(t)
-            topics[t].references.append(
-                Reference(t, chapter, anchor, back_link_label, section_rel_file, display_title)
-            )
-
-        extract_paribhasha_entries(body, section_rel_file, anchor, section, paribhasha_entries)
+        body, _ = process_topic_tags(
+            body, chapter, topics, definitions, section_rel_file, display_title, 0,
+            seen_ref_labels, source_for_warning=section, primary=True,
+        )
 
         body = process_content_sections(
             body, chapter.default_class, chapter.text.effective_gloss_types, source_for_warning=section,
@@ -2085,17 +2406,6 @@ def render_chapter_sections(
             page_rel_out_file=section_rel_file, section_title=display_title,
         )
 
-        header = []
-        if seen_topics:
-            header.append(f"## {site_label('related_topics_heading', 'सम्बद्धाः विषयाः')}")
-            header.append("")
-            for t in seen_topics:
-                link = rel_link(section_rel_file, topics[t].rel_out_file)
-                header.append(TOPIC_LINK_TMPL.format(title=t, link=link))
-            header.append("")
-            header.append("---")
-            header.append("")
-
         prev_sec = chapter.sections[i - 1] if i > 0 else None
         next_sec = chapter.sections[i + 1] if i < len(chapter.sections) - 1 else None
         topnav = render_topnav(
@@ -2106,7 +2416,7 @@ def render_chapter_sections(
         title_line = f"# {chapter.text.title} — {chapter.nav_label} — {display_title}"
         table_lines = build_shloka_table(section_rel_file, shlokas, chandas, alankaras)
         content = "\n".join(
-            [topnav, title_line, ""] + header + [f'<div id="{anchor}"></div>\n\n{body.strip()}'] + [""] + table_lines
+            [topnav, title_line, ""] + [f'<div id="sec1"></div>\n\n{body.strip()}'] + [""] + table_lines
         ) + "\n"
         write_md(DOCS / section_rel_file, content)
 
@@ -2114,7 +2424,7 @@ def render_chapter_sections(
         full_rel_file = chapter.full_chapter_rel_out_file
         full_topnav = render_topnav(full_rel_file, chapter.rel_out_file, chapter.nav_label)
         full_content, _ = render_chapter_full(
-            chapter, topics, chandas, alankaras, paribhasha_entries,
+            chapter, topics, chandas, alankaras, definitions,
             current_rel_file=full_rel_file, topnav_override=full_topnav, primary=False,
         )
         write_md(DOCS / full_rel_file, full_content)
@@ -2134,15 +2444,15 @@ def render_chapter_sections(
 
 def process_chapter(
     chapter: Chapter, topics: dict[str, RefPage], chandas: dict[str, "TableEntry"], alankaras: dict[str, "TableEntry"],
-    paribhasha_entries: list[ParibhashaEntry],
+    definitions: dict[str, list[TopicDefinition]],
 ) -> None:
     """Renders and writes everything for one chapter, dispatching on
     Chapter.display_style — the single entry point main() calls per
     chapter, so it doesn't need to know which render path applies."""
     if chapter.display_style == "sections":
-        render_chapter_sections(chapter, topics, chandas, alankaras, paribhasha_entries)
+        render_chapter_sections(chapter, topics, chandas, alankaras, definitions)
         return
-    content, all_shlokas = render_chapter_full(chapter, topics, chandas, alankaras, paribhasha_entries)
+    content, all_shlokas = render_chapter_full(chapter, topics, chandas, alankaras, definitions)
     write_md(chapter.out_file, content)
     record_shloka_references(chapter, chandas, alankaras, list(enumerate(all_shlokas, start=1)))
 
@@ -2150,12 +2460,12 @@ def process_chapter(
 H1_RE = re.compile(r"^\s*#\s+\S")
 
 
-def render_ref_page(page: RefPage) -> str:
-    # "Up" goes to the विषयाः listing (other topics), NOT to the section's
-    # texts listing one level further up — those are a different, sibling
-    # menu, not this topic's parent.
-    up_target = f"{TOPICS_SECTION.dir}/topics/index.md" if TOPICS_SECTION else None
-    up_label = TOPICS_SECTION.h2_topics_label if TOPICS_SECTION else None
+def render_ref_page(page: RefPage, definitions: list[TopicDefinition]) -> str:
+    # "Up" goes to the विषयाः listing (other topics, root-level — see
+    # TopicsConfig), not to any one content section's own texts listing —
+    # those are an unrelated, sibling menu, not this topic's parent.
+    up_target = f"{TOPICS_CONFIG.dir}/index.md" if TOPICS_CONFIG else None
+    up_label = TOPICS_CONFIG.h1_label if TOPICS_CONFIG else None
     parts = [render_topnav(page.rel_out_file, up_target, up_label)]
     body = page.body.strip()
     if not H1_RE.match(body):
@@ -2165,6 +2475,12 @@ def render_ref_page(page: RefPage) -> str:
         parts.append(f"# {page.title}")
         parts.append("")
     parts.append(body)
+    table_html = build_topic_definitions_table(page.rel_out_file, definitions)
+    if table_html:
+        parts.append("")
+        parts.append(f"## {site_label('definitions_heading', 'परिभाषाः')}")
+        parts.append("")
+        parts.append(table_html)
     if page.references:
         parts.append("")
         parts.append(f"## {site_label('references_heading', 'सन्दर्भाः')}")
@@ -2178,15 +2494,20 @@ def render_ref_page(page: RefPage) -> str:
 
 # ---------------------------------------------------------------------------
 # Home page — one card per configured content section (see site_config.yaml
-# content_sections:), each listing that section's texts (and, for the
-# topics-carrying section, its विषयाः too). Cards are plain <div
-# class="sv-home-card">...</div> — docs/stylesheets/custom.css draws the
-# box; add a new section to site_config.yaml and its card just appears.
+# content_sections:), plus one more card for topics (see TopicsConfig) if
+# configured — topics are a root-level sibling of every section, not
+# nested inside one (a topic is commonly referenced from texts across
+# several different sections — see process_topic_tags), so they get
+# their own card, in the same position every other card does. Cards are
+# plain <div class="sv-home-card">...</div> — docs/stylesheets/custom.css
+# draws the box; add a new section to site_config.yaml and its card just
+# appears.
 # ---------------------------------------------------------------------------
 
 def build_home_page(
     sections_with_texts: list[tuple[SectionConfig, list[Text]]],
-    topic_nav_entries: list,
+    topic_categories: list["TopicCategory"],
+    special_entries: list["NavListEntry"],
 ) -> str:
     home_title = site_label("home_title", "मुखपृष्ठम्")
     lines = [f"# {home_title}", "", '<div class="sv-home-cards" markdown="1">', ""]
@@ -2202,12 +2523,19 @@ def build_home_page(
             for t in texts_in_group:
                 lines.append(f"- [{t.title}]({t.rel_out_dir}/index.md)")
             lines.append("")
-        if section.has_topics and topic_nav_entries:
-            lines.append(f"### {section.h2_topics_label}")
+        lines.append("</div>")
+        lines.append("")
+
+    if topic_categories or special_entries:
+        lines.append('<div class="sv-home-card" markdown="1">')
+        lines.append("")
+        lines.append(f"## {TOPICS_CONFIG.h1_label}")
+        lines.append("")
+        for entry in special_entries:
+            lines.append(f"- [{entry.title}]({entry.rel_out_file})")
+        if special_entries:
             lines.append("")
-            for entry in topic_nav_entries:
-                lines.append(f"- [{entry.title}]({entry.rel_out_file})")
-            lines.append("")
+        lines.extend(render_topic_categories("index.md", topic_categories, "###"))
         lines.append("</div>")
         lines.append("")
 
@@ -2354,7 +2682,8 @@ def yaml_dump_nav(nav) -> str:
 
 def build_nav(
     sections_with_texts: list[tuple[SectionConfig, list[Text]]],
-    topic_nav_entries: list,
+    topic_categories: list["TopicCategory"],
+    special_entries: list["NavListEntry"],
 ) -> list:
     def text_nav(t: Text):
         entry = [{site_label("intro_nav_label", "परिचयः"): f"{t.rel_out_dir}/index.md"}]
@@ -2371,14 +2700,15 @@ def build_nav(
         entries = [{section.h1_label: f"{section.dir}/index.md"}]
         for group, texts_in_group in group_texts(section, texts):
             entries.append({group.h2_label: [text_nav(t) for t in texts_in_group]})
-        if section.has_topics and topic_nav_entries:
-            entries.append(
-                {section.h2_topics_label: [
-                    {section.h2_topics_label: f"{section.dir}/topics/index.md"},
-                    *({e.title: e.rel_out_file} for e in topic_nav_entries),
-                ]}
-            )
         nav.append({section.h1_label: entries})
+    if TOPICS_CONFIG and (topic_categories or special_entries):
+        nav.append(
+            {TOPICS_CONFIG.h1_label: [
+                {TOPICS_CONFIG.h1_label: f"{TOPICS_CONFIG.dir}/index.md"},
+                *({e.title: e.rel_out_file} for e in special_entries),
+                *({cat.title: [{t.title: t.rel_out_file} for t in cat.topics]} for cat in topic_categories),
+            ]}
+        )
     return nav
 
 
@@ -2397,59 +2727,47 @@ def main():
     topics: dict[str, RefPage] = {}
     chandas: dict[str, TableEntry] = {}
     alankaras: dict[str, TableEntry] = {}
-    paribhasha_entries: list[ParibhashaEntry] = []
-    topic_nav_entries: list = []
-    topics_rel_dir = f"{TOPICS_SECTION.dir}/topics" if TOPICS_SECTION else ""
+    definitions: dict[str, list[TopicDefinition]] = {}
+    topic_categories: list[TopicCategory] = []
+    special_entries: list[NavListEntry] = []  # chandas/alankara — flat, not categorized
 
-    paribhasha_path = TOPICS_SECTION.topics_src / "paribhasha.md" if TOPICS_SECTION else None
-    paribhasha_fm: dict = {}
-    paribhasha_body = ""
-    has_paribhasha_page = bool(paribhasha_path and paribhasha_path.exists())
-    if has_paribhasha_page:
-        paribhasha_fm, paribhasha_body = split_frontmatter(paribhasha_path.read_text(encoding="utf-8"))
+    if TOPICS_CONFIG:
+        topic_categories = discover_topic_categories(TOPICS_CONFIG.src, TOPICS_CONFIG.dir)
+        for cat in topic_categories:
+            cat_topics = discover_ref_pages("topic", TOPICS_CONFIG.src / cat.slug, cat.rel_dir)
+            for title, page in cat_topics.items():
+                if title in topics:
+                    warn(f"duplicate topic title '{title}' between {topics[title].path} (category "
+                         f"'{topics[title].category.title}') and {page.path} (category '{cat.title}') "
+                         f"— a topic's title must be unique across the whole site, not just within its "
+                         f"category, since that's what <topic name=\"...\"> tags match against")
+                    continue
+                page.category = cat
+                topics[title] = page
+            cat.topics = sorted(cat_topics.values(), key=lambda e: e.sort_key)
+        # drop any category nobody's put a topic in yet — same reasoning
+        # as group_texts() dropping an empty TextGroup: no empty heading
+        # shown for something nobody's written anything in yet.
+        topic_categories = [c for c in topic_categories if c.topics]
+        topic_categories.sort(key=lambda c: c.sort_key)
 
-    if TOPICS_SECTION:
-        topics = discover_ref_pages(
-            "topic", TOPICS_SECTION.topics_src, topics_rel_dir,
-            exclude={"chandas.md", "alankara.md", "paribhasha.md"},
-        )
         chandas, chandas_body, chandas_page_fm = build_glossary_page(
-            "chandas", TOPICS_SECTION.topics_src / "chandas.md", topics_rel_dir
+            "chandas", TOPICS_CONFIG.src / "chandas.md", TOPICS_CONFIG.dir
         )
         alankaras, alankara_body, alankara_page_fm = build_glossary_page(
-            "alankara", TOPICS_SECTION.topics_src / "alankara.md", topics_rel_dir
+            "alankara", TOPICS_CONFIG.src / "alankara.md", TOPICS_CONFIG.dir
         )
-
-        # विषयाः listing: regular topics plus the chandas/alankara/paribhasha
-        # special pages themselves, all sorted together the same way
-        # (order: frontmatter, falling back to title).
-        topic_nav_entries = list(topics.values())
-        topic_nav_entries.append(
+        special_entries = [
             NavListEntry(
                 str(chandas_page_fm.get("title", "chandas")).strip(),
-                f"{topics_rel_dir}/chandas.md",
-                chandas_page_fm,
-                TOPICS_SECTION.topics_src / "chandas.md",
-            )
-        )
-        topic_nav_entries.append(
+                f"{TOPICS_CONFIG.dir}/chandas.md", chandas_page_fm, TOPICS_CONFIG.src / "chandas.md",
+            ),
             NavListEntry(
                 str(alankara_page_fm.get("title", "alankara")).strip(),
-                f"{topics_rel_dir}/alankara.md",
-                alankara_page_fm,
-                TOPICS_SECTION.topics_src / "alankara.md",
-            )
-        )
-        if has_paribhasha_page:
-            topic_nav_entries.append(
-                NavListEntry(
-                    str(paribhasha_fm.get("title", "paribhasha")).strip(),
-                    f"{topics_rel_dir}/paribhasha.md",
-                    paribhasha_fm,
-                    paribhasha_path,
-                )
-            )
-        topic_nav_entries.sort(key=lambda e: e.sort_key)
+                f"{TOPICS_CONFIG.dir}/alankara.md", alankara_page_fm, TOPICS_CONFIG.src / "alankara.md",
+            ),
+        ]
+        special_entries.sort(key=lambda e: e.sort_key)
 
     # --- discover every configured section's texts + chapters ------------
     sections_with_texts: list[tuple[SectionConfig, list[Text]]] = []
@@ -2462,34 +2780,39 @@ def main():
     # --- render chapters + text index pages for every section ------------
     # process_chapter() dispatches per-chapter on chapter_display_style —
     # see render_chapter_full() / render_chapter_sections()'s docstrings.
+    # This is also where every <topic> tag in the corpus gets discovered
+    # and registered onto `topics`/`definitions` (see process_topic_tags)
+    # — so topic pages (written just below) always see every reference.
     for section, texts in sections_with_texts:
         for t in texts:
             for ch in t.chapters:
-                process_chapter(ch, topics, chandas, alankaras, paribhasha_entries)
+                process_chapter(ch, topics, chandas, alankaras, definitions)
             write_md(t.out_dir / "index.md", build_text_index_page(t))
 
-        write_md(DOCS / f"{section.dir}/index.md", build_domain_index_page(section, texts, topic_nav_entries))
+        write_md(DOCS / f"{section.dir}/index.md", build_domain_index_page(section, texts))
 
-    # --- topics index page (the "Up" target for individual topic pages
-    # and for the chandas/alankara glossary listing pages) ----------------
-    if TOPICS_SECTION and topic_nav_entries:
+    # --- topics index page (root-level — the "Up" target for individual
+    # topic pages and the chandas/alankara glossary pages, and directly
+    # reachable from the home page/nav) ---------------------------------
+    if TOPICS_CONFIG and (topic_categories or special_entries):
         write_md(
-            DOCS / f"{TOPICS_SECTION.dir}/topics/index.md",
-            build_topics_index_page(TOPICS_SECTION, topic_nav_entries),
+            DOCS / f"{TOPICS_CONFIG.dir}/index.md",
+            build_topics_index_page(TOPICS_CONFIG, topic_categories, special_entries),
         )
 
-    # --- topic pages: write with injected back-links ----------------------
+    # --- topic pages: write with injected परिभाषाः table + सन्दर्भाः back-links
     for title, page in topics.items():
-        write_md(page.out_file, render_ref_page(page))
+        write_md(page.out_file, render_ref_page(page, definitions.get(title, [])))
 
     # --- chandas/alankara glossary pages + their (nav-less) detail pages --
-    if TOPICS_SECTION:
-        chandas_rel = f"{topics_rel_dir}/chandas.md"
-        alankara_rel = f"{topics_rel_dir}/alankara.md"
+    if TOPICS_CONFIG:
+        chandas_rel = f"{TOPICS_CONFIG.dir}/chandas.md"
+        alankara_rel = f"{TOPICS_CONFIG.dir}/alankara.md"
         # "Up" from a glossary listing page goes to विषयाः (other topics),
-        # matching every individual topic page — not to the texts listing.
-        up_target = f"{TOPICS_SECTION.dir}/topics/index.md"
-        up_label = TOPICS_SECTION.h2_topics_label
+        # matching every individual topic page — not to any one section's
+        # own texts listing.
+        up_target = f"{TOPICS_CONFIG.dir}/index.md"
+        up_label = TOPICS_CONFIG.h1_label
         chandas_title = str(chandas_page_fm.get("title", "chandas")).strip()
         alankara_title = str(alankara_page_fm.get("title", "alankara")).strip()
         write_md(DOCS / chandas_rel, render_topnav(chandas_rel, up_target, up_label) + "\n" + chandas_body)
@@ -2501,40 +2824,20 @@ def main():
             entry.listing_title = alankara_title
             write_md(entry.out_file, render_glossary_entry_page(entry))
 
-    # --- paribhasha page: prose (if any) + fully auto-generated table -----
-    if TOPICS_SECTION and has_paribhasha_page:
-        paribhasha_rel = f"{topics_rel_dir}/paribhasha.md"
-        up_target = f"{TOPICS_SECTION.dir}/topics/index.md"
-        up_label = TOPICS_SECTION.h2_topics_label
-        title = str(paribhasha_fm.get("title", "paribhasha")).strip()
-        headers = as_list(paribhasha_fm.get("header"))
-        if headers and len(headers) != 3:
-            warn(f"{paribhasha_path}: header: must list exactly 3 column names — using the default instead")
-            headers = []
-        headers = headers or PARIBHASHA_DEFAULT_HEADERS
-        body = paribhasha_body.strip()
-        if not H1_RE.match(body):
-            body = f"# {title}\n\n{body}" if body else f"# {title}"
-        table_html = build_paribhasha_table(paribhasha_rel, paribhasha_entries, headers)
-        if not table_html:
-            warn(f"{paribhasha_path}: no <paribhasha> tags found anywhere in the site — the table will be empty")
-        parts = [render_topnav(paribhasha_rel, up_target, up_label), body]
-        if table_html:
-            parts.append(table_html)
-        write_md(DOCS / paribhasha_rel, "\n\n".join(parts) + "\n")
-
     # --- home page ---------------------------------------------------------
-    write_md(DOCS / "index.md", build_home_page(sections_with_texts, topic_nav_entries))
+    write_md(DOCS / "index.md", build_home_page(sections_with_texts, topic_categories, special_entries))
 
     # --- mkdocs.yml (nav auto-generated, static settings preserved) -------
-    nav = build_nav(sections_with_texts, topic_nav_entries)
+    nav = build_nav(sections_with_texts, topic_categories, special_entries)
     mkdocs_yml = NAV_HEADER + "\n" + yaml_dump_nav(nav) + "\n" + build_mkdocs_static()
     write(ROOT / "mkdocs.yml", mkdocs_yml)
 
     n_texts = sum(len(texts) for _, texts in sections_with_texts)
+    n_definitions = sum(len(v) for v in definitions.values())
     print(f"\nDone. {n_texts} text(s) across {len(SECTIONS)} section(s), "
-          f"{len(topics)} topic(s), {len(chandas)} meter(s), {len(alankaras)} alankara(s), "
-          f"{len(paribhasha_entries)} paribhasha entries, {n_assets} asset file(s).")
+          f"{len(topics)} topic(s) in {len(topic_categories)} categor(y/ies), "
+          f"{len(chandas)} meter(s), {len(alankaras)} alankara(s), "
+          f"{n_definitions} topic definition(s), {n_assets} asset file(s).")
     if WARNINGS:
         print(f"\n{len(WARNINGS)} warning(s) were printed above — please review.", file=sys.stderr)
 
