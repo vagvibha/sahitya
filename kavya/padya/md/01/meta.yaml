@@ -1,1 +1,6 @@
 chapter_name: "पूर्वमेघः"
+dict:
+   title: [पूर्वमेघः]
+   type: shloka
+   chapter_key: MD-1
+   shloka_key_prefix: "MD,9,00"

@@ -3,4 +3,5 @@ dict:
    title: [सर्गः-२]
    type: shloka
    auto_shloka: false
+   chapter_key: KA-02
    shloka_key_prefix: "KA,99,00"
