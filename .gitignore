@@ -1,2 +1,7 @@
 .DS_Store
 __pycache__/
+docs/assets/
+docs/index.md
+docs/kavya/
+docs/shastra/
+docs/topics/
