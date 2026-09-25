@@ -1,7 +1,8 @@
 chapter_name: "दितीयः सर्गः"
 dict:
-   title: [सर्गः-२]
+   title: "[सर्गः-२]"
    type: shloka
+   skip: [वा, न, तेन, के, अपि, माम्, मम, मां, त्वम्, त्वं, एष्, एव, इति, च, कुरु, किं, परं, फलम्, मनो, मनः, नैव, जप, परम्, कर्म, क, को, का, स]
    auto_shloka: false
    chapter_key: KA-02
    shloka_key_prefix: "KA,99,00"

@@ -65,11 +65,12 @@ supported_css_styles:
 #   class               - which div class this data-type is written under:
 #                         "gloss" (default, omit this field) or "vada".
 #   css_style           - which of supported_css_styles: (above) this
-#                         renders as. Required — an entry with no
-#                         css_style, or one that names something not in
-#                         supported_css_styles:, still works (labeled,
-#                         hideable, etc. all still apply), it just won't
-#                         have any distinguishing visual treatment.
+#                         renders as. An entry with no css_style still
+#                         works (labeled, hideable, etc. all still apply;
+#                         a warning is printed), it just won't have any
+#                         distinguishing visual treatment. A css_style
+#                         that isn't in supported_css_styles: fails the
+#                         build (almost certainly a typo).
 #   label               - fixed display label (rendered as "<u>label</u> – content").
 #                         Can be overridden per-book (not per-chapter) via
 #                         `gloss_labels:` in that text's meta.yaml, e.g.:

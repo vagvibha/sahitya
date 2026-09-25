@@ -1,9 +1,8 @@
 title: कुमारसम्भवम्
 author: कालिदासः
-type: kavya-verse
 chapters: सर्गाः
 order: 2
-meta: "typed; ocr"
+source: "typed; ocr"
 dict:
    folder: kavya   
 header: |
