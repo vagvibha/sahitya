@@ -93,7 +93,7 @@ graph TD
 * निरूपणम् – *घटनिष्ठाधेयतानिरूपिताधिकरणाश्रयः भूतलम्* (घट-निष्ठ-आधेयता-निरूपित-अधिकरणता-आश्रयः भूतलम्) ।
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 ```mermaid
 block-beta
     columns 3
@@ -116,7 +116,7 @@ block-beta
 * घटस्य निरूपणमपि शक्यम् (विपरीता दिक् शराणाम्) – *भूतलनिष्ठाधिकरणनिरूपिताधेयताश्रयः घटः* ।
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 ```mermaid
 block-beta
     columns 3
@@ -144,7 +144,7 @@ block-beta
 *अभावनिष्ठानुयोगितानिरूपितप्रतियोगिताश्रयः घटः । घटनिष्ठप्रतियोगितानिरूपितानुयोगिताश्रयः अभावः ।*
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 ```mermaid
 block-beta
     columns 3
@@ -167,7 +167,7 @@ block-beta
 अत्र सरलतयापि वक्तुं शक्यते – *अभाव**निरूपित**प्रतियोगिताश्रयः घटः* ।
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 ```mermaid
 block-beta
     columns 3
@@ -189,7 +189,7 @@ block-beta
 अपरस्यां दिशि सरलतया एवं वक्तुं शक्यते – *घटनिष्ठप्रतियोगिता**निरूपकः** अभावः* ।
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 ```mermaid
 block-beta
     columns 3
@@ -236,7 +236,7 @@ block-beta
 अभावनिष्ठानुयोगितानिरूपितजलनिष्ठप्रतियोगितानिष्ठावच्छेद्यतानिरूपितावच्छेदकताश्रयः जलत्वम् ।
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 ```mermaid
 block-beta
     columns 5
@@ -273,7 +273,7 @@ block-beta
 अत्र द्वे आधेयेते स्तः । तत्र कथं स्पष्टतया प्रतिपादिपादयितुं शक्यते कस्याः चर्चा क्रियते इति?
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 ```mermaid
 block-beta
     columns 6
@@ -308,7 +308,7 @@ blue: style m4 fill:#e6f2ff,stroke:#85b5e3,stroke-width:2px
 -->
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 ```mermaid
 block-beta
     columns 9
@@ -356,7 +356,7 @@ block-beta
 अस्य निरूपणमेवं भवति – घटत्वनिष्ठावच्छेदकतानिरूपितावच्छेद्यतावती संयोगनिष्ठ**सांसर्गिकावच्छेदकता**निरूपितावच्छेद्यतावती या घटनिष्ठाधेयता, तादृशाधेयतानिरूपिताधिकरणाश्रयः भूतलम् ।  
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 
 ```mermaid
 block-beta
@@ -413,7 +413,7 @@ block-beta
 समवायनिष्ठावच्छेदकतानिरूपिका = संयोगावच्छिन्ना
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 
 ```mermaid
 block-beta
@@ -500,7 +500,7 @@ block-beta
 * विकसितम् । यथा घटत्वनिष्ठावच्छेदकतानिरूपितावच्छेद्यताश्रयः घटनिष्ठाधेयता ।
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 
 ```mermaid
 block-beta
@@ -524,7 +524,7 @@ block-beta
 * संक्षिप्तम् । यथा घटत्वनिष्ठावच्छेदकतानिरूपिता घटनिष्ठाधेयता ।
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 
 ```mermaid
 block-beta
@@ -550,7 +550,7 @@ block-beta
 * मुकुलितम् । यथा घटत्वावच्छिन्ना घटनिष्ठाधेयता । (घटत्वेन अवच्छिन्ना)
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 
 ```mermaid
 block-beta
@@ -593,7 +593,7 @@ block-beta
 घटत्वावच्छिनघटनिष्ठप्रकारताख्यविषयतानिरूपकं ज्ञानम् । तथैव विषयता ज्ञाननिरूप्या भवति ।
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 ```mermaid
 block-beta
     columns 8
@@ -733,7 +733,7 @@ block-beta
 सचित्रं एवम् अस्ति –  
 
 <details>
-    <summary>चित्रं द्रष्टुं नुदतु</summary>
+    <summary>चित्रम्</summary>
 ```mermaid
 flowchart LR
     A["<span>साध्यम्<br><small>(मुख्यप्रकारता)</small></span>"]
