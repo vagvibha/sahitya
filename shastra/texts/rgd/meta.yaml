@@ -4,6 +4,8 @@ chapters: आननानि
 default_class: vritti
 default_shloka_type: karika
 order: 3
+dict:
+   folder: "sshastra"
 gloss_types:
   - data_type: notes
     css_style: fine_print
