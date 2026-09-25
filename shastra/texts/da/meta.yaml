@@ -1,6 +1,5 @@
 title: ध्वन्यालोकः (Sah-28)
 author: आनन्दवर्धनाचार्यः
-type: shastra-karika
 chapters: अनुक्रमणिका
 shloka_toc: false
 default_shloka_type: karika
@@ -12,7 +11,7 @@ header: |
   <br>
   **स्वेछाकेसरिणः स्वच्छस्वच्छायायासितेन्दवः ।<br>
   त्रायन्तां वो मधुरिपोः प्रपन्नार्तिच्छिदो नखाः ॥**<br>
-sources:
+source:
    - http://sa.wikisource.org
 gloss_types:
   - data_type: tika
