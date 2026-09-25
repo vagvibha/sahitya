@@ -6,6 +6,8 @@ shloka_toc: false
 default_shloka_type: karika
 default_class: vritti
 order: 2
+dict:
+   folder: "sshastra"
 header: |
   <br>
   **स्वेछाकेसरिणः स्वच्छस्वच्छायायासितेन्दवः ।<br>

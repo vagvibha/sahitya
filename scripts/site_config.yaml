@@ -96,7 +96,7 @@ dictionaries:
   - name: Kavya
     folder: kavya
   - name: SahityaShastra
-    folder: shastra
+    folder: sshastra
 
 content_sections:
   - dir: "shastra"
