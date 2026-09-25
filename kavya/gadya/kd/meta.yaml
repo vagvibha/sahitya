@@ -2,7 +2,7 @@ title: कादम्बरी (K-11)
 author: बाणभट्टः
 chapters: अनुक्रमणिका
 order: 1
-source: "ambuda.org"
+source: ["ambuda.org"]
 gloss_types:
   - data_type: notes
     css_style: fine_print
