@@ -102,15 +102,11 @@ content_sections:
   - dir: "shastra"
     h1_label: "साहित्यशास्त्रम्"
     default_chapter_word: "अध्यायः"
-    # Provisional single category holding both current texts (काव्यप्रकाशः,
-    # ध्वन्यालोकः) — same text_groups: mechanism kavya/ below already uses.
-    # Rename this dir/h2_label (and split into more groups) once real
-    # categories are decided; a single group here is a placeholder, not
-    # a structural limitation — add more entries exactly like kavya/'s
-    # gadya/padya/nataka below whenever needed, no code changes required.
     text_groups:
-      - dir: "texts"
-        h2_label: "लक्षणग्रन्थाः"
+      - dir: "sahitya"
+        h2_label: "साहित्यलक्षणग्रन्थाः"
+      - dir: "vividha"
+        h2_label: "विविधशास्त्रपरिचयः"
 
   - dir: "kavya"
     h1_label: "काव्यानि"
