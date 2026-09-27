@@ -1,6 +1,5 @@
 ---
 title: रीतिः
-type: shastra-topic
 order: 9
 ---
 # रीतिः

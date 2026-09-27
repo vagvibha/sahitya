@@ -1,6 +1,5 @@
 ---
 title: रसः
-type: shastra-topic
 order: 5
 ---
 

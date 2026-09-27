@@ -1,6 +1,5 @@
 ---
 title: सहृदयः
-type: shastra-topic
 order: 6
 ---
 # सहृदयः

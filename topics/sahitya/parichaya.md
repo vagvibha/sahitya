@@ -1,6 +1,5 @@
 ---
 title: शास्त्रपरिचयः
-type: shastra-topic
 order: 0
 ---
 

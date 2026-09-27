@@ -1,6 +1,5 @@
 ---
 title: शब्दशक्तिः
-type: shastra-topic
 order: 4
 ---
 

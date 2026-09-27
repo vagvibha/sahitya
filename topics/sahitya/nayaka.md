@@ -1,6 +1,5 @@
 ---
 title: नायकप्रभेदाः, नायिकाप्रभेदाश्च
-type: shastra-topic
 order: 7
 ---
 

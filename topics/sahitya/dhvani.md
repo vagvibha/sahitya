@@ -1,6 +1,5 @@
 ---
 title: ध्वनिः
-type: shastra-topic
 order: 10
 ---
 

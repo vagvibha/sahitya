@@ -1,6 +1,5 @@
 ---
 title: गुणः
-type: shastra-topic
 order: 8
 ---
 

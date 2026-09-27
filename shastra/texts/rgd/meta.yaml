@@ -6,10 +6,16 @@ default_shloka_type: karika
 order: 3
 dict:
    folder: "sshastra"
+source:
+  - "https://sa.wikisource.org/wiki/%E0%A4%B0%E0%A4%B8%E0%A4%97%E0%A4%99%E0%A5%8D%E0%A4%97%E0%A4%BE%E0%A4%A7%E0%A4%B0%E0%A4%83/%E0%A4%86%E0%A4%A8%E0%A4%A8_%E0%A5%A7"
 gloss_types:
   - data_type: notes
     css_style: fine_print
     hideable: true
+    hidden_by_default: false
+  - data_type: udaharana
+    css_style: standout_italic
+    hideable: false
     hidden_by_default: false
 header: |
   **स्मृताऽपि तरुणातपं करुणया हरन्ती नृणाम्<br>
