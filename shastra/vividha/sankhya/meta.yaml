@@ -1,0 +1,19 @@
+title: सांख्यम्
+chapters: पाठाः
+shloka_toc: false
+default_shloka_type: karika
+default_class: vritti
+order: 2
+dict:
+   folder: "sshastra"
+#header: |
+#  <br>
+#  **स्वेछाकेसरिणः स्वच्छस्वच्छायायासितेन्दवः ।<br>
+#  त्रायन्तां वो मधुरिपोः प्रपन्नार्तिच्छिदो नखाः ॥**<br>
+source:
+   - http://msp.ac.in
+gloss_types:
+  - data_type: notes
+    css_style: fine_print
+    hideable: true
+    hidden_by_default: false

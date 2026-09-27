@@ -1,0 +1,21 @@
+title: वैशेषिकदर्शनम्
+chapters: पाठाः
+shloka_toc: false
+default_shloka_type: karika
+default_class: vritti
+order: 3
+dict:
+   folder: "sshastra"
+header: |
+   <br>
+   **योगाचारविभूत्या यस्तोषयित्वा महेश्वरम्।<br>
+   चक्रे वैशेषिकं शास्त्रं तस्मै कणभुजे नमः ॥<br>
+   भासयद्भक्तजनताचेतःकमलकोरकान् ।<br>
+   वन्दे सन्देहतिमिरविच्छेदमिहिरं महः ॥**<br>
+source:
+   - http://msp.ac.in
+gloss_types:
+  - data_type: notes
+    css_style: fine_print
+    hideable: true
+    hidden_by_default: false
