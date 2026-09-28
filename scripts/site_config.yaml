@@ -98,6 +98,7 @@ dictionaries:
   - name: SahityaShastra
     folder: sshastra
 
+content_root: "contents"
 content_sections:
   - dir: "shastra"
     h1_label: "साहित्यशास्त्रम्"
