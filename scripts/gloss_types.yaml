@@ -59,6 +59,8 @@ supported_css_styles:
   - standout_italic   # basic_gloss, but italic — for content that should read as marked/distinguished prose
   - flowing_text      # no indent, full (not muted) color — primary reading-flow content, not an aside
   - fine_print        # smaller, italic, indented — a quiet, easy-to-skim annotation
+  - vada_question     # light rose box — an objection/doubt/question that the text goes on to answer
+  - vada_answer       # light teal box — the answer to a vada_question
 
 # Fields per entry:
 #   data_type           - the data-type="..." value to match
@@ -81,9 +83,12 @@ supported_css_styles:
 #                         replaces a fixed `label`, never a
 #                         `label_from_attr` (that's inherently per-instance
 #                         already, e.g. tika's data-name).
-#   label_from_attr     - OR: read the label from this HTML attribute on the
-#                         div instead of a fixed string (e.g. tika is named
-#                         after its author via data-name)
+#   label_from_attr     - read the label from this HTML attribute on the
+#                         div (e.g. tika is named after its author via
+#                         data-name). If `label` is ALSO set, it's the
+#                         fallback for an instance that doesn't carry the
+#                         attribute — e.g. `<objection>` shows the fixed
+#                         label, `<objection label="कर्मकाण्डी">` its own.
 #                         Omit both `label` and `label_from_attr` for a
 #                         type that should never get a "<u>...</u> – "
 #                         prefix (e.g. vritti — just plain hideable text).
@@ -196,20 +201,55 @@ types:
     hideable: true
     hidden_by_default: false
 
-  # --- vada (claim/refute) — see the header comment above for why this
-  # uses class: vada instead of the default "gloss". flowing_text since
-  # this is primary argumentative content, not a muted aside — matches
-  # the previous hardcoded (pre-css_style) vada look. Override the label
-  # per-book (not the class/hideable/css_style fields) via gloss_labels:
-  # in that text's meta.yaml.
-  - data_type: claim
+  # --- vada — see the header comment above for why these use class:
+  # vada instead of the default "gloss". Primary argumentative content,
+  # so never hideable. Every question-like type (something the text goes
+  # on to answer) shares css_style vada_question; the answer to any of
+  # them is `refute`, css_style vada_answer.
+  #
+  # label + label_from_attr: label — the fixed label is the default, and
+  # any single instance can name its own speaker/kind instead, e.g.
+  #     <objection label="कर्मकाण्डी">...</objection>
+  #     <refute label="सिद्धान्तः">...</refute>
+  # without a new gloss type per variant. Per-book default overrides go
+  # through gloss_labels: in that text's meta.yaml, as usual.
+  - data_type: objection        # a पूर्वपक्षी's challenge
     class: vada
-    css_style: flowing_text
+    css_style: vada_question
+    label: "पूर्वपक्षः"
+    label_from_attr: label
     hideable: false
     hidden_by_default: false
 
-  - data_type: refute
+  - data_type: doubt            # a student's शङ्का — not a challenge
     class: vada
-    css_style: flowing_text
+    css_style: vada_question
+    label: "शङ्का"
+    label_from_attr: label
+    hideable: false
+    hidden_by_default: false
+
+  - data_type: question         # a student asking to understand more deeply
+    class: vada
+    css_style: vada_question
+    label: "प्रश्नः"
+    label_from_attr: label
+    hideable: false
+    hidden_by_default: false
+
+  # claim: the original unlabeled question-side type (used in rgd) —
+  # same box as objection, but no default label.
+  - data_type: claim
+    class: vada
+    css_style: vada_question
+    label_from_attr: label
+    hideable: false
+    hidden_by_default: false
+
+  - data_type: refute           # the answer to any of the above
+    class: vada
+    css_style: vada_answer
+    label: "समाधानम्"
+    label_from_attr: label
     hideable: false
     hidden_by_default: false

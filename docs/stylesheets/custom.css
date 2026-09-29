@@ -111,15 +111,14 @@
   background: rgba(255, 179, 0, 0.1);
 }
 
-/* --- vada: claim / refute (dialectical exposition) — its own class, not
-   folded into .gloss, only because the underlying content is written as
-   <div class="vada" data-type="claim/refute">, not class="gloss". No
-   visual properties of its own at all — its look comes entirely from
-   whichever .sv-style-* class its css_style: (gloss_types.yaml) resolves
-   to, exactly like .gloss below; this rule only carries what every vada
-   div needs regardless of style (the uniform-vertical-rhythm <p> fix,
-   and the "<u>label</u> – " prefix look, which the Python side generates
-   the same way for .gloss too). --------------------------------------- */
+/* --- vada: objection / doubt / question / claim / refute (dialectical
+   exposition) — its own class, not folded into .gloss, only because the
+   underlying content is written as <div class="vada" data-type="...">,
+   not class="gloss". No visual properties of its own at all — its look
+   comes entirely from whichever .sv-style-* class its css_style:
+   (gloss_types.yaml) resolves to (vada_question / vada_answer below),
+   exactly like .gloss below; this rule only carries what every vada div
+   needs regardless of style (the uniform-vertical-rhythm <p> fix). ---- */
 /* Material's own list rules (.md-typeset ul/ol) carry a real
    margin-top/margin-bottom (1em, and 0.5em again for a nested list) —
    the exact same class of bug as the <p> margin issue above, just for
@@ -140,22 +139,6 @@
   margin: 0; /* see the "Uniform vertical rhythm" note above .shloka */
 }
 
-.md-typeset .vada u {
-  font-weight: 600;
-  opacity: 0.7;
-}
-
-.md-typeset .vada[data-type="claim"] {
-  background: rgba(255, 179, 0, 0.14);
-  border-left: 4px solid #ffab00;
-  border-radius: 0.2rem;
-  padding: 0.7rem 1rem;
-  margin: 0.5rem 0;
-}
-
-[data-md-color-scheme="slate"] .md-typeset .vada[data-type="claim"] {
-  background: rgba(255, 179, 0, 0.1);
-}
 
 /* --- kavya prose / play ------------------------------------------------ */
 .md-typeset .dialog-block {
@@ -220,6 +203,52 @@
   color: var(--md-default-fg-color--light);
   font-size: 0.75rem;
   font-style: italic;
+}
+
+/* vada_question / vada_answer — a quiet tinted box around an objection/
+   doubt/question (rose) and around its answer (teal): clearly set apart
+   from the surrounding text, but lighter than the amber
+   shloka[highlight="true"] callout. Rose rather than red so it doesn't
+   read as an error; the two hues are complementary, so a question and
+   the answer right after it are easy to tell apart. Like highlight, a
+   box gets a little margin — the one exception to the zero-margin
+   rhythm above. */
+.sv-style-vada_question,
+.sv-style-vada_answer {
+  margin: 0.4rem 0;
+  padding: 0.5rem 0.9rem;
+  line-height: 1.8;
+  border: 1px solid var(--sv-vada-edge);
+  border-left: 3px solid var(--sv-vada-accent);
+  border-radius: 0.2rem;
+  background: var(--sv-vada-bg);
+}
+
+.sv-style-vada_question {
+  --sv-vada-accent: #e57373;
+  --sv-vada-edge: rgba(229, 115, 115, 0.25);
+  --sv-vada-bg: rgba(229, 115, 115, 0.06);
+}
+
+.sv-style-vada_answer {
+  --sv-vada-accent: #4db6ac;
+  --sv-vada-edge: rgba(77, 182, 172, 0.25);
+  --sv-vada-bg: rgba(77, 182, 172, 0.06);
+}
+
+[data-md-color-scheme="slate"] .sv-style-vada_question {
+  --sv-vada-bg: rgba(229, 115, 115, 0.09);
+}
+
+[data-md-color-scheme="slate"] .sv-style-vada_answer {
+  --sv-vada-bg: rgba(77, 182, 172, 0.09);
+}
+
+/* the label the engine writes first ("<b>label</b><br>…") takes the
+   box's accent colour */
+.sv-style-vada_question > p:first-child > b:first-child,
+.sv-style-vada_answer > p:first-child > b:first-child {
+  color: var(--sv-vada-accent);
 }
 
 /* --- notes and every hidden_by_default:true gloss data-type above are
@@ -477,3 +506,32 @@ body.sv-force-hide .md-typeset .sv-toggleable {
   opacity: 0.55;
 }
 
+/*---*/
+.sv-style-vada_question,
+.sv-style-vada_answer {
+  margin: 0.4rem 0;            /* a box needs a little room, like highlight */
+  padding: 0.5rem 0.9rem;
+  line-height: 1.8;
+  border: 1px solid var(--sv-vada-edge);
+  border-left: 3px solid var(--sv-vada-accent);
+  border-radius: 0.2rem;
+  background: var(--sv-vada-bg);
+}
+.sv-style-vada_question {       /* muted rose */
+  --sv-vada-accent: #e57373;
+  --sv-vada-edge: rgba(229, 115, 115, 0.25);
+  --sv-vada-bg: rgba(229, 115, 115, 0.06);
+}
+.sv-style-vada_answer {         /* muted teal */
+  --sv-vada-accent: #4db6ac;
+  --sv-vada-edge: rgba(77, 182, 172, 0.25);
+  --sv-vada-bg: rgba(77, 182, 172, 0.06);
+}
+[data-md-color-scheme="slate"] .sv-style-vada_question { --sv-vada-bg: rgba(229, 115, 115, 0.09); }
+[data-md-color-scheme="slate"] .sv-style-vada_answer   { --sv-vada-bg: rgba(77, 182, 172, 0.09); }
+
+/* label (the engine's "<b>label</b><br>") in the box's accent colour */
+.sv-style-vada_question > p:first-child > b:first-child,
+.sv-style-vada_answer   > p:first-child > b:first-child {
+  color: var(--sv-vada-accent);
+}
