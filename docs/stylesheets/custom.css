@@ -222,6 +222,11 @@
   border-left: 3px solid var(--sv-vada-accent);
   border-radius: 0.2rem;
   background: var(--sv-vada-bg);
+  /* a box nested inside a muted/italic gloss (e.g. a tika's own
+     objection — basic_gloss is muted, standout_italic italic) reads as
+     primary text, not as part of that gloss's styling */
+  color: var(--md-default-fg-color);
+  font-style: normal;
 }
 
 .sv-style-vada_question {
@@ -504,34 +509,4 @@ body.sv-force-hide .md-typeset .sv-toggleable {
 .md-typeset .sv-topic-note-mark {
   font-size: 0.75em;
   opacity: 0.55;
-}
-
-/*---*/
-.sv-style-vada_question,
-.sv-style-vada_answer {
-  margin: 0.4rem 0;            /* a box needs a little room, like highlight */
-  padding: 0.5rem 0.9rem;
-  line-height: 1.8;
-  border: 1px solid var(--sv-vada-edge);
-  border-left: 3px solid var(--sv-vada-accent);
-  border-radius: 0.2rem;
-  background: var(--sv-vada-bg);
-}
-.sv-style-vada_question {       /* muted rose */
-  --sv-vada-accent: #e57373;
-  --sv-vada-edge: rgba(229, 115, 115, 0.25);
-  --sv-vada-bg: rgba(229, 115, 115, 0.06);
-}
-.sv-style-vada_answer {         /* muted teal */
-  --sv-vada-accent: #4db6ac;
-  --sv-vada-edge: rgba(77, 182, 172, 0.25);
-  --sv-vada-bg: rgba(77, 182, 172, 0.06);
-}
-[data-md-color-scheme="slate"] .sv-style-vada_question { --sv-vada-bg: rgba(229, 115, 115, 0.09); }
-[data-md-color-scheme="slate"] .sv-style-vada_answer   { --sv-vada-bg: rgba(77, 182, 172, 0.09); }
-
-/* label (the engine's "<b>label</b><br>") in the box's accent colour */
-.sv-style-vada_question > p:first-child > b:first-child,
-.sv-style-vada_answer   > p:first-child > b:first-child {
-  color: var(--sv-vada-accent);
 }
