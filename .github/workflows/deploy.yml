@@ -63,14 +63,34 @@ jobs:
       - name: Build site
         run: mkdocs build --strict
 
+      # Offline copy — unzips into its own sahitya/ folder, so it can sit
+      # next to other sites' offline copies without mixing files.
       - name: Zip site for offline download
-        run: (cd site && zip -rq ../site.zip .)
+        env:
+          SITE_DIR: sahitya
+          # "false" (default): the offline copy includes this site's own
+          # assets (everything under contents/assets/, e.g. audio).
+          # "true": leave them out for a much smaller zip — pages still
+          # work, only those files (e.g. an <audio> player's mp3) are
+          # missing. Only files that came from contents/assets/ are
+          # removed; site/assets/ also holds MkDocs Material's own theme
+          # files (javascripts/, stylesheets/, images/), which always stay.
+          EXCLUDE_ASSETS: "false"
+        run: |
+          rm -rf "$SITE_DIR" && cp -r site "$SITE_DIR"
+          if [ "$EXCLUDE_ASSETS" = "true" ] && [ -d contents/assets ]; then
+            (cd contents/assets && find . -type f) | while read -r f; do
+              rm -f "$SITE_DIR/assets/$f"
+            done
+            find "$SITE_DIR/assets" -type d -empty -delete
+          fi
+          zip -rq "$SITE_DIR-offline.zip" "$SITE_DIR"
 
       - name: Upload zipped site (downloadable Actions artifact)
         uses: actions/upload-artifact@v4
         with:
-          name: site-offline
-          path: site.zip
+          name: sahitya-offline
+          path: sahitya-offline.zip
           retention-days: 90
 
       - name: Upload artifact
