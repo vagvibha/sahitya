@@ -1,3 +1,4 @@
 [submodule "scripts/ssengine"]
 	path = scripts/ssengine
 	url = https://github.com/vagvibha/ssengine.git
+	branch = main
