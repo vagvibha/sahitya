@@ -46,8 +46,12 @@ extra:
 # https://mkdocs-macros-plugin.readthedocs.io/en/latest/pages/ for the
 # full templating surface (also reaches config/extra values, and lets a
 # page reference another page's frontmatter, conditionals, loops, etc.).
-# No define_env() hook file is configured — this site only uses the
-# built-in page/config access, not custom Python macros.
+# module_name: points at scripts/macros_env.py (HAND-MAINTAINED, not
+# regenerated — same convention as the mkdocs_hooks.py hooks: entry
+# below) — its define_env() registers custom Jinja macros callable from
+# any page's body, on top of the built-in page.meta.*/config access.
+# Currently just xref() — a relative-link helper that replaces fragile
+# root-absolute links (see its own docstring in macros_env.py for why).
 #
 # Jinja's default comment syntax, {#... #}, collides with the
 # `{#some-id}` attr_list convention already used in this site's source
@@ -58,6 +62,7 @@ extra:
 plugins:
   - search
   - macros:
+      module_name: scripts/macros_env
       j2_comment_start_string: "{##"
       j2_comment_end_string: "##}"
 
