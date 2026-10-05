@@ -188,7 +188,7 @@ types:
 
   - data_type: udaharana
     css_style: standout_italic
-    hideable: true
+    hideable: false
     hidden_by_default: false
 
   - data_type: vritti
