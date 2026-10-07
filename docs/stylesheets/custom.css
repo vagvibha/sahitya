@@ -510,3 +510,5 @@ body.sv-force-hide .md-typeset .sv-toggleable {
   font-size: 0.75em;
   opacity: 0.55;
 }
+
+.md-typeset .sv-text-source { font-size: 0.8em; opacity: 0.75; }
