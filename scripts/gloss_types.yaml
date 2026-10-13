@@ -57,6 +57,8 @@
 supported_css_styles:
   - basic_gloss      # indented aside, muted color, normal weight/style — the default "secondary material" look
   - standout_italic   # basic_gloss, but italic — for content that should read as marked/distinguished prose
+  - shifted_italic
+  - shifted
   - flowing_text      # no indent, full (not muted) color — primary reading-flow content, not an aside
   - fine_print        # smaller, italic, indented — a quiet, easy-to-skim annotation
   - vada_question     # light rose box — an objection/doubt/question that the text goes on to answer

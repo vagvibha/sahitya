@@ -191,6 +191,17 @@
   font-style: italic;
 }
 
+.sv-style-shifted_italic {
+  margin: 0 0 0 1rem;
+  line-height: 1.8;
+  font-style: italic;
+}
+
+.sv-style-shifted {
+  margin: 0 0 0 1rem;
+  line-height: 1.8;
+}
+
 .sv-style-flowing_text {
   margin: 0;
   line-height: 1.8;
