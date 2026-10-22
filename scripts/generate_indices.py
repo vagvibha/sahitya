@@ -1,1 +1,0 @@
-ssengine/scripts/generate_indices.py

@@ -27,9 +27,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # scripts/engine is the shared-engine submodule (generate_indices.py,
-          # dict_extract.py, dict_render.py, generate_dict.py, mkdocs_hooks.py,
-          # macros_env.py) — without this, scripts/*.py are dangling symlinks.
+          # ssengine/ is the shared-engine submodule (generate_indices.py,
+          # generate_dict.py, mkdocs_hooks.py, macros_env.py, ...) — without
+          # this it's an empty directory and nothing below can run.
           submodules: true
 
       - name: Set up Python
@@ -43,10 +43,10 @@ jobs:
           pip install mkdocs mkdocs-material pyyaml beautifulsoup4 mkdocs-macros-plugin
 
       - name: Generate indices (docs/ + mkdocs.yml nav)
-        run: python scripts/generate_indices.py
+        run: python ssengine/scripts/generate_indices.py
 
       - name: Generate dict/
-        run: python scripts/generate_dict.py
+        run: python ssengine/scripts/generate_dict.py
 
       - name: Commit dict/ if it changed
         run: |
