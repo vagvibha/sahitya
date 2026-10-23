@@ -3,6 +3,8 @@ author: बाणभट्टः
 chapters: अनुक्रमणिका
 order: 1
 source: ["ambuda.org"]
+dict:
+   folder: kavya
 gloss_types:
   - data_type: notes
     css_style: fine_print
