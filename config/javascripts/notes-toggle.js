@@ -22,10 +22,62 @@
 // visibly do nothing, since nothing was hidden to reveal). If at least
 // one div does start hidden, the button starts labeled "Show" as before.
 //
+// Headings inside a toggle-group div still get an entry in Material's
+// "on this page" TOC (built at build time, unaware of the button). While
+// such a div is hidden, its headings' TOC entries are hidden too, so the
+// TOC never offers a link to content that isn't on screen — see syncToc.
+// An entry is hidden along with its whole <li>, so any sub-entries nested
+// under it in the TOC go with it.
+//
 // Runs on every page load, including MkDocs Material's instant-navigation
 // swaps.
 
 (function () {
+  // true iff `el` sits inside a toggle-group div that is currently
+  // hidden — worked out from the same classes custom.css keys off
+  // (body.sv-force-hide / body.sv-force-show / .sv-hidden-default), at
+  // every .sv-toggleable ancestor, so a heading in a visible div nested
+  // inside a hidden one counts as hidden.
+  function inHiddenToggleable(el) {
+    var body = document.body.classList;
+    if (body.contains("sv-force-show")) return false;
+    var t = el.closest(".sv-toggleable");
+    if (t && body.contains("sv-force-hide")) return true;
+    while (t) {
+      if (t.classList.contains("sv-hidden-default")) return true;
+      t = t.parentElement && t.parentElement.closest(".sv-toggleable");
+    }
+    return false;
+  }
+
+  // Show/hide the TOC entry of every heading inside a toggle-group div,
+  // to match that heading's current visibility. A TOC link is matched by
+  // its URL fragment (decoded — Devanagari ids come percent-encoded), and
+  // only if it points at this page: with navigation.instant, Material
+  // rewrites "#id" hrefs into absolute URLs.
+  function syncToc() {
+    var items = {};
+    var here = location.origin + location.pathname;
+    document.querySelectorAll(".md-nav--secondary a.md-nav__link").forEach(function (a) {
+      var url = new URL(a.href, location.href);
+      if (!url.hash || url.origin + url.pathname !== here) return;
+      var id;
+      try { id = decodeURIComponent(url.hash.slice(1)); } catch (e) { id = url.hash.slice(1); }
+      var li = a.closest("li.md-nav__item");
+      if (li) (items[id] = items[id] || []).push(li);
+    });
+    document
+      .querySelectorAll(".md-typeset .sv-toggleable h1[id], .md-typeset .sv-toggleable h2[id], " +
+        ".md-typeset .sv-toggleable h3[id], .md-typeset .sv-toggleable h4[id], " +
+        ".md-typeset .sv-toggleable h5[id], .md-typeset .sv-toggleable h6[id]")
+      .forEach(function (h) {
+        var hidden = inHiddenToggleable(h);
+        (items[h.id] || []).forEach(function (li) {
+          li.style.display = hidden ? "none" : "";
+        });
+      });
+  }
+
   function setup() {
     var toggleable = document.querySelectorAll(".md-typeset .sv-toggleable");
     var existing = document.getElementById("sv-notes-toggle");
@@ -58,9 +110,11 @@
       document.body.classList.remove("sv-force-show", "sv-force-hide");
       document.body.classList.add(shown ? "sv-force-hide" : "sv-force-show");
       render();
+      syncToc();
     });
 
     render();
+    syncToc();
     document.body.appendChild(btn);
   }
 
