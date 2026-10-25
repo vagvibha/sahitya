@@ -201,6 +201,62 @@ order: 2
 
 उपमेयोपमानयोः सादृश्यम् आश्रित्य प्रवृत्ताः । भेदाभेदयोः प्राधान्यानुसारं विभागः ।
 
+<details>
+    <summary>सादृश्यमूलानां सम्बन्धः (चित्रम्)</summary>
+```mermaid
+flowchart LR
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px,font-family:Sanskrit,font-size:14px;
+    classDef start fill:#fff9c4,stroke:#fbc02d,stroke-width:3px,font-weight:bold;
+    classDef main fill:#e1f5fe,stroke:#0288d1,stroke-width:3px;
+    classDef loop fill:#efebe9,stroke:#5d4037,stroke-width:2px;
+    classDef mirror fill:#efe8e0,stroke:#e65100,stroke-width:2px;
+
+    UPAMA["<b>उपमा</b><br/><small>(मुखं चन्द्र इव)</small>"]:::start
+
+    VYATIREKA["<b>व्यतिरेकः</b><br/><small>(चन्द्रादपि ह्लादकमुखचन्द्रम्)<br/>उपमेयाधिक्यम्<br>शैला इवोन्नताः सन्तः प्रकृतिकोमलाः</small>"]:::loop
+    UPAMEYOPAMA["<b>उपमेयोपमा</b><br/><small>(मुखमिव चन्द्रः, चन्द्र इव मुखम्)<br/>परस्परसादृश्यम्</small>"]:::loop
+    ANANVAYA["<b>अनन्वयः (चरमसीमा)</b><br/><small>(मुखं मुखमिव)</small>"]:::loop
+
+    %% मुख्य-क्षितिज-अक्षः (The Metaphorical Absorption Axis)
+    RUPAKA["<b>रूपकम्</b><br/><small>(मुखचन्द्रः)<br/>अभेदारोपः</small>"]:::main
+    UTPREKSHA["<b>उत्प्रेक्षा</b><br/><small>(मुखं चन्द्रो मन्ये)<br/>संभावना/शङ्का</small>"]:::main
+    APAHNUTI["<b>अपह्नुतिः</b><br/><small>(नेदं मुखं, चन्द्र एषः)<br/>सत्यगोपनं-आरोपः</small>"]:::main
+    ATISHAYOKTI["<b>अतिशयोक्तिः</b><br/><small>(दिवि चन्द्रः सञ्चरति)<br/>निगीर्याध्यवसानम्</small>"]:::main
+
+    %% मध्यगामी-सेतुः (Diagonal Bridge)
+    NIDARSHANA["<b>निदर्शना</b><br/><small>(सूर्यवंशवर्णनं/अल्पमतिः समुद्रतरणम्/उड्डुपः)<br/>असंभवद्वस्तुसम्बन्धः</small>"]
+
+    %% स्मरणालङ्कारः (Cognitive Trigger)
+    SMARAN["<b>स्मरणम्</b><br/><small>(मुखं दृष्ट्वा चन्द्रं स्मरामि)<br/>सदृशवस्तुदर्शनेन स्मृतिः</small>"]
+
+    %% वाक्यसाम्य-अक्षः (The Lower Axis: Sentential Parallelism)
+    PRATIVASTUPAMA["<b>प्रतिवस्तूपमा</b><br/><small>(वाक्यद्वये एकधर्मस्य भिन्नशब्दैः कथनम्)</small>"]:::mirror
+    DRISHTANTA["<b>दृष्टान्तः</b><br/><small>(बिम्ब-प्रतिबिम्बभावः)<br/>सदृशधर्मयोः पृथङ्ग् निर्देशः</small>"]:::mirror
+    DIPAKA["<b>दीपकम्</b><br/><small>(देहलीदीपन्यायः)<br/>एकस्यैव क्रिया/कारकपदस्य बहुत्रान्वयः</small>"]:::mirror
+
+    %% सम्बन्धाः (Connections & Flows)
+    %% भवतः नूतन-क्रमः (Your Suggested Path)
+    UPAMA --> |<small>उत्कर्षः</small>| VYATIREKA
+    VYATIREKA --> |<small>क्षेत्रसङ्कोचः</small>| UPAMEYOPAMA
+    UPAMEYOPAMA --> |<small>अद्वितीयत्वम्</small>| ANANVAYA
+
+    %% अभेद-प्रवाहः (Absorption Path)
+    UPAMA --> |<small>भेदत्यागः / अभेदः</small>| RUPAKA
+    RUPAKA --> |<small>संभावना-आरम्भः</small>| UTPREKSHA
+    UTPREKSHA --> |<small>निषेधपूर्वक-आरोपः</small>| APAHNUTI
+    APAHNUTI --> |<small>पूर्ण-निगरणम्</small>| ATISHAYOKTI
+
+    %% अन्ये सम्बन्धाः
+    RUPAKA -.-> |<small>असंभव-सम्बन्धः</small>| NIDARSHANA
+    UTPREKSHA -.-> NIDARSHANA
+    UPAMA --> |<small>संस्कार-जागृतिः</small>| SMARAN
+
+    UPAMA ---> |<small>वाक्यार्थ-साम्यम्</small>| PRATIVASTUPAMA
+    PRATIVASTUPAMA --> |<small>बिम्ब-प्रतिबिम्ब-नियमः</small>| DRISHTANTA
+    DRISHTANTA --> |<small>लाघव-प्रक्रिया</small>| DIPAKA
+```
+</details>
+
 #### भेदाभेदतुल्यप्रधानाः
 
 <table>
