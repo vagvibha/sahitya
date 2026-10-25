@@ -12,6 +12,96 @@ order: 2
 * वर्गीकरणम्  
 अर्थालङ्काराणां वर्गाः रुय्यकस्य अलङ्कारसर्वस्वम् अनुसृत्य । 
 
+```mermaid
+flowchart LR
+    %% शैली-विन्यासः (Styles)
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px,font-family:Sanskrit,font-size:14px;
+    classDef primary fill:#e1f5fe,stroke:#0288d1,stroke-width:3px,font-weight:bold;
+    classDef loop fill:#efebe9,stroke:#5d4037,stroke-width:2px;
+    classDef logic fill:#e8f5e9,stroke:#388e3c,stroke-width:2px;
+    classDef cause fill:#ffe0b2,stroke:#f57c00,stroke-width:2px;
+    classDef context fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+
+    %% पूर्वभागस्थाः अलङ्काराः (सादृश्य-मूलक-अक्षः)
+    UPAMA["<b>उपमा</b><br/>(भेदसहितं साद्रुश्यम्)"]:::primary
+    VYATIREKA["<b>व्यतिरेकः</b><br/>(उपमेयाधिक्यम्)"]:::loop
+    RUPAKA["<b>रूपकम्</b><br/>(अभेदारोपः)"]:::primary
+    UTPREKSHA["<b>उत्प्रेक्षा</b><br/>(संभावना / शङ्का)"]:::primary
+    APAHNUTI["<b>अपह्नुतिः</b><br/>(सत्यगोपनं-आरोपः)"]:::primary
+    ATISHAYOKTI["<b>अतिशयोक्तिः</b><br/>(निगीर्याध्यवसानम्)"]:::primary
+    NIDARSHANA["<b>निदर्शना</b><br/>(असंभवद्वस्तुसम्बन्धः)"]
+
+    %% उत्तरभागस्थाः अलङ्काराः (नवीन-प्रविष्टाः)
+    SHLESHA["<b>श्लेषः</b><br/>(द्व्यर्थकता / अनेकार्थत्वम्)"]
+    SAMASOKTI["<b>समासोक्तिः</b><br/>(प्रस्तुते अप्रस्तुतस्फुरणम्)"]:::context
+    APRASTUTA["<b>अप्रस्तुतप्रशंसा</b><br/>(अप्रस्तुते प्रस्तुतस्फुरणम्)"]:::context
+    PARIKARA["<b>परिकरः</b><br/>(साभिप्राय-विशेषणानि)"]
+    VIBHAVANA["<b>विभावना</b><br/>(कारणं विना कार्योत्पत्तिः)"]:::cause
+    VISHESHOKTI["<b>विशेषोक्तिः</b><br/>(कारणे सत्यपि कार्यानुत्पत्तिः)"]:::cause
+    KAVYALINGAM["<b>काव्यलिङ्गम्</b><br/>(काव्ये हेतोः उपन्यासः)"]:::logic
+    ARTHANTARANYASA["<b>अर्थान्तरन्यासः</b><br/>(सामान्य-विशेष-समर्थनम्)"]:::logic
+
+    %% सादृश्य-अक्षस्य सम्बन्धः (पूर्वप्रवाहः)
+    UPAMA --> |उत्कर्षः| VYATIREKA
+    UPAMA --> |भेदत्यागः| RUPAKA
+    RUPAKA --> |संभावना| UTPREKSHA
+    UTPREKSHA --> |निषेधः| APAHNUTI
+    APAHNUTI --> |निगरणम्| ATISHAYOKTI
+    RUPAKA -.-> |तार्किक-असंभवः| NIDARSHANA
+
+    %% पूर्वभाग-उत्तरभागयोः साक्षात् परस्परसम्बन्धाः (Cross-Connections)
+    
+    %% १. रूपक-समासोक्ति-अप्रस्तुतप्रशंसा-चक्रम्
+    RUPAKA <--> |भगिनी-सम्बन्धः: विशेषणसाम्यात्| SAMASOKTI
+    SAMASOKTI <--> |द्वन्द्व-न्यायः: ठीक विपरीत-प्रवाहः| APRASTUTA
+    ATISHAYOKTI -.-> |मूल-भित्तिः| APRASTUTA
+
+    %% २. श्लेषस्य साक्षात् सम्बन्धः
+    SHLESHA --> |आधार-भूमिः: तन्त्रेण अनेकधर्मप्रकटनम्| RUPAKA
+    SHLESHA --> |साहाय्यम्: एकशब्देन अनेकविशेषणानि| SAMASOKTI
+
+    %% ३. अतिशयोक्ति-कार्यकारण-सम्बन्धः
+    ATISHAYOKTI ---> |अतिशयात् लोकसीमा-उल्लङ्घनम्| VIBHAVANA
+    VIBHAVANA <--> |परस्पर-विपरीत-योगः| VISHESHOKTI
+
+    %% ४. विशेषण-परिकर-काव्यलिङ्ग-सम्बन्धः
+    PARIKARA --> |साभिप्रायविशेषणैः हेतुत्व-सिद्धिः| KAVYALINGAM
+    KAVYALINGAM --> |सूक्ष्मा युक्तिः विस्तृता भवति| ARTHANTARANYASA
+
+```
+
+```mermaid
+flowchart LR
+    %% शैली-विन्यासः (Styles)
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px,font-family:Sanskrit,font-size:14px;
+    classDef cause fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,font-weight:bold;
+    classDef logic fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,font-weight:bold;
+    classDef context fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,font-weight:bold;
+
+    %% १. कार्य-कारण-कुलम् (Causality Group)
+    VIBHAVANA["<b>विभावना</b><br/>(कारणं विना कार्योत्पत्तिः)<br/>कारणनिषेधेऽपि फलोदयः"]:::cause
+    VISHESHOKTI["<b>विशेषोक्तिः</b><br/>(कारणे सत्यपि कार्यानुत्पत्तिः)<br/>सत्सु कारणेषु फलाभावः"]:::cause
+    VISHAMAM["<b>विषमम्</b><br/>(कारण-कार्ययोः अनुरुपताभावः)<br/>विरुद्धयोः संयोगः / अनर्थोत्पत्तिः"]:::cause
+
+    %% २. युक्ति-प्रमाण-कुलम् (Logic Group)
+    KAVYALINGAM["<b>काव्यलिङ्गम्</b><br/>(पदार्थ-वाक्यार्थगता युक्तिः)<br/>काव्ये हेतोः उपन्यासः"]:::logic
+    ARTHANTARANYASA["<b>अर्थान्तरन्यासः</b><br/>(समर्थन-प्रक्रिया)<br/>सामान्य-विशेषयोः परस्परसमर्थनम्"]:::logic
+
+    %% ३. प्रस्तुत-अप्रस्तुत-सम्बन्धः (Contextual Context)
+    SAMASOKTI["<b>समासोक्तिः</b><br/>(प्रस्तुते अप्रस्तुतस्य स्फुरणम्)<br/>विशेषणसाम्यात् व्यवहाराद्वा भेदः"]:::context
+
+    %% सम्बन्धाः विरोधाधारेण (Causality Links)
+    VIBHAVANA <--> |परस्पर-विपरीत-न्यायः| VISHESHOKTI
+    VISHESHOKTI --> |कार्य-कारणयोः गुणानां विरोधः| VISHAMAM
+
+    %% युक्ति-सम्बन्धाः (Logic Links)
+    KAVYALINGAM --> |सूक्ष्मा युक्तिः समर्थिका भूत्वा गच्छति| ARTHANTARANYASA
+
+    %% अन्यकुलसम्बन्धः (Bridge to the previous chart)
+    SAMASOKTI -.-> |अप्रस्तुत-आरोपात् इयं रूपकस्य भगिनी| RUPAKA["रूपकम्<br/>(पूर्वचित्रात्)"]
+
+```
+
 ## शब्दालङ्काराः
 
 शब्दपरिवृत्त्यसहाः – पर्यायशब्दे प्रयुक्ते अलङ्कारः नश्यति । कुवलयानन्दे केवलम् अर्थालङ्काराः निरूप्यन्ते, अतः अत्र कु० नास्ति ।
