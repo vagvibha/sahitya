@@ -523,3 +523,8 @@ body.sv-force-hide .md-typeset .sv-toggleable {
 }
 
 .md-typeset .sv-text-source { font-size: 0.8em; opacity: 0.75; }
+
+/* "↗ source" link after a passage pulled in by <extract/> */
+.md-typeset .sv-extract-source { font-size: 0.75em; text-align: right; margin-top: 0.2em; }
+.md-typeset .sv-extract-source a { text-decoration: none; opacity: 0.6; }
+.md-typeset .sv-extract-source a:hover { opacity: 1; }
