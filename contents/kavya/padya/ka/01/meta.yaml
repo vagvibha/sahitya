@@ -1,8 +1,9 @@
 title: "प्रथमः सर्गः"
 dict:
    type: shloka
-   title: "[सर्गः-१]"
+   title: " सर्गः-१"
    skip: [वा, न, तेन, के, अपि, माम्, मम, मां, त्वम्, त्वं, एष्, एव, इति, च, कुरु, किं, परं, फलम्, मनो, मनः, नैव, जप, परम्, कर्म, क, को, का, स]   
    auto_shloka: false
-   chapter_key: KA-01
+   chapter_key: e:KA-01
    shloka_key_prefix: "KA,99,99"
+   nav: true

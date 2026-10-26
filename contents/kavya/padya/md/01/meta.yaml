@@ -1,7 +1,9 @@
 title: "पूर्वमेघः"
 dict:
-   title: "[पूर्वमेघः]"
+   title: " पूर्वमेघः"
    type: shloka
    skip: [वा, न, तेन, के, अपि, माम्, मम, मां, त्वम्, त्वं, एष्, एव, इति, च, कुरु, किं, परं, फलम्, मनो, मनः, नैव, जप, परम्, कर्म, क, को, का, स]
-   chapter_key: MD-1
+   auto_shloka: false
+   chapter_key: e:MD-1
    shloka_key_prefix: "MD,9,00"
+   nav: true

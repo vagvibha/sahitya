@@ -1,8 +1,9 @@
 title: "पञ्चमः सर्गः"
 dict:
-   title: "[सर्गः-५]"
+   title: " सर्गः-५"
    type: shloka
    skip: [वा, न, तेन, के, अपि, माम्, मम, मां, त्वम्, त्वं, एष्, एव, इति, च, कुरु, किं, परं, फलम्, मनो, मनः, नैव, जप, परम्, कर्म, क, को, का, स, या, सा]
    auto_shloka: false
-   chapter_key: KS-05
+   chapter_key: e:KS-05
    shloka_key_prefix: "KS5,99"
+   nav: true
