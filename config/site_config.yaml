@@ -108,6 +108,8 @@ content_sections:
         h2_label: "साहित्यलक्षणग्रन्थाः"
       - dir: "vividha"
         h2_label: "विविधशास्त्रपरिचयः"
+      - dir: "syllabus"
+        h2_label: "साहित्याचार्यः"
 
   - dir: "kavya"
     h1_label: "काव्यानि"
