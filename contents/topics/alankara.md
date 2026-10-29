@@ -9,208 +9,7 @@ order: 2
 * लक्षणम्  
 उपकुर्वन्ति तं सन्तं येऽङ्गद्वारेण जातुचित् । हारादिवदलङ्कारास्तेऽनुप्रासोपमादयः ॥ (का०प्र० ८)
 
-* वर्गीकरणम्  
-अर्थालङ्काराणां वर्गाः रुय्यकस्य अलङ्कारसर्वस्वम् अनुसृत्य । 
-
-<!--
-<details>
-<summary>संक्षेपः</summary>
-<table>
-<thead>
-  <tr>
-    <th><b>वर्गः</b></th>
-    <th><b>अलङ्कारः</b></th>
-    <th><b>टिप्पणी</b></th>
-    <th><b>उदाहरणानि</b></th>
-  </tr>
-</thead>
-<tbody>
-  <tr>
-    <td rowspan="8">सादृश्यमूलकाः</td>
-    <td>उपमा</td>
-    <td></td>
-    <td>मुखं चन्द्र इव सुन्दरम् ।</td>
-  </tr>
-  <tr>
-    <td>व्यतिरेक</td>
-    <td></td>
-    <td>चन्द्रः इव मुखं, किन्तु निष्कलङ्कम्।<br>शैला इवोन्नताः सन्तः किन्तु प्रकृतिकोमलाः ।</td>
-  </tr>
-  <tr>
-    <td>उत्प्रेक्षा</td>
-    <td></td>
-    <td>मुखं मन्ये द्वितीयः चन्द्रः।</td>
-  </tr>
-  <tr>
-    <td>रूपकम्</td>
-    <td></td>
-    <td>मुखचन्द्रः प्रकाशते।</td>
-  </tr>
-  <tr>
-    <td>अपह्नुतिः</td>
-    <td></td>
-    <td>नैदं मुखम्, व्योमनि स्थितः चन्द्र एवायम्।</td>
-  </tr>
-  <tr>
-    <td>अतिशयोक्तिः</td>
-    <td></td>
-    <td>अहो! द्वितीयः चन्द्रः भूतले सञ्चरति।</td>
-  </tr>
-  <tr>
-    <td>निदर्शना</td>
-    <td></td>
-    <td>
-        क्व सूर्यप्रभवो वंशः क्व चाल्पविषया मतिः ।<br>
-        तितीर्षुर्दुस्तरं मोहादुडुपेनास्मि सागरम् ॥ (रघु० १।२)
-    </td>
-  </tr>
-  <tr>
-    <td>दीपकम्</td>
-    <td></td>
-    <td>(शूद्रकः) दिग्गज इव अनवरतप्रवृत्तदानार्द्रीकृतकरः।</td>
-  </tr>
-</tbody></table>
-</details>
--->
-
-<!--
-```mermaid
-flowchart LR
-    %% शैली-विन्यासः (Styles)
-    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px,font-family:Sanskrit,font-size:14px;
-    classDef base fill:#fff9c4,stroke:#fbc02d,stroke-width:3px,font-weight:bold;
-    classDef core fill:#e1f5fe,stroke:#0288d1,stroke-width:3px,font-weight:bold;
-    classDef context fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
-    classDef cause fill:#ffe0b2,stroke:#f57c00,stroke-width:2px;
-
-    SHLESHA["<b>श्लेषः</b><br/><small>विशेषणानां द्व्यर्थकता</small>"]:::base
-    
-    RUPAKA["<b>रूपकम्</b><br/><small>(मुखचन्द्रः)<br/>प्रस्तुताप्रस्तुतयोः साक्षादभेदः</small>"]:::core
-    
-    SAMASOKTI["<b>समासोक्तिः</b><br/><small>(प्रस्तुते अप्रस्तुतव्यवहारः)<br/>केवलप्रस्तुतवर्णनम् + श्लेषविशेषणानि</small>"]:::context
-    
-    APRASTUTA["<b>अप्रस्तुतप्रशंसा</b><br/><small>(अप्रस्तुते प्रस्तुतव्यवहारः)<br/>केवलाप्रस्तुतवर्णनम् ⇒ प्रस्तुतबोधः</small>"]:::context
-    
-    ATISHAYOKTI["<b>अतिशयोक्तिः</b><br/><small>(दिवि चन्द्रः सञ्चरति)<br/>प्रस्तुतस्य पूर्णनिगरणम्</small>"]:::core
-    VIBHAVANA["<b>विभावना</b><br/><small>(कारणं विना कार्योत्पत्तिः)</small>"]:::cause
-    VISHESHOKTI["<b>विशेषोक्तिः</b><br/><small>(कारणे सत्यपि कार्यानुत्पत्तिः)</small>"]:::cause
-
-    %% साक्षात् दृढतर-सम्बन्धाः (Direct Connections)
-    
-    %% श्लेषस्य साक्षात् उपकारकता
-    SHLESHA --> |<small>विशेषणसाम्यं जनयति</small>| SAMASOKTI
-    SHLESHA --> |<small>अभेदं दृढीकरोति</small>| RUPAKA
-    
-    %% रूपक-समासोक्ति-सम्बन्धः
-    RUPAKA <--> |<small>रूपके द्वयोः निर्देशः समासोक्तौ एकस्यैव</small>| SAMASOKTI
-    
-    %% समासोक्ति-अप्रस्तुतप्रशंसा-द्वन्द्वः
-    SAMASOKTI <--> |<small>परस्परविपरीते</small>| APRASTUTA
-    
-    %% अतिशयोक्ति-प्रवाहः
-    RUPAKA --> |<small>अभेदाद् निगरणप्रतिबिम्बः</small>| ATISHAYOKTI
-    APRASTUTA <--> |<small>साम्यमूला अप्रस्तुतप्रशंसा अतिशयोक्तिरूपैव</small>| ATISHAYOKTI
-
-    %% ३. अतिशयोक्ति-कार्यकारण-सम्बन्धः
-    ATISHAYOKTI ---> |<small>अतिशयात् लोकसीमा-उल्लङ्घनम्</small>| VIBHAVANA
-    VIBHAVANA <--> |<small>परस्परविपरीते</small>| VISHESHOKTI
-
-```
-
-```mermaid
-flowchart LR
-    %% शैली-विन्यासः (Styles)
-    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px,font-family:Sanskrit,font-size:14px;
-    classDef primary fill:#e1f5fe,stroke:#0288d1,stroke-width:3px,font-weight:bold;
-    classDef loop fill:#efebe9,stroke:#5d4037,stroke-width:2px;
-    classDef logic fill:#e8f5e9,stroke:#388e3c,stroke-width:2px;
-    classDef cause fill:#ffe0b2,stroke:#f57c00,stroke-width:2px;
-    classDef context fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
-
-    %% पूर्वभागस्थाः अलङ्काराः (सादृश्य-मूलक-अक्षः)
-    UPAMA["<b>उपमा</b><br/>(भेदसहितं साद्रुश्यम्)"]:::primary
-    VYATIREKA["<b>व्यतिरेकः</b><br/>(उपमेयाधिक्यम्)"]:::loop
-    RUPAKA["<b>रूपकम्</b><br/>(अभेदारोपः)"]:::primary
-    UTPREKSHA["<b>उत्प्रेक्षा</b><br/>(संभावना / शङ्का)"]:::primary
-    APAHNUTI["<b>अपह्नुतिः</b><br/>(सत्यगोपनं-आरोपः)"]:::primary
-    ATISHAYOKTI["<b>अतिशयोक्तिः</b><br/>(निगीर्याध्यवसानम्)"]:::primary
-    NIDARSHANA["<b>निदर्शना</b><br/>(असंभवद्वस्तुसम्बन्धः)"]
-
-    %% उत्तरभागस्थाः अलङ्काराः (नवीन-प्रविष्टाः)
-    SHLESHA["<b>श्लेषः</b><br/>(द्व्यर्थकता / अनेकार्थत्वम्)"]
-    SAMASOKTI["<b>समासोक्तिः</b><br/>(प्रस्तुते अप्रस्तुतस्फुरणम्)"]:::context
-    APRASTUTA["<b>अप्रस्तुतप्रशंसा</b><br/>(अप्रस्तुते प्रस्तुतस्फुरणम्)"]:::context
-    PARIKARA["<b>परिकरः</b><br/>(साभिप्राय-विशेषणानि)"]
-    VIBHAVANA["<b>विभावना</b><br/>(कारणं विना कार्योत्पत्तिः)"]:::cause
-    VISHESHOKTI["<b>विशेषोक्तिः</b><br/>(कारणे सत्यपि कार्यानुत्पत्तिः)"]:::cause
-    KAVYALINGAM["<b>काव्यलिङ्गम्</b><br/>(काव्ये हेतोः उपन्यासः)"]:::logic
-    ARTHANTARANYASA["<b>अर्थान्तरन्यासः</b><br/>(सामान्य-विशेष-समर्थनम्)"]:::logic
-
-    %% सादृश्य-अक्षस्य सम्बन्धः (पूर्वप्रवाहः)
-    UPAMA --> |उत्कर्षः| VYATIREKA
-    UPAMA --> |भेदत्यागः| RUPAKA
-    RUPAKA --> |संभावना| UTPREKSHA
-    UTPREKSHA --> |निषेधः| APAHNUTI
-    APAHNUTI --> |निगरणम्| ATISHAYOKTI
-    RUPAKA -.-> |तार्किक-असंभवः| NIDARSHANA
-
-    %% पूर्वभाग-उत्तरभागयोः साक्षात् परस्परसम्बन्धाः (Cross-Connections)
-    
-    %% १. रूपक-समासोक्ति-अप्रस्तुतप्रशंसा-चक्रम्
-    RUPAKA <--> |भगिनी-सम्बन्धः: विशेषणसाम्यात्| SAMASOKTI
-    SAMASOKTI <--> |द्वन्द्व-न्यायः: ठीक विपरीत-प्रवाहः| APRASTUTA
-    ATISHAYOKTI -.-> |मूल-भित्तिः| APRASTUTA
-
-    %% २. श्लेषस्य साक्षात् सम्बन्धः
-    SHLESHA --> |आधार-भूमिः: तन्त्रेण अनेकधर्मप्रकटनम्| RUPAKA
-    SHLESHA --> |साहाय्यम्: एकशब्देन अनेकविशेषणानि| SAMASOKTI
-
-    %% ३. अतिशयोक्ति-कार्यकारण-सम्बन्धः
-    ATISHAYOKTI ---> |अतिशयात् लोकसीमा-उल्लङ्घनम्| VIBHAVANA
-    VIBHAVANA <--> |परस्पर-विपरीत-योगः| VISHESHOKTI
-
-    %% ४. विशेषण-परिकर-काव्यलिङ्ग-सम्बन्धः
-    PARIKARA --> |साभिप्रायविशेषणैः हेतुत्व-सिद्धिः| KAVYALINGAM
-    KAVYALINGAM --> |सूक्ष्मा युक्तिः विस्तृता भवति| ARTHANTARANYASA
-
-```
-
-```mermaid
-flowchart LR
-    %% शैली-विन्यासः (Styles)
-    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px,font-family:Sanskrit,font-size:14px;
-    classDef cause fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,font-weight:bold;
-    classDef logic fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,font-weight:bold;
-    classDef context fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,font-weight:bold;
-
-    %% १. कार्य-कारण-कुलम् (Causality Group)
-    VIBHAVANA["<b>विभावना</b><br/>(कारणं विना कार्योत्पत्तिः)<br/>कारणनिषेधेऽपि फलोदयः"]:::cause
-    VISHESHOKTI["<b>विशेषोक्तिः</b><br/>(कारणे सत्यपि कार्यानुत्पत्तिः)<br/>सत्सु कारणेषु फलाभावः"]:::cause
-    VISHAMAM["<b>विषमम्</b><br/>(कारण-कार्ययोः अनुरुपताभावः)<br/>विरुद्धयोः संयोगः / अनर्थोत्पत्तिः"]:::cause
-
-    %% २. युक्ति-प्रमाण-कुलम् (Logic Group)
-    KAVYALINGAM["<b>काव्यलिङ्गम्</b><br/>(पदार्थ-वाक्यार्थगता युक्तिः)<br/>काव्ये हेतोः उपन्यासः"]:::logic
-    ARTHANTARANYASA["<b>अर्थान्तरन्यासः</b><br/>(समर्थन-प्रक्रिया)<br/>सामान्य-विशेषयोः परस्परसमर्थनम्"]:::logic
-
-    %% ३. प्रस्तुत-अप्रस्तुत-सम्बन्धः (Contextual Context)
-    SAMASOKTI["<b>समासोक्तिः</b><br/>(प्रस्तुते अप्रस्तुतस्य स्फुरणम्)<br/>विशेषणसाम्यात् व्यवहाराद्वा भेदः"]:::context
-
-    %% सम्बन्धाः विरोधाधारेण (Causality Links)
-    VIBHAVANA <--> |परस्पर-विपरीत-न्यायः| VISHESHOKTI
-    VISHESHOKTI --> |कार्य-कारणयोः गुणानां विरोधः| VISHAMAM
-
-    %% युक्ति-सम्बन्धाः (Logic Links)
-    KAVYALINGAM --> |सूक्ष्मा युक्तिः समर्थिका भूत्वा गच्छति| ARTHANTARANYASA
-
-    %% अन्यकुलसम्बन्धः (Bridge to the previous chart)
-    SAMASOKTI -.-> |अप्रस्तुत-आरोपात् इयं रूपकस्य भगिनी| RUPAKA["रूपकम्<br/>(पूर्वचित्रात्)"]
-
-```
--->
-
 ## शब्दालङ्काराः
-
-शब्दपरिवृत्त्यसहाः – पर्यायशब्दे प्रयुक्ते अलङ्कारः नश्यति । कुवलयानन्दे केवलम् अर्थालङ्काराः निरूप्यन्ते, अतः अत्र कु० नास्ति ।
 
 <table>
 <thead>
@@ -393,12 +192,129 @@ flowchart LR
 
 अर्थाश्रिताः – पर्यायशब्दे प्रयुक्तेऽपि अलङ्कारः तिष्ठति ।
 
+<details>
+<summary>संक्षेपः</summary>
+<table>
+<thead>
+  <tr>
+    <th><b>अलङ्कारः</b></th>
+    <th><b>लघुविवरणम्</b></th>
+    <th><b>सरलम् उदाहरणम्</b></th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td colspan="3"><b>सादृश्यमूलाः</b></td>
+  </tr>
+  <tr>
+    <td>उपमा</td>
+    <td>उपमेयोपमानयोः इवादिना स्पष्टं सादृश्यम् ।</td>
+    <td>मुखं चन्द्र इव सुन्दरम् ।</td>
+  </tr>
+  <tr>
+    <td>रूपकम्</td>
+    <td>उपमेये उपमानस्य अभेदेन आरोपः; उपमेयं न निषिध्यते ।</td>
+    <td>मुखचन्द्रः ।</td>
+  </tr>
+  <tr>
+    <td>उत्प्रेक्षा</td>
+    <td>उपमेयस्य उपमानरूपेण सम्भावना (मन्ये, इव, शङ्के) ।</td>
+    <td>लिम्पतीव तमोऽङ्गानि वर्षतीवाञ्जनं नभः ।</td>
+  </tr>
+  <tr>
+    <td>अपह्नुतिः</td>
+    <td>उपमेयं निषिध्य उपमानस्थापनम् ।</td>
+    <td>नेदं मुखम्, चन्द्र एवायम् ।</td>
+  </tr>
+  <tr>
+    <td>अतिशयोक्तिः</td>
+    <td>उपमेयं निगीर्य उपमानेनैव कथनम् (निश्चितः अभेदः) ।</td>
+    <td>अहो ! द्वितीयः चन्द्रः भूतले सञ्चरति ।</td>
+  </tr>
+  <tr>
+    <td>सन्देहः</td>
+    <td>सादृश्यात् "इदं किम् अ उत ब ?" इति कविकल्पितः संशयः ।</td>
+    <td>किमिदं मुखम्, उत गगनात् पतितः चन्द्रः ?</td>
+  </tr>
+  <tr>
+    <td>भ्रान्तिमान्</td>
+    <td>सादृश्यात् एकस्य अन्यत्वेन निश्चयः (संशयः नास्ति) ।</td>
+    <td>मुखं चन्द्रं मत्वा चकोरः तत्र धावति ।</td>
+  </tr>
+  <tr>
+    <td>व्यतिरेकः</td>
+    <td>सादृश्ये सत्यपि उपमानात् उपमेयस्य आधिक्यम् ।</td>
+    <td>शैला इवोन्नताः सन्तः किन्तु प्रकृतिकोमलाः ।</td>
+  </tr>
+  <tr>
+    <td>दृष्टान्तः</td>
+    <td>पृथग्वाक्ययोः भिन्नौ किन्तु सदृशौ धर्मौ – बिम्बप्रतिबिम्बभावः ।</td>
+    <td>राजा प्रजाः रक्षति, सूर्यः लोकं प्रकाशयति ।</td>
+  </tr>
+  <tr>
+    <td>दीपकम्</td>
+    <td>एकः धर्मः प्रस्तुतेऽप्रस्तुते च सकृत् अन्वेति (देहलीदीपवत्) ।</td>
+    <td>मदेन भाति कलभः प्रतापेन महीपतिः ।</td>
+  </tr>
+  <tr>
+    <td>निदर्शना</td>
+    <td>असम्भवन् वस्तुसम्बन्धः सादृश्ये पर्यवस्यति ।</td>
+    <td>तितीर्षुर्दुस्तरं मोहादुडुपेनास्मि सागरम् ।</td>
+  </tr>
+  <tr>
+    <td>समासोक्तिः</td>
+    <td>प्रस्तुतवर्णने श्लिष्टविशेषणैः अप्रस्तुतव्यवहारस्य स्फुरणम् ।</td>
+    <td>उपोढरागेण विलोलतारकं तथा गृहीतं शशिना निशामुखम् ।</td>
+  </tr>
+  <tr>
+    <td>अप्रस्तुतप्रशंसा</td>
+    <td>अप्रस्तुतवर्णनेन प्रस्तुतस्य बोधः (समासोक्तेः विपरीता) ।</td>
+    <td>हंसैः पद्मवनं त्यक्तं वायसैः परिपूरितम् ।</td>
+  </tr>
+  <tr>
+    <td>अर्थान्तरन्यासः</td>
+    <td>विशेषस्य सामान्येन (सामान्यस्य विशेषेण) समर्थनम् ।</td>
+    <td>हनूमानब्धिमतरद्दुष्करं किं महात्मनाम् ।</td>
+  </tr>
+  <tr>
+    <td colspan="3"><b>विरोधमूलाः, तर्कन्यायमूलाः, गूढार्थप्रतीतिमूलाः</b></td>
+  </tr>
+  <tr>
+    <td>विरोधाभासः</td>
+    <td>आपाततः विरोधः, विचारे अविरोधः ।</td>
+    <td>विनापि तन्वि हारेण वक्षोजौ तव हारिणौ ।</td>
+  </tr>
+  <tr>
+    <td>विभावना</td>
+    <td>कारणं विना कार्योत्पत्तिः ।</td>
+    <td>अप्यलाक्षारसासिक्तं रक्तं त्वच्चरणद्वयम् ।</td>
+  </tr>
+  <tr>
+    <td>विशेषोक्तिः</td>
+    <td>पूर्णे कारणे सत्यपि कार्यानुत्पत्तिः ।</td>
+    <td>हृदि स्नेहक्षयो नाभूत् स्मरदीपे ज्वलत्यपि ।</td>
+  </tr>
+  <tr>
+    <td>काव्यलिङ्गम्</td>
+    <td>हेतुः वाक्यार्थरूपेण पदार्थरूपेण वा कथ्यते ।</td>
+    <td>जितोऽसि मन्द कन्दर्प मच्चित्तेऽस्ति त्रिलोचनः ।</td>
+  </tr>
+  <tr>
+    <td>स्वभावोक्तिः</td>
+    <td>जातिक्रियादिस्वभावस्य यथावत् चारु वर्णनम् ।</td>
+    <td>ग्रीवाभङ्गाभिरामं मुहुरनुपतति स्यन्दने बद्धदृष्टिः ।</td>
+  </tr>
+</tbody>
+</table>
+</details>
+
 ### सादृश्यमूलाः
 
-उपमेयोपमानयोः सादृश्यम् आश्रित्य प्रवृत्ताः । भेदाभेदयोः प्राधान्यानुसारं विभागः ।
+उपमेयोपमानयोः सादृश्यम् आश्रित्य प्रवृत्ताः । भेदाभेदयोः प्राधान्यानुसारं चतुर्धा विभागः ।
 
 <details>
-    <summary>सादृश्यमूलानां सम्बन्धः (चित्रम्)</summary>
+<summary>सादृश्यमूलानां सम्बन्धः (मूलचित्रम्)</summary>
+
 ```mermaid
 flowchart LR
     classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px,font-family:Sanskrit,font-size:14px;
@@ -451,11 +367,37 @@ flowchart LR
     PRATIVASTUPAMA --> |<small>बिम्ब-प्रतिबिम्ब-नियमः</small>| DRISHTANTA
     DRISHTANTA --> |<small>लाघव-प्रक्रिया</small>| DIPAKA
 ```
+
 </details>
 
-#### भेदाभेदतुल्यप्रधानाः
+<details>
+<summary>प्रस्तुतम्, अप्रस्तुतम् – किम् उच्यते, किं गम्यते (चित्रम्)</summary>
 
-यत्रोपमेयोपमानयोः भेदस्तथा अभेदः इत्युभयमपि समानरूपेण मुख्यतया प्रतीयते। उपमानस्य उपमेयस्य च पृथक् सत्ता स्पष्टा भवति, किन्तु सादृश्यमपि तावदेव दृढम् अस्ति।
+```mermaid
+flowchart LR
+  classDef base fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#222;
+  classDef main fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#222;
+  classDef side fill:#efebe9,stroke:#6d4c41,stroke-width:2px,color:#222;
+  classDef q fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#222;
+
+  START["<b>प्रस्तुतम्</b><small> (वर्ण्यम्)<br/></small>+ <b>अप्रस्तुतम्</b><small> (उपमानम्)</small>"]:::base
+  RUPAKA["<b>रूपकम्</b><br/><small>द्वयोः निर्देशः, अभेदः</small>"]:::main
+  SAMASOKTI["<b>समासोक्तिः</b><br/><small>प्रस्तुतम् उच्यते<br/>अप्रस्तुतं गम्यते</small>"]:::main
+  APRASTUTA["<b>अप्रस्तुतप्रशंसा</b><br/><small>अप्रस्तुतम् उच्यते<br/>प्रस्तुतं गम्यते</small>"]:::main
+  ATISHAYOKTI["<b>अतिशयोक्तिः</b><br/><small>प्रस्तुतं निगीर्यते<br/>उपमानमेव उच्यते</small>"]:::main
+  SHLESHA["<b>श्लेषः</b><br/><small>द्व्यर्थकानि विशेषणानि</small>"]:::side
+
+  START -->|"<small>द्वयोः साक्षात् निर्देशः</small>"| RUPAKA
+  START -->|"<small>केवलं प्रस्तुतम् उच्यते</small>"| SAMASOKTI
+  START -->|"<small>केवलम् अप्रस्तुतम् उच्यते</small>"| APRASTUTA
+  RUPAKA -->|"<small>प्रस्तुतं निगीर्यते</small>"| ATISHAYOKTI
+  SAMASOKTI <-->|"<small>परस्परविपरीते</small>"| APRASTUTA
+  SHLESHA -->|"<small>विशेषणसाम्यं जनयति</small>"| SAMASOKTI
+  SHLESHA -->|"<small>अभेदं दृढीकरोति</small>"| RUPAKA
+```
+
+</details>
+
 
 <table>
 <thead>
@@ -466,6 +408,9 @@ flowchart LR
   </tr>
 </thead>
 <tbody>
+  <tr>
+    <td colspan="3"><b>भेदाभेदतुल्यप्रधानाः – उपमेयोपमानयोः भेदः अभेदश्च समानरूपेण प्रतीयते</b></td>
+  </tr>
   <tr data-glossary-entry>
     <td>उपमा</td>
     <td>
@@ -553,22 +498,9 @@ flowchart LR
       <i>विद्युद्वेष्टितं मेघं दृष्ट्वा कनककदलीवेष्टितस्य क्रीडाशैलस्य स्मरणम् ।</i>
     </td>
   </tr>
-</tbody>
-</table>
-
-#### अभेदप्रधानाः – आरोपगर्भाः
-
-उपमेयस्य उपमानेन सह साक्षात् अभेदः प्रतिपाद्यते, किन्तु उपमेयम् (प्रकृतम्) पुरतः प्रत्यक्षतया तिष्ठति, उपमेये उपमानस्य आरोपः क्रियते।
-
-<table>
-<thead>
   <tr>
-    <th><b>अलङ्कारः</b></th>
-    <th><b>लक्षणम्</b></th>
-    <th><b>उदाहरणानि</b></th>
+    <td colspan="3"><b>अभेदप्रधानाः – अभेदः मुख्यः; आरोपगर्भाः (उपमेयं प्रत्यक्षं तिष्ठति) अध्यवसायगर्भाः (उपमेयं निगीर्यते) वा</b></td>
   </tr>
-</thead>
-<tbody>
   <tr data-glossary-entry>
     <td>रूपकम्</td>
     <td>
@@ -657,22 +589,6 @@ flowchart LR
       <i>इदं नभोमण्डलं न, अपि तु समुद्रः; एताः ताराः न, अपि तु फेनाः; अयं चन्द्रः न, अपि तु कुण्डलितः शेषः; कलङ्कः न, अपि तु शयितः विष्णुः ।</i>
     </td>
   </tr>
-</tbody>
-</table>
-
-#### अभेदप्रधानाः – अध्यवसायगर्भाः
-
-अध्यवसायः – विषयनिगरणेन (उपमेयम् अनुक्त्वा) विषयिणा (उपमानेन) अभेदप्रतिपत्तिः ।
-
-<table>
-<thead>
-  <tr>
-    <th><b>अलङ्कारः</b></th>
-    <th><b>लक्षणम्</b></th>
-    <th><b>उदाहरणानि</b></th>
-  </tr>
-</thead>
-<tbody>
   <tr data-glossary-entry>
     <td>उत्प्रेक्षा</td>
     <td>
@@ -709,22 +625,9 @@ flowchart LR
       <i>कमलम् – मुखम्, कुवलये – नेत्रे, कनकलतिका – शरीरम् ।</i>
     </td>
   </tr>
-</tbody>
-</table>
-
-#### गम्यौपम्याश्रयाः – पदार्थवाक्यार्थगताः
-
-औपम्यं (सादृश्यम्) शब्देन न उच्यते, किन्तु पदार्थद्वारा वाक्यद्वारा वा गम्यते ।
-
-<table>
-<thead>
   <tr>
-    <th><b>अलङ्कारः</b></th>
-    <th><b>लक्षणम्</b></th>
-    <th><b>उदाहरणानि</b></th>
+    <td colspan="3"><b>गम्यौपम्याश्रयाः – पदार्थवाक्यार्थगताः, भेदप्रधानाश्च – औपम्यं शब्देन न उच्यते, गम्यते; उत्कर्षः वा व्यतिरेकः वा भासते</b></td>
   </tr>
-</thead>
-<tbody>
   <tr data-glossary-entry>
     <td>दृष्टान्तः</td>
     <td>
@@ -807,22 +710,6 @@ flowchart LR
       <i>चन्द्रोदये (प्रस्तुते) कमलानि स्वैरिणीमुखानि च सङ्कुचन्ति ।</i>
     </td>
   </tr>
-</tbody>
-</table>
-
-#### गम्यौपम्याश्रयाः – भेदप्रधानाः
-
-यत्र सादृश्यं तु व्यङ्ग्यं भवति, किन्तु उपमेयोपमानयोः उत्कर्षः वा व्यतिरेकः मुख्यतया भासते।
-
-<table>
-<thead>
-  <tr>
-    <th><b>अलङ्कारः</b></th>
-    <th><b>लक्षणम्</b></th>
-    <th><b>उदाहरणानि</b></th>
-  </tr>
-</thead>
-<tbody>
   <tr data-glossary-entry>
     <td>व्यतिरेकः</td>
     <td>
@@ -865,22 +752,9 @@ flowchart LR
       <i>(सौन्दर्ये – खलानाम् अभावेन सभायाः शोभा)</i>
     </td>
   </tr>
-</tbody>
-</table>
-
-#### गम्यौपम्याश्रयाः – विशेषणविच्छित्तिगम्यार्थाश्रयाः
-
-यत्र सादृश्यस्य बोधः न तु साक्षात् पदेन, अपि तु विशेषणानां द्व्यर्थकता तथा चमत्कारपूर्णरचनया जायते।
-
-<table>
-<thead>
   <tr>
-    <th><b>अलङ्कारः</b></th>
-    <th><b>लक्षणम्</b></th>
-    <th><b>उदाहरणानि</b></th>
+    <td colspan="3"><b>गम्यौपम्याश्रयाः – विशेषणविच्छित्तिगम्यार्थाश्रयाः – सादृश्यस्य बोधः विशेषणानां द्व्यर्थकतया चमत्कारपूर्णरचनया च</b></td>
   </tr>
-</thead>
-<tbody>
   <tr data-glossary-entry>
     <td>अर्थान्तरन्यासः</td>
     <td>
@@ -989,6 +863,42 @@ flowchart LR
 ### विरोधमूलाः
 
 आपाततः विरोधः प्रतीयते, विचारेण स परिह्रियते ।
+
+<details>
+<summary>कार्यकारणवैचित्र्यम् – कारणे कार्ये वा परिवर्तनम्</summary>
+
+```mermaid
+flowchart TD
+  classDef base fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#222;
+  classDef main fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#222;
+  classDef side fill:#efebe9,stroke:#6d4c41,stroke-width:2px,color:#222;
+  classDef q fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#222;
+
+  START["<b>कारणं कार्यं च</b>"]:::base
+  Q{"सम्बन्धः कीदृशः ?"}:::q
+  VIBHAVANA["<b>विभावना</b><br/><small>कारणं विना कार्यम्</small>"]:::main
+  VISHESHOKTI["<b>विशेषोक्तिः</b><br/><small>कारणे सत्यपि कार्यं नास्ति</small>"]:::main
+  ASANGATI["<b>असङ्गतिः</b><br/><small>कारणम् अन्यत्र, कार्यम् अन्यत्र</small>"]:::main
+  VISHAMA["<b>विषमम्</b><br/><small>अननुरूपयोः सम्बन्धः</small>"]:::main
+  SAMA["<b>समम्</b><br/><small>अनुरूपयोः सम्बन्धः</small>"]:::main
+  VIRODHA["<b>विरोधाभासः</b><br/><small>आपाततः विरोधः</small>"]:::main
+  KAVYALINGA["<b>काव्यलिङ्गम्</b><br/><small>हेतुः वाक्यार्थरूपेण उच्यते</small>"]:::side
+  ARTHANTARA["<b>अर्थान्तरन्यासः</b><br/><small>सामान्यविशेषभावेन समर्थनम्</small>"]:::side
+
+  START --> Q
+  Q -->|"<small>कारणं नास्ति, कार्यम् अस्ति</small>"| VIBHAVANA
+  Q -->|"<small>कारणम् अस्ति, कार्यं नास्ति</small>"| VISHESHOKTI
+  Q -->|"<small>भिन्नदेशे स्थितिः</small>"| ASANGATI
+  Q -->|"<small>अयोग्ययोः योगः</small>"| VISHAMA
+  Q -->|"<small>विरोधः आभासमात्रम्</small>"| VIRODHA
+  Q -->|"<small>समर्थनार्थं हेतुः</small>"| KAVYALINGA
+  VIBHAVANA <-->|"<small>परस्परविपरीते</small>"| VISHESHOKTI
+  VISHAMA <-->|"<small>परस्परविपरीते</small>"| SAMA
+  KAVYALINGA <-->|"<small>कारणत्वेन ↔ सामान्यविशेषभावेन</small>"| ARTHANTARA
+```
+
+</details>
+
 
 <table>
 <thead>
@@ -1161,9 +1071,9 @@ flowchart LR
 </tbody>
 </table>
 
-### न्यायमूलाः
+### तर्कन्यायमूलाः
 
-#### तर्कन्यायमूलाः
+तर्कस्य (हेतुसाध्ययोः सम्बन्धस्य) आश्रयेण चारुता ।
 
 <table>
 <thead>
@@ -1201,7 +1111,9 @@ flowchart LR
 </tbody>
 </table>
 
-#### वाक्यन्यायमूलाः
+### वाक्यन्यायमूलाः
+
+वाक्यार्थविन्यासस्य (क्रमः, नियमः, समुच्चयादिः) आश्रयेण चारुता ।
 
 <table>
 <thead>
@@ -1270,7 +1182,9 @@ flowchart LR
 </tbody>
 </table>
 
-#### लोकन्यायमूलाः
+### लोकन्यायमूलाः
+
+लोकव्यवहारस्य न्यायम् आश्रित्य चारुता ।
 
 <table>
 <thead>
@@ -1341,6 +1255,8 @@ flowchart LR
 
 ### गूढार्थप्रतीतिमूलाः
 
+गूढस्य अर्थस्य प्रतीत्या चारुता ।
+
 <table>
 <thead>
   <tr>
@@ -1409,7 +1325,7 @@ flowchart LR
 </tbody>
 </table>
 
-### मिश्राः (संसृष्टिः सङ्करश्च)
+### मिश्राः
 
 अनेकेषाम् अलङ्काराणाम् एकत्र स्थितिः ।
 
@@ -1453,3 +1369,289 @@ flowchart LR
   </tr>
 </tbody>
 </table>
+
+<!--
+```mermaid
+flowchart LR
+    %% शैली-विन्यासः (Styles)
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px,font-family:Sanskrit,font-size:14px;
+    classDef base fill:#fff9c4,stroke:#fbc02d,stroke-width:3px,font-weight:bold;
+    classDef core fill:#e1f5fe,stroke:#0288d1,stroke-width:3px,font-weight:bold;
+    classDef context fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef cause fill:#ffe0b2,stroke:#f57c00,stroke-width:2px;
+
+    SHLESHA["<b>श्लेषः</b><br/><small>विशेषणानां द्व्यर्थकता</small>"]:::base
+    
+    RUPAKA["<b>रूपकम्</b><br/><small>(मुखचन्द्रः)<br/>प्रस्तुताप्रस्तुतयोः साक्षादभेदः</small>"]:::core
+    
+    SAMASOKTI["<b>समासोक्तिः</b><br/><small>(प्रस्तुते अप्रस्तुतव्यवहारः)<br/>केवलप्रस्तुतवर्णनम् + श्लेषविशेषणानि</small>"]:::context
+    
+    APRASTUTA["<b>अप्रस्तुतप्रशंसा</b><br/><small>(अप्रस्तुते प्रस्तुतव्यवहारः)<br/>केवलाप्रस्तुतवर्णनम् ⇒ प्रस्तुतबोधः</small>"]:::context
+    
+    ATISHAYOKTI["<b>अतिशयोक्तिः</b><br/><small>(दिवि चन्द्रः सञ्चरति)<br/>प्रस्तुतस्य पूर्णनिगरणम्</small>"]:::core
+    VIBHAVANA["<b>विभावना</b><br/><small>(कारणं विना कार्योत्पत्तिः)</small>"]:::cause
+    VISHESHOKTI["<b>विशेषोक्तिः</b><br/><small>(कारणे सत्यपि कार्यानुत्पत्तिः)</small>"]:::cause
+
+    %% साक्षात् दृढतर-सम्बन्धाः (Direct Connections)
+    
+    %% श्लेषस्य साक्षात् उपकारकता
+    SHLESHA --> |<small>विशेषणसाम्यं जनयति</small>| SAMASOKTI
+    SHLESHA --> |<small>अभेदं दृढीकरोति</small>| RUPAKA
+    
+    %% रूपक-समासोक्ति-सम्बन्धः
+    RUPAKA <--> |<small>रूपके द्वयोः निर्देशः समासोक्तौ एकस्यैव</small>| SAMASOKTI
+    
+    %% समासोक्ति-अप्रस्तुतप्रशंसा-द्वन्द्वः
+    SAMASOKTI <--> |<small>परस्परविपरीते</small>| APRASTUTA
+    
+    %% अतिशयोक्ति-प्रवाहः
+    RUPAKA --> |<small>अभेदाद् निगरणप्रतिबिम्बः</small>| ATISHAYOKTI
+    APRASTUTA <--> |<small>साम्यमूला अप्रस्तुतप्रशंसा अतिशयोक्तिरूपैव</small>| ATISHAYOKTI
+
+    %% ३. अतिशयोक्ति-कार्यकारण-सम्बन्धः
+    ATISHAYOKTI ---> |<small>अतिशयात् लोकसीमा-उल्लङ्घनम्</small>| VIBHAVANA
+    VIBHAVANA <--> |<small>परस्परविपरीते</small>| VISHESHOKTI
+
+```
+
+```mermaid
+flowchart LR
+    %% शैली-विन्यासः (Styles)
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px,font-family:Sanskrit,font-size:14px;
+    classDef primary fill:#e1f5fe,stroke:#0288d1,stroke-width:3px,font-weight:bold;
+    classDef loop fill:#efebe9,stroke:#5d4037,stroke-width:2px;
+    classDef logic fill:#e8f5e9,stroke:#388e3c,stroke-width:2px;
+    classDef cause fill:#ffe0b2,stroke:#f57c00,stroke-width:2px;
+    classDef context fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+
+    %% पूर्वभागस्थाः अलङ्काराः (सादृश्य-मूलक-अक्षः)
+    UPAMA["<b>उपमा</b><br/>(भेदसहितं साद्रुश्यम्)"]:::primary
+    VYATIREKA["<b>व्यतिरेकः</b><br/>(उपमेयाधिक्यम्)"]:::loop
+    RUPAKA["<b>रूपकम्</b><br/>(अभेदारोपः)"]:::primary
+    UTPREKSHA["<b>उत्प्रेक्षा</b><br/>(संभावना / शङ्का)"]:::primary
+    APAHNUTI["<b>अपह्नुतिः</b><br/>(सत्यगोपनं-आरोपः)"]:::primary
+    ATISHAYOKTI["<b>अतिशयोक्तिः</b><br/>(निगीर्याध्यवसानम्)"]:::primary
+    NIDARSHANA["<b>निदर्शना</b><br/>(असंभवद्वस्तुसम्बन्धः)"]
+
+    %% उत्तरभागस्थाः अलङ्काराः (नवीन-प्रविष्टाः)
+    SHLESHA["<b>श्लेषः</b><br/>(द्व्यर्थकता / अनेकार्थत्वम्)"]
+    SAMASOKTI["<b>समासोक्तिः</b><br/>(प्रस्तुते अप्रस्तुतस्फुरणम्)"]:::context
+    APRASTUTA["<b>अप्रस्तुतप्रशंसा</b><br/>(अप्रस्तुते प्रस्तुतस्फुरणम्)"]:::context
+    PARIKARA["<b>परिकरः</b><br/>(साभिप्राय-विशेषणानि)"]
+    VIBHAVANA["<b>विभावना</b><br/>(कारणं विना कार्योत्पत्तिः)"]:::cause
+    VISHESHOKTI["<b>विशेषोक्तिः</b><br/>(कारणे सत्यपि कार्यानुत्पत्तिः)"]:::cause
+    KAVYALINGAM["<b>काव्यलिङ्गम्</b><br/>(काव्ये हेतोः उपन्यासः)"]:::logic
+    ARTHANTARANYASA["<b>अर्थान्तरन्यासः</b><br/>(सामान्य-विशेष-समर्थनम्)"]:::logic
+
+    %% सादृश्य-अक्षस्य सम्बन्धः (पूर्वप्रवाहः)
+    UPAMA --> |उत्कर्षः| VYATIREKA
+    UPAMA --> |भेदत्यागः| RUPAKA
+    RUPAKA --> |संभावना| UTPREKSHA
+    UTPREKSHA --> |निषेधः| APAHNUTI
+    APAHNUTI --> |निगरणम्| ATISHAYOKTI
+    RUPAKA -.-> |तार्किक-असंभवः| NIDARSHANA
+
+    %% पूर्वभाग-उत्तरभागयोः साक्षात् परस्परसम्बन्धाः (Cross-Connections)
+    
+    %% १. रूपक-समासोक्ति-अप्रस्तुतप्रशंसा-चक्रम्
+    RUPAKA <--> |भगिनी-सम्बन्धः: विशेषणसाम्यात्| SAMASOKTI
+    SAMASOKTI <--> |द्वन्द्व-न्यायः: ठीक विपरीत-प्रवाहः| APRASTUTA
+    ATISHAYOKTI -.-> |मूल-भित्तिः| APRASTUTA
+
+    %% २. श्लेषस्य साक्षात् सम्बन्धः
+    SHLESHA --> |आधार-भूमिः: तन्त्रेण अनेकधर्मप्रकटनम्| RUPAKA
+    SHLESHA --> |साहाय्यम्: एकशब्देन अनेकविशेषणानि| SAMASOKTI
+
+    %% ३. अतिशयोक्ति-कार्यकारण-सम्बन्धः
+    ATISHAYOKTI ---> |अतिशयात् लोकसीमा-उल्लङ्घनम्| VIBHAVANA
+    VIBHAVANA <--> |परस्पर-विपरीत-योगः| VISHESHOKTI
+
+    %% ४. विशेषण-परिकर-काव्यलिङ्ग-सम्बन्धः
+    PARIKARA --> |साभिप्रायविशेषणैः हेतुत्व-सिद्धिः| KAVYALINGAM
+    KAVYALINGAM --> |सूक्ष्मा युक्तिः विस्तृता भवति| ARTHANTARANYASA
+
+```
+
+```mermaid
+flowchart LR
+    %% शैली-विन्यासः (Styles)
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px,font-family:Sanskrit,font-size:14px;
+    classDef cause fill:#ffe0b2,stroke:#f57c00,stroke-width:2px,font-weight:bold;
+    classDef logic fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,font-weight:bold;
+    classDef context fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,font-weight:bold;
+
+    %% १. कार्य-कारण-कुलम् (Causality Group)
+    VIBHAVANA["<b>विभावना</b><br/>(कारणं विना कार्योत्पत्तिः)<br/>कारणनिषेधेऽपि फलोदयः"]:::cause
+    VISHESHOKTI["<b>विशेषोक्तिः</b><br/>(कारणे सत्यपि कार्यानुत्पत्तिः)<br/>सत्सु कारणेषु फलाभावः"]:::cause
+    VISHAMAM["<b>विषमम्</b><br/>(कारण-कार्ययोः अनुरुपताभावः)<br/>विरुद्धयोः संयोगः / अनर्थोत्पत्तिः"]:::cause
+
+    %% २. युक्ति-प्रमाण-कुलम् (Logic Group)
+    KAVYALINGAM["<b>काव्यलिङ्गम्</b><br/>(पदार्थ-वाक्यार्थगता युक्तिः)<br/>काव्ये हेतोः उपन्यासः"]:::logic
+    ARTHANTARANYASA["<b>अर्थान्तरन्यासः</b><br/>(समर्थन-प्रक्रिया)<br/>सामान्य-विशेषयोः परस्परसमर्थनम्"]:::logic
+
+    %% ३. प्रस्तुत-अप्रस्तुत-सम्बन्धः (Contextual Context)
+    SAMASOKTI["<b>समासोक्तिः</b><br/>(प्रस्तुते अप्रस्तुतस्य स्फुरणम्)<br/>विशेषणसाम्यात् व्यवहाराद्वा भेदः"]:::context
+
+    %% सम्बन्धाः विरोधाधारेण (Causality Links)
+    VIBHAVANA <--> |परस्पर-विपरीत-न्यायः| VISHESHOKTI
+    VISHESHOKTI --> |कार्य-कारणयोः गुणानां विरोधः| VISHAMAM
+
+    %% युक्ति-सम्बन्धाः (Logic Links)
+    KAVYALINGAM --> |सूक्ष्मा युक्तिः समर्थिका भूत्वा गच्छति| ARTHANTARANYASA
+
+    %% अन्यकुलसम्बन्धः (Bridge to the previous chart)
+    SAMASOKTI -.-> |अप्रस्तुत-आरोपात् इयं रूपकस्य भगिनी| RUPAKA["रूपकम्<br/>(पूर्वचित्रात्)"]
+
+```
+
+-->
+
+
+<!--
+<details>
+<summary>उपमा-मूलः परिवर्तनक्रमः – भेदः, अभेदः, सम्भावना, आधिक्यं च</summary>
+
+```mermaid
+flowchart LR
+  classDef base fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#222;
+  classDef main fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#222;
+  classDef side fill:#efebe9,stroke:#6d4c41,stroke-width:2px,color:#222;
+  classDef q fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#222;
+
+  UPAMA["<b>उपमा</b><br/><small>मुखं चन्द्र इव<br/>भेदः स्पष्टः</small>"]:::base
+  RUPAKA["<b>रूपकम्</b><br/><small>मुखचन्द्रः<br/>अभेदारोपः</small>"]:::main
+  PARINAMA["<b>परिणामः</b><br/><small>आरोप्यं कार्ये उपयुज्यते</small>"]:::main
+  APAHNUTI["<b>अपह्नुतिः</b><br/><small>नेदं मुखम्, चन्द्र एवायम्</small>"]:::main
+  UTPREKSHA["<b>उत्प्रेक्षा</b><br/><small>मुखं चन्द्र इति सम्भावना</small>"]:::main
+  ATISHAYOKTI["<b>अतिशयोक्तिः</b><br/><small>उपमेयं निगीर्य<br/>केवलम् उपमानम्</small>"]:::main
+  VYATIREKA["<b>व्यतिरेकः</b><br/><small>उपमेयस्य आधिक्यम्</small>"]:::side
+  ANANVAYA["<b>अनन्वयः</b><br/><small>मुखं मुखमिव</small>"]:::side
+  UPAMEYOPAMA["<b>उपमेयोपमा</b><br/><small>मुखं चन्द्र इव<br/>चन्द्रो मुखमिव</small>"]:::side
+  PRATIPA["<b>प्रतीपम्</b><br/><small>उपमानस्य तिरस्कारः</small>"]:::side
+
+  UPAMA -->|"भेदः त्यज्यते"| RUPAKA
+  RUPAKA -->|"आरोप्यं क्रियायाम् उपयुज्यते"| PARINAMA
+  RUPAKA -->|"उपमेयस्य निषेधः"| APAHNUTI
+  RUPAKA -->|"उपमेयं निगीर्यते"| ATISHAYOKTI
+  UPAMA -->|"निश्चयः न, सम्भावना"| UTPREKSHA
+  UTPREKSHA -->|"साध्यः अध्यवसायः सिद्धः भवति"| ATISHAYOKTI
+  UPAMA -->|"उपमेयम् अधिकं वर्ण्यते"| VYATIREKA
+  UPAMA -->|"उपमानम् उपमेयं च एकमेव"| ANANVAYA
+  UPAMA -->|"उभयोः क्रमेण उपमा"| UPAMEYOPAMA
+  UPAMA -->|"उपमानम् उपमेयीक्रियते"| PRATIPA
+```
+
+</details>
+
+<details>
+<summary>सादृश्यात् जायमानाः मानसिकस्थितयः – सन्देहः, भ्रान्तिः, स्मरणम्, उल्लेखः</summary>
+
+```mermaid
+flowchart LR
+  classDef base fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#222;
+  classDef main fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#222;
+  classDef side fill:#efebe9,stroke:#6d4c41,stroke-width:2px,color:#222;
+  classDef q fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#222;
+
+  S["<b>सादृश्यदर्शनम्</b><br/><small>प्रकृते अन्यस्य सादृश्यम्</small>"]:::base
+  SANDEHA["<b>सन्देहः</b><br/><small>किमिदं मुखम्, उत चन्द्रः ?</small>"]:::main
+  BHRANTI["<b>भ्रान्तिमान्</b><br/><small>मुखं चन्द्रं मत्वा चकोरः धावति</small>"]:::main
+  SMARANA["<b>स्मरणम्</b><br/><small>चन्द्रं दृष्ट्वा प्रियामुखस्य स्मृतिः</small>"]:::main
+  ULLEKHA["<b>उल्लेखः</b><br/><small>एकं वस्तु द्रष्टृभेदात्<br/>अनेकधा वर्ण्यते</small>"]:::main
+
+  S -->|"कः इति निश्चयः न"| SANDEHA
+  SANDEHA -->|"संशयः मिथ्यानिश्चये परिणमति"| BHRANTI
+  S -->|"एकस्य अन्यत्वेन निश्चयः"| BHRANTI
+  S -->|"पूर्वानुभूतस्य स्मृतिः"| SMARANA
+  S -->|"द्रष्टारः विषयाः वा भिन्नाः"| ULLEKHA
+```
+
+</details>
+
+<details>
+<summary>गम्यसादृश्यम् – धर्मः कथम् उच्यते इत्यनेन भेदः</summary>
+
+```mermaid
+flowchart LR
+  classDef base fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#222;
+  classDef main fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#222;
+  classDef side fill:#efebe9,stroke:#6d4c41,stroke-width:2px,color:#222;
+  classDef q fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#222;
+
+  START["<b>गम्यसादृश्यम्</b><br/><small>इवादिवाचकः नास्ति</small>"]:::base
+  Q1{"धर्मः कथम् उच्यते ?"}:::q
+  Q2{"कयोः सम्बन्धः ?"}:::q
+  DIPAKA["<b>दीपकम्</b><br/><small>एकः धर्मः प्रस्तुतेऽप्रस्तुते च<br/>मदेन भाति कलभः प्रतापेन महीपतिः</small>"]:::main
+  TULYA["<b>तुल्ययोगिता</b><br/><small>एकः धर्मः केवलं प्रस्तुतानां<br/>अथवा अप्रस्तुतानाम्</small>"]:::main
+  PRATI["<b>प्रतिवस्तूपमा</b><br/><small>तापेन भ्राजते सूरः<br/>शूरश्चापेन राजते</small>"]:::main
+  DRISHTANTA["<b>दृष्टान्तः</b><br/><small>धर्मौ भिन्नौ, बिम्बप्रतिबिम्बभावः<br/>राजा रक्षति, सूर्यः प्रकाशयति</small>"]:::main
+  NIDARSHANA["<b>निदर्शना</b><br/><small>असम्भवन् वस्तुसम्बन्धः<br/>तितीर्षुर्दुस्तरं ... उडुपेन सागरम्</small>"]:::main
+
+  START --> Q1
+  Q1 -->|"सकृत्, एक एव"| Q2
+  Q2 -->|"प्रस्तुताप्रस्तुतयोः उभयोः"| DIPAKA
+  Q2 -->|"केवलं प्रस्तुतानाम् अथवा अप्रस्तुतानाम्"| TULYA
+  Q1 -->|"वाक्यद्वये भिन्नशब्दाभ्यां द्विः"| PRATI
+  PRATI -->|"धर्मः अपि भिन्नः भवति"| DRISHTANTA
+  Q1 -->|"वाक्यार्थयोः असम्भवन् अभेदसम्बन्धः"| NIDARSHANA
+```
+
+</details>
+
+
+<details>
+<summary>उक्तिभङ्गी – वक्तव्यम् अर्थं कथं कथ्यते</summary>
+
+```mermaid
+flowchart LR
+  classDef base fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#222;
+  classDef main fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#222;
+  classDef side fill:#efebe9,stroke:#6d4c41,stroke-width:2px,color:#222;
+  classDef q fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#222;
+
+  START["<b>वक्तव्यः अर्थः</b>"]:::base
+  Q{"कथं कथ्यते ?"}:::q
+  PARYAYA["<b>पर्यायोक्तम्</b><br/><small>साक्षादनुक्त्वा प्रकारान्तरेण</small>"]:::main
+  AKSHEPA["<b>आक्षेपः</b><br/><small>वक्तुमिष्टस्य आपाततः निषेधः</small>"]:::main
+  VYAJASTUTI["<b>व्याजस्तुतिः</b><br/><small>निन्दाच्छलेन स्तुतिः</small>"]:::main
+  VYAJOKTI["<b>व्याजोक्तिः</b><br/><small>प्रकटितस्य भावस्य<br/>मिथ्याकारणेन गोपनम्</small>"]:::main
+  APRASTUTA["<b>अप्रस्तुतप्रशंसा</b><br/><small>अप्रस्तुतवर्णनेन प्रस्तुतबोधः</small>"]:::main
+  PARIKARA["<b>परिकरः</b><br/><small>साभिप्रायविशेषणैः</small>"]:::main
+
+  START --> Q
+  Q -->|"भङ्ग्यन्तरेण"| PARYAYA
+  Q -->|"निषेधाभासेन"| AKSHEPA
+  Q -->|"निन्दाव्याजेन"| VYAJASTUTI
+  Q -->|"मिथ्याहेतुना गोपनम्"| VYAJOKTI
+  Q -->|"अन्यस्य वर्णनेन"| APRASTUTA
+  Q -->|"विशेषणद्वारा सूचना"| PARIKARA
+```
+
+</details>
+
+<details>
+<summary>गुणसंसर्गः – संसर्गे गुणः गृह्यते न वा</summary>
+
+```mermaid
+flowchart LR
+  classDef base fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#222;
+  classDef main fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#222;
+  classDef side fill:#efebe9,stroke:#6d4c41,stroke-width:2px,color:#222;
+  classDef q fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#222;
+
+  START["<b>भिन्नगुणयोः संसर्गः</b>"]:::base
+  Q{"फलं किम् ?"}:::q
+  TADGUNA["<b>तद्गुणः</b><br/><small>स्वगुणं त्यक्त्वा<br/>उत्कृष्टगुणग्रहणम्</small>"]:::main
+  ATADGUNA["<b>अतद्गुणः</b><br/><small>संसर्गे सत्यपि<br/>अन्यगुणः न गृह्यते</small>"]:::main
+  MILITA["<b>मीलितम्</b><br/><small>समानलक्षणेन अन्येन<br/>तिरोधानम्</small>"]:::main
+
+  START --> Q
+  Q -->|"उत्कृष्टगुणं गृह्णाति"| TADGUNA
+  Q -->|"न गृह्णाति"| ATADGUNA
+  Q -->|"सहजगुणतुल्येन आच्छादनम्"| MILITA
+  TADGUNA <-->|"परस्परविपरीते"| ATADGUNA
+```
+
+</details>
+
+-->
