@@ -18,7 +18,7 @@ gloss_types:
     css_style: basic_gloss
     label_from_attr: data-name
     hideable: true
-    hidden_by_default: true
+    hidden_by_default: false
   - data_type: udaharana
     css_style: shifted_italic
     hideable: false
