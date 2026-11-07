@@ -17,6 +17,10 @@ gloss_types:
     css_style: standout_italic
     hideable: false
     hidden_by_default: false
+  - data_type: vyakhyana
+    css_style: basic_gloss
+    hideable: true
+    hidden_by_default: false
 header: |
   **स्मृताऽपि तरुणातपं करुणया हरन्ती नृणाम्<br>
   अभङ्गुरतनुत्विषां वलयिता शतैर्विद्युताम्।<br>
