@@ -30,3 +30,10 @@ toc:
          - file: kd-17.md
          - file: kd-18.md
          - file: kd-19.md
+   - title: "शुकनासोपदेशवर्णनम्"
+     children:
+         - file: kd2-01.md
+         - file: kd2-02.md
+         - file: kd2-03.md
+         - file: kd2-04.md
+         - file: kd2-05.md
