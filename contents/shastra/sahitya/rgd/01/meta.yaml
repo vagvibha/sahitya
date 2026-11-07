@@ -3,3 +3,18 @@ chapter_display_style: sections
 dict:
    title: "[प्रथमाननम्]"
    type: notes
+toc:
+   - file: rgd1-01.md
+   - file: rgd1-02.md
+   - file: rgd1-03.md
+   - title: "काव्यभेदाः"
+     children:
+        - file: rgd1-04.md
+        - file: rgd1-04-1.md
+        - file: rgd1-05.md
+        - file: rgd1-06.md   
+   - file: rgd1-07.md
+   - title: "रसस्वरूपम्"
+     children:
+        - file: rgd1-08.md
+        - file: rgd1-09.md
