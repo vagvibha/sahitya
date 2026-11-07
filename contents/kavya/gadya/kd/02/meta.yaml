@@ -1,5 +1,29 @@
 title: "कथामुखम् (पूर्वभागः)"
 chapter_display_style: sections
+shloka_toc: false
 dict:
    title: "[कथामुखम्]"
    type: notes
+toc:
+   - title: "राजा शूद्रकवर्णनं विदिषापुरीवर्णनं च"
+     children:
+         - file: kd-01.md
+         - file: kd-02.md
+         - file: kd-03.md
+   - title: "चाण्डालकन्यायाः राजसभायाम् आगमनं, शुकवृत्तान्तप्रदानं च"
+     children:
+         - file: kd-04.md
+         - file: kd-05.md
+         - file: kd-06.md
+         - file: kd-07.md
+         - file: kd-08.md
+         - file: kd-09.md
+         - file: kd-10.md
+   - title: "शुकस्य (वैशम्पायनस्य) पूर्वजन्मवृत्तान्तवर्णनं विन्ध्यारण्ये शबरवृत्तान्तश्च"
+     children:
+         - file: kd-11.md
+         - file: kd-12.md
+         - file: kd-13.md
+         - file: kd-14.md
+         - file: kd-15.md
+         - file: kd-16.md
