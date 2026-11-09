@@ -38,6 +38,12 @@ toc:
          - file: kd-25.md
          - file: kd-26.md
          - file: kd-27.md
+         - file: kd-28.md
+         - file: kd-29.md
+   - title: "कथाप्रारम्भः"
+     children:
+         - file: kd-30.md
+         - file: kd-31.md
    - title: "शुकनासोपदेशवर्णनम्"
      children:
          - file: kd2-01.md
