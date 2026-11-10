@@ -1,25 +1,27 @@
-title: "कथामुखम् (पूर्वभागः)"
+title: "कथामुखम्"
 chapter_display_style: sections
 shloka_toc: false
 dict:
-   title: "[कथामुखम्]"
+   title: " (कथामुखम्)"
    type: notes
 toc:
-   - title: "राजा शूद्रकवर्णनं विदिषापुरीवर्णनं च"
+   - title: "शूद्रकस्य परिचयः तथा विदिशावर्णनम्"
      children:
          - file: kd-01.md
          - file: kd-02.md
          - file: kd-03.md
-   - title: "चाण्डालकन्यायाः राजसभायाम् आगमनं, शुकवृत्तान्तप्रदानं च"
+   - title: "चाण्डालकन्यायाः आगमनं शुकप्रदानं च"
      children:
          - file: kd-04.md
          - file: kd-05.md
+   - title: "शूद्रकस्य शुकश्रवणाय सभाप्रवेशः"
+     children:
          - file: kd-06.md
          - file: kd-07.md
          - file: kd-08.md
          - file: kd-09.md
          - file: kd-10.md
-   - title: "शुकस्य (वैशम्पायनस्य) पूर्वजन्मवृत्तान्तवर्णनं विन्ध्यारण्ये शबरवृत्तान्तश्च"
+   - title: "शुकस्य पूर्वजन्मवृत्तान्तः तथा विन्ध्यारण्यवर्णनम्"
      children:
          - file: kd-11.md
          - file: kd-12.md
@@ -27,6 +29,8 @@ toc:
          - file: kd-14.md
          - file: kd-15.md
          - file: kd-16.md
+   - title: "शबरवृत्तान्तः तथा शुकस्य जाबाल्याश्रमप्राप्तिः"
+     children:
          - file: kd-17.md
          - file: kd-18.md
          - file: kd-19.md
@@ -38,49 +42,7 @@ toc:
          - file: kd-25.md
          - file: kd-26.md
          - file: kd-27.md
+   - title: "आश्रमस्य सन्ध्यारात्रिवर्णनम्"
+     children:
          - file: kd-28.md
          - file: kd-29.md
-   - title: "कथाप्रारम्भः"
-     children:
-         - file: kd-30.md
-         - file: kd-31.md
-         - file: kd-32.md
-         - file: kd-33.md
-         - file: kd-34.md
-         - file: kd-35.md
-         - file: kd-36.md
-         - file: kd-37.md
-         - file: kd-38.md
-         - file: kd-39.md
-         - file: kd-40.md
-         - file: kd-41.md
-         - file: kd-42.md
-         - file: kd-43.md
-         - file: kd-44.md
-         - file: kd-45.md
-         - file: kd-46.md
-         - file: kd-47.md
-         - file: kd-48.md
-         - file: kd-49.md
-         - file: kd-50.md
-         - file: kd-51.md
-         - file: kd-52.md
-         - file: kd-53.md
-         - file: kd-54.md
-         - file: kd-55.md
-         - file: kd-56.md
-         - file: kd-57.md
-         - file: kd-58.md
-         - file: kd-59.md
-         - file: kd-60.md
-         - file: kd-61.md
-         - file: kd-62.md
-         - file: kd-63.md
-         - file: kd-64.md
-   - title: "शुकनासोपदेशवर्णनम्"
-     children:
-         - file: kd2-01.md
-         - file: kd2-02.md
-         - file: kd2-03.md
-         - file: kd2-04.md
-         - file: kd2-05.md

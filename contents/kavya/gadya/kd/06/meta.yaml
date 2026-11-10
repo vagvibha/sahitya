@@ -1,0 +1,17 @@
+title: "मृगयाप्रस्थानं पत्रलेखापरिचयश्च"
+ignore: true
+chapter_display_style: sections
+shloka_toc: false
+dict:
+   title: " (मृगयाप्रस्थानं पत्रलेखापरिचयश्च)"
+   type: notes
+toc:
+   - title: "राजकुमारस्य प्रदोषवर्णनम् तथा मृगयाप्रस्थानम्"
+     children:
+         - file: kd-61.md
+         - file: kd-62.md
+   - title: "मृगयाविश्रामः तथा पत्रलेखापरिचयः"
+     children:
+         - file: kd-63.md
+         - file: kd-64.md
+

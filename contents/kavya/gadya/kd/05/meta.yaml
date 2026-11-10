@@ -1,0 +1,29 @@
+title: "चन्द्रापीडस्य युवराजप्रवेशः तथा राजकुलजीवनम्"
+ignore: true
+chapter_display_style: sections
+shloka_toc: false
+dict:
+   title: " (चन्द्रापीडस्य युवराजप्रवेशः तथा राजकुलजीवनम्)"
+   type: notes
+toc:
+   - title: "कुमारशिक्षा तथा यौवनप्रवेशः"
+     children:
+         - file: kd-48.md
+         - file: kd-49.md
+   - title: "राजप्रासादागमनम् तथा इन्द्रायुधदर्शनम्"
+     children:
+         - file: kd-50.md
+         - file: kd-51.md
+         - file: kd-52.md
+   - title: "विद्यामन्दिरान्निर्गमनं नगरप्रवेशश्च"
+     children:
+         - file: kd-53.md
+         - file: kd-54.md
+         - file: kd-55.md
+         - file: kd-56.md
+   - title: "राजकुलप्रवेशः तथा कुटुम्बदर्शनम्"
+     children:
+         - file: kd-57.md
+         - file: kd-58.md
+         - file: kd-59.md
+         - file: kd-60.md

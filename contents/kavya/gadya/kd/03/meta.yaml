@@ -1,0 +1,17 @@
+title: "उज्जयिनी तथा तारापीडराज्यवर्णनम्"
+ignore: true
+chapter_display_style: sections
+shloka_toc: false
+dict:
+   title: " (उज्जयिनी तथा तारापीडराज्यवर्णनम्)"
+   type: notes
+toc:
+   - title: "उज्जयिनीनगरी तथा राजपरिचयः"
+     children:
+         - file: kd-30.md
+         - file: kd-31.md
+   - title: "राजमन्त्रिपरिचयः तथा राजवैभवम्"
+     children:
+         - file: kd-32.md
+         - file: kd-33.md
+         - file: kd-34.md
