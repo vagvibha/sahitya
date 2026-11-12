@@ -7,8 +7,17 @@ dict:
    folder: kavya
 gloss_types:
   - data_type: notes
+    label: "विमर्शः"
+    label_from_attr: data-label
     css_style: fine_print
     hideable: true
+    boxed: closed
+    hidden_by_default: false
+  - data_type: sandhi
+    label: "सन्धिविच्छेदः"
+    css_style: fine_print
+    hideable: true
+    boxed: closed
     hidden_by_default: false
 header: |
   **रजोजुषे जन्मनि सत्ववृत्तये स्थितौ प्रजानां प्रलये तमःस्पृशे ।<br>
