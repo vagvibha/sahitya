@@ -255,3 +255,13 @@ types:
     label_from_attr: label
     hideable: false
     hidden_by_default: false
+  - data_type: hilighta
+    class: vada
+    css_style: vada_question
+    hideable: false
+    hidden_by_default: false
+  - data_type: hilightb
+    class: vada
+    css_style: vada_answer
+    hideable: false
+    hidden_by_default: false
