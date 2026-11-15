@@ -71,6 +71,9 @@ topics:
   # this off, since its texts have no use for it. See TopicsConfig's
   # own docstring in generate_indices.py.
   chandas_alankara: true
+  # Every <topic define=...> definition also goes into the dictionary, as
+  # dict/sshastra/paribhasha/<topic>.txt (see ssengine docs/dict.md).
+  dict_folder: "sshastra"
 
 # Default word used for a chapter's nav label when neither the chapter's
 # own meta.yaml (chapter_name:) nor the text's meta.yaml (chapter_type:)
