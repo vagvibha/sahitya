@@ -26,3 +26,7 @@ gloss_types:
     css_style: fine_print
     hideable: true
     hidden_by_default: true
+  - data_type: vyakhyana
+    css_style: basic_gloss
+    hideable: true
+    hidden_by_default: false
