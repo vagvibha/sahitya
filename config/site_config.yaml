@@ -23,6 +23,9 @@ topics:
   dir: "topics"
   h1_label: "शास्त्रीयविषयाः"
   chandas_alankara: true
+  # Every <topic define=...> definition also goes into the dictionary, as
+  # dict/sshastra/paribhasha/<topic>.txt (see ssengine docs/dict.md).
+  dict_folder: "sshastra"
 
 default_chapter_word: "अध्यायः"
 

@@ -32,7 +32,7 @@
    anywhere. Distinguishing one type of content from another is left
    entirely to font/weight/style/color/indentation (each type's own
    rule below), never to spacing.
-   The ONE deliberate exception is .shloka[highlight="true"] — a
+   The ONE deliberate exception is .shloka[highlight] — a
    bordered/padded callout box, which needs real breathing room around
    it precisely because it's meant to visually interrupt the normal
    flow, not blend into it. See that rule further down.
@@ -92,11 +92,11 @@
   line-height: 1.9;
 }
 
-/* --- highlight="true" — an optional, independent flag any shloka can
+/* --- highlight (bare attribute) — an optional, independent flag any shloka can
    carry regardless of data-type, for marking a particularly important
    verse. Warm gold/amber tint (deliberately not red, which reads as an
    error/warning in this theme). --------------------------------------- */
-.md-typeset .shloka[highlight="true"] {
+.md-typeset .shloka[highlight] {
   background: rgba(255, 179, 0, 0.14);
   border-left: 4px solid #ffab00;
   border-radius: 0.2rem;
@@ -107,7 +107,7 @@
                         not part of the normal shloka-to-shloka flow */
 }
 
-[data-md-color-scheme="slate"] .md-typeset .shloka[highlight="true"] {
+[data-md-color-scheme="slate"] .md-typeset .shloka[highlight] {
   background: rgba(255, 179, 0, 0.1);
 }
 
@@ -219,7 +219,7 @@
 /* vada_question / vada_answer — a quiet tinted box around an objection/
    doubt/question (rose) and around its answer (teal): clearly set apart
    from the surrounding text, but lighter than the amber
-   shloka[highlight="true"] callout. Rose rather than red so it doesn't
+   shloka[highlight] callout. Rose rather than red so it doesn't
    read as an error; the two hues are complementary, so a question and
    the answer right after it are easy to tell apart. Like highlight, a
    box gets a little margin — the one exception to the zero-margin
