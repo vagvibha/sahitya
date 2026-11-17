@@ -1,50 +1,13 @@
-# site_config.yaml
-# =================
-# Site-level + structural settings for generate_indices.py. Edit this file
-# (not the script) to change these — it's re-read every run. Adding a new
-# top-level content section (beyond shastra/kavya) is purely a matter of
-# adding an entry to content_sections below, PROVIDED the section's
-# directory follows the same on-disk convention:
-#
-#   <dir>/meta.yaml        (optional — section-level notes, not required)
-#   <dir>/texts/<slug>/meta.yaml, <dir>/texts/<slug>/<chapter>/*.md, ...
-#
-# Topics (see `topics:` below) are NOT part of any content section — they
-# live at the repo root (`<topics.dir>/<category>/...`), since a topic is
-# commonly referenced from texts across several different sections, same
-# as shastra (this script's sibling project).
-#
-# No Python changes are needed to add a section that follows this shape.
-
 site_name: "साहित्यशास्त्रम्"
-
-# Google Analytics 4 property ID (e.g. "G-XXXXXXXXXX") — wired into
-# mkdocs.yml's extra.analytics block (Material's built-in GA4 support).
-# Leave blank/omit to build with no analytics at all.
 google_analytics_property: "G-86P5515DPZ"
 
 theme:
   primary: "deep orange"
   accent: "amber"
-  # MkDocs Material's OWN built-in UI-string translation — search box,
-  # footer, edit-this-page, the "Table of contents" sidebar heading,
-  # etc. Full list of ~70 supported codes:
-  # https://squidfunk.github.io/mkdocs-material/setup/changing-the-language/
-  # "sa" (Sanskrit) is Material's own official pack — it already
-  # translates every one of those strings, including the "Table of
-  # contents" heading itself ("सामग्रीसारणी"). This is separate from,
-  # and in addition to, the labels: block below (which only covers
-  # strings generate_indices.py itself writes into page content, not
-  # Material's surrounding theme chrome).
   language: "sa"
 
 labels:
-  home_title: "साहित्यशास्त्रम्"
-  # Every other UI string the generated site shows, previously literal
-  # Python strings in scripts/generate_indices.py — a differently-labeled
-  # or non-Devanagari deployment now only needs to edit this file. Each
-  # default below (shown in comments) matches the string it replaced, so
-  # omitting a key keeps the current site looking exactly the same.
+  home_title: "साहित्यशास्त्रस्वाध्यायसामग्री"
   home_nav_label: "मुखपृष्ठम्"        # nav root entry (mkdocs.yml nav's first item)
   home_button_label: "मुखपृष्ठम्"     # the Home button in every page's own top navbar
   intro_nav_label: "परिचयः"           # per-text "introduction" TOC nav label
@@ -56,40 +19,13 @@ labels:
   definition_column_heading: "परिभाषा" # definitions table column: the definition text itself
   source_column_heading: "मूलम्"      # definitions table column: which text/chapter it's from
 
-# Topics — the repo-root directory topic categories live under (see the
-# generate_indices.py module docstring for the full topics/ layout).
-# `h1_label:` is both the topics listing page's own heading AND its
-# home-page card's/nav entry's label. Reuses the site's own previous
-# "शास्त्रीयविषयाः" label (this used to be the shastra section's own
-# h2_topics_label) so nothing changes for a reader, even though topics
-# themselves are no longer nested under the shastra section.
 topics:
   dir: "topics"
   h1_label: "शास्त्रीयविषयाः"
-  # This site tracks kavya meter/figures of speech (topics/chandas.md,
-  # topics/alankara.md) — shastra (this script's sibling project) leaves
-  # this off, since its texts have no use for it. See TopicsConfig's
-  # own docstring in generate_indices.py.
   chandas_alankara: true
 
-# Default word used for a chapter's nav label when neither the chapter's
-# own meta.yaml (chapter_name:) nor the text's meta.yaml (chapter_type:)
-# provides one. Per-section fallback lives on each content_sections entry
-# below (default_chapter_word); this is only the last-resort fallback if
-# a section entry omits it too.
 default_chapter_word: "अध्यायः"
 
-# Site-wide default for whether a shloka's pada line breaks are rendered
-# as explicit <br /> tags. .shloka uses white-space: normal (see
-# docs/stylesheets/custom.css for why — pre-line had a real rendering
-# bug), so a plain newline within a shloka's source text collapses to a
-# space unless generate_indices.py puts an explicit line break back in.
-# false (the default if this key is absent, matching the request that
-# introduced it): don't inject any — a shloka renders as running text,
-# only line-wrapped by the browser same as any paragraph.
-# true: each pada lands on its own line, exactly like the source.
-# Override per-book in that text's meta.yaml (same key name) — this is
-# only the site-wide fallback when a text doesn't set its own.
 maintain_shloka_linebreak: true
 
 dictionaries:
@@ -114,13 +50,6 @@ content_sections:
   - dir: "kavya"
     h1_label: "काव्यानि"
     default_chapter_word: "भागः"
-    # Multiple text directories under kavya/, each its own H2 heading on
-    # the home page card / kavya/index.md / nav — purely categorization,
-    # no effect on how a text's own content is processed (see
-    # SectionConfig.text_groups / Text.group in generate_indices.py). A
-    # section that only ever needs ONE grouping (e.g. shastra above)
-    # just omits text_groups: entirely — it falls back to a single
-    # implicit group at <dir>/texts/, headed h2_text_label.
     text_groups:
       - dir: "gadya"
         h2_label: "गद्यम्"
