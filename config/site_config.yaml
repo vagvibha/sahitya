@@ -55,8 +55,10 @@ content_sections:
     default_chapter_word: "भागः"
     text_groups:
       - dir: "gadya"
-        h2_label: "गद्यम्"
+        h2_label: "गद्यानि"
       - dir: "padya"
-        h2_label: "पद्यम्"
+        h2_label: "पद्यानि"
       - dir: "nataka"
-        h2_label: "नाटकम्"
+        h2_label: "नाटकानि"
+      - dir: "gita"
+        h2_label: "गीतानि"
