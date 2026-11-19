@@ -3,7 +3,7 @@ title: "जयतु संस्कृतं विश्ववन्दित�
 ---
 
 <audio controls>
-  <source src="/assets/audio/gita/jayatu-samskritam.mp3" type="audio/mpeg">
+  <source src="/assets/audio/gita/jayatu-samskritam.m4a" type="audio/mp4">
   Your browser does not support the audio element.
 </audio>
 
