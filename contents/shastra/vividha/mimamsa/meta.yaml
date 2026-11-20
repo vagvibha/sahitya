@@ -1,0 +1,13 @@
+skip_text_index: true
+title: "मीमांसादर्शनम्"
+chapters: पाठाः
+shloka_toc: false
+default_class: vritti
+order: 5
+source:
+   - http://msp.ac.in
+gloss_types:
+  - data_type: notes
+    css_style: fine_print
+    hideable: true
+    hidden_by_default: false
