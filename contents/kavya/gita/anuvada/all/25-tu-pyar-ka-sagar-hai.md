@@ -2,7 +2,7 @@
 title: "तू प्यार का सागर है (त्वं प्रेम्णस्-सागरोऽसि)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/ELmU3GXcuuo?t=1258)*
+*मूलम् – [अत्र](https://youtu.be/ELmU3GXcuuo?t=1258)*
 
 <table>
 <tbody>

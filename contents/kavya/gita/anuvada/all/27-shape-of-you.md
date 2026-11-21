@@ -2,7 +2,7 @@
 title: "Shape of You (सुसभ्यसदसि नैव प्राप्तप्रियः)"
 ---
 
-*मूलम् – [वार्तावली](https://www.youtube.com/watch?v=HR5UQtTBK30&list=PLPr_Lie7BaalXbI9K8sSR-tVwbfKJjRZP&index=5&ab_channel=SanskritNirjhar)*
+*मूलम् – [अत्र](https://www.youtube.com/watch?v=HR5UQtTBK30&list=PLPr_Lie7BaalXbI9K8sSR-tVwbfKJjRZP&index=5&ab_channel=SanskritNirjhar)*
 
 <table>
 <tbody>

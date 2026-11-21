@@ -1,8 +1,9 @@
 ---
+ignore: true
 title: "गोरी तेरा गांव (मनः कुरुते मे)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/RZ6H8i7AsOs?t=1188)*
+*मूलम् – [अत्र](https://youtu.be/RZ6H8i7AsOs?t=1188)*
 
 <table>
 <tbody>

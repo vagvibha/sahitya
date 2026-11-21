@@ -2,7 +2,7 @@
 title: "तारों मे सज के (तारास्वर्कं समलङ्कृतेयम्)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/zma3Cgslt5s?t=5)*
+*मूलम् – [अत्र](https://youtu.be/zma3Cgslt5s?t=5)*
 
 <table>
 <tbody>

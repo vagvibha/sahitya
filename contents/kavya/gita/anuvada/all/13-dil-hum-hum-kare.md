@@ -2,7 +2,7 @@
 title: "दिल हुम हुम करे (हृद् हुम् हुम्)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/eAuC4sslznI)*
+*मूलम् – [अत्र](https://youtu.be/eAuC4sslznI)*
 
 <table>
 <tbody>

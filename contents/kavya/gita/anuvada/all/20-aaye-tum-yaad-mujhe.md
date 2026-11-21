@@ -2,7 +2,7 @@
 title: "आये तुम याद मुझे (आगताऽसि स्मरणे मे)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/G2Y9qsduF_Q?t=1266)*
+*मूलम् – [अत्र](https://youtu.be/G2Y9qsduF_Q?t=1266)*
 
 <table>
 <tbody>

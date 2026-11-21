@@ -2,7 +2,7 @@
 title: "आजा सनम मधुर चान्दनी (एहि रे प्रिय)"
 ---
 
-*मूलम् – [वार्तावली](https://www.youtube.com/watch?v=_x8hrifQ2Vg&index=12&list=PLUrgq726yBcEGr_k8jPC-5SBHT2_6oeBO)*
+*मूलम् – [अत्र](https://www.youtube.com/watch?v=_x8hrifQ2Vg&index=12&list=PLUrgq726yBcEGr_k8jPC-5SBHT2_6oeBO)*
 
 <table>
 <tbody>

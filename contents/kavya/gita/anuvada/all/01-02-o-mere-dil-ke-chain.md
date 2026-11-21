@@ -2,7 +2,7 @@
 title: "ओ मेरे दिल के चैन (हे मे रे हृदयसुखम्)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/UQmD2geZ1ug)*
+*मूलम् – [अत्र](https://youtu.be/UQmD2geZ1ug)*
 
 <table>
 <tbody>

@@ -2,7 +2,7 @@
 title: "मेरे सपनो कि रानी (मम स्वप्नेन्द्राणि कदाऽवाप्स्यसि)"
 ---
 
-*मूलम् – [वार्तावली](https://www.youtube.com/watch?v=3-fEfYRkKTk&index=4&list=PLUrgq726yBcEGr_k8jPC-5SBHT2_6oeBO)*
+*मूलम् – [अत्र](https://www.youtube.com/watch?v=3-fEfYRkKTk&index=4&list=PLUrgq726yBcEGr_k8jPC-5SBHT2_6oeBO)*
 
 <table>
 <tbody>

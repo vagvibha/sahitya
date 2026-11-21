@@ -1,8 +1,9 @@
 ---
+ignore: true
 title: "खिलते हैं गुल यहां (सुस्मितमिह सूनम्)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/Gf59KEbfjxc?t=947)*
+*मूलम् – [अत्र](https://youtu.be/Gf59KEbfjxc?t=947)*
 
 <table>
 <tbody>

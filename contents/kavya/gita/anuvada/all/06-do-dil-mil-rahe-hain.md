@@ -1,8 +1,9 @@
 ---
+ignore: true
 title: "दो दिल मिल रहे हैं (मनसोः सङ्गमोऽयं)"
 ---
 
-*मूलम् – [वार्तावली](https://www.youtube.com/watch?v=yIAoZILUtLY)*
+*मूलम् – [अत्र](https://www.youtube.com/watch?v=yIAoZILUtLY)*
 
 <table>
 <tbody>

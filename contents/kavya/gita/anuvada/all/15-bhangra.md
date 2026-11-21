@@ -1,8 +1,8 @@
 ---
-title: "भङ्गडा (मदभयनिमिषत्प्रतिवेशि)"
+title: "भङ्गडा!"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/S_2pQfa9K3c?t=1418)*
+*मूलम् – [अत्र](https://youtu.be/S_2pQfa9K3c?t=1418)*
 
 <table>
 <tbody>

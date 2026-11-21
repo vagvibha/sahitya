@@ -2,7 +2,7 @@
 title: "मेरे रश्के कमर (मम चन्द्रद्विषे आद्यसम्मेलने)"
 ---
 
-*मूलम् – [वार्तावली](https://www.youtube.com/watch?v=ZWF33AEPdpY)*
+*मूलम् – [अत्र](https://www.youtube.com/watch?v=ZWF33AEPdpY)*
 
 <table>
 <tbody>

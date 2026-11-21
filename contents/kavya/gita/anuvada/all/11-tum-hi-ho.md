@@ -2,7 +2,7 @@
 title: "तुम हि हो (त्वां विना न)"
 ---
 
-*मूलम् – [वार्तावली](https://www.youtube.com/watch?v=KOwPF1AG6QI&index=9&list=PLUrgq726yBcEGr_k8jPC-5SBHT2_6oeBO)*
+*मूलम् – [अत्र](https://www.youtube.com/watch?v=KOwPF1AG6QI&index=9&list=PLUrgq726yBcEGr_k8jPC-5SBHT2_6oeBO)*
 
 <table>
 <tbody>

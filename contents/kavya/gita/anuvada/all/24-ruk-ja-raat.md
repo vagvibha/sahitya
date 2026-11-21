@@ -1,8 +1,9 @@
 ---
+ignore: true
 title: "रुक जा रे रात ठहर जा रे चन्दा (विरम रे निशे)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/yVXq3qEhuVA?t=1251)*
+*मूलम् – [अत्र](https://youtu.be/yVXq3qEhuVA?t=1251)*
 
 <table>
 <tbody>

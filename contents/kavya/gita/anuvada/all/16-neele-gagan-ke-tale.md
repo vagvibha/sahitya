@@ -1,8 +1,9 @@
 ---
+ignore: true
 title: "नीले गगन के तले (हेऽऽऽ नीलस्य नभसः)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/qB_KAHalykk?t=1115)*
+*मूलम् – [अत्र](https://youtu.be/qB_KAHalykk?t=1115)*
 
 <table>
 <tbody>

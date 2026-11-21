@@ -1,8 +1,9 @@
 ---
+ignore: true
 title: "कितने हि सपने अरमान (कियतः स्वप्नान् कियतः)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/wkHbim6xjp4?t=1105)*
+*मूलम् – [अत्र](https://youtu.be/wkHbim6xjp4?t=1105)*
 
 <table>
 <tbody>

@@ -2,7 +2,7 @@
 title: "Attention (व्यासङ्गः)"
 ---
 
-*मूलम् – [वार्तावली](https://www.youtube.com/watch?v=BD4ZoTshv5E)*
+*मूलम् – [अत्र](https://www.youtube.com/watch?v=BD4ZoTshv5E)*
 
 <table>
 <tbody>

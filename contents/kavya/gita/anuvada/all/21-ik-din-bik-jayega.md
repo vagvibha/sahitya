@@ -1,11 +1,18 @@
 ---
+ignore: true
 title: "इक दिन बिक जायेगा (एकेद्यू रे विक्रेयो)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/lpeCzEV3Cec?t=1140)* (anuvaadakaH - आलोककुमारः वाराणसी)
+*मूलम् – [अत्र](https://youtu.be/lpeCzEV3Cec?t=1140)* (anuvaadakaH - आलोककुमारः वाराणसी)
 
 <table>
 <tbody>
+  <tr>
+    <td>
+    </td>
+    <td>
+    </td>
+  </tr>
   <tr>
     <td>
 इक दिन बिक जाएगा माटी के मोल<br>

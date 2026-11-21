@@ -2,7 +2,7 @@
 title: "तुम इतना जो मुस्कुरा रहे हो (त्वं मन्दहासेन मुग्धवदना)"
 ---
 
-*मूलम् – [वार्तावली](https://www.youtube.com/watch?v=Q90ApoeTHZQ&index=17&list=PLUrgq726yBcEGr_k8jPC-5SBHT2_6oeBO&t=0s)*
+*मूलम् – [अत्र](https://www.youtube.com/watch?v=Q90ApoeTHZQ&index=17&list=PLUrgq726yBcEGr_k8jPC-5SBHT2_6oeBO&t=0s)*
 
 <table>
 <tbody>

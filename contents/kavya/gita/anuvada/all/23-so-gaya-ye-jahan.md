@@ -1,8 +1,9 @@
 ---
+ignore: true
 title: "सो गया ये जहां (निद्रितेयं धरा निद्रिता)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/ZDgovgMdJp8?t=1343)*
+*मूलम् – [अत्र](https://youtu.be/ZDgovgMdJp8?t=1343)*
 
 <table>
 <tbody>

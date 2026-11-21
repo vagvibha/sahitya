@@ -1,8 +1,9 @@
 ---
+ignore: true
 title: "रहा गर्दिशों मे हर दम (हृत्खेलनं प्रपश्येत् प्रणयस्य)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/siPREg7TT3c?t=1171)*
+*मूलम् – [अत्र](https://youtu.be/siPREg7TT3c?t=1171)*
 
 <table>
 <tbody>

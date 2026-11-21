@@ -1,8 +1,9 @@
 ---
+ignore: true
 title: "मौसम है आशिकाना (सन्दिश ऋतुर्ललामः तृष्याम्यहं)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/ENrxo0euheE?t=1243)*
+*मूलम् – [अत्र](https://youtu.be/ENrxo0euheE?t=1243)*
 
 <table>
 <tbody>

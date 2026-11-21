@@ -2,7 +2,7 @@
 title: "एक प्यार का नगमा है (एकं प्रणयगीतम् लहरीणां)"
 ---
 
-*मूलम् – [वार्तावली](https://youtu.be/qVBmoln-nJU?t=20)*
+*मूलम् – [अत्र](https://youtu.be/qVBmoln-nJU?t=20)*
 
 <table>
 <tbody>
